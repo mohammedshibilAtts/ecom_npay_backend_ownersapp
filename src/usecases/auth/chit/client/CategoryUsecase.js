@@ -1,9 +1,11 @@
 import mongoose, { isValidObjectId } from "mongoose";
 
 class CategoryUseCase {
-  constructor(categoryRepository,branchRepository) {
+  constructor(categoryRepository,branchRepository,s3Repo,s3Service) {
     this.categoryRepository = categoryRepository;
-    this.branchRepository=branchRepository
+    this.branchRepository=branchRepository;
+    this.s3Repo=s3Repo;
+    this.s3Service=s3Service;
   }
 
   validateObjectId(id, name) {
@@ -13,8 +15,9 @@ class CategoryUseCase {
     return null;
   }
 
-  async addCategory(categoryData) {
+  async addCategory(categoryData,files,token) {
     try {
+      console.log(categoryData)
       const branchValidation = this.validateObjectId(
         categoryData.id_branch,
         "Branch"
@@ -30,6 +33,14 @@ class CategoryUseCase {
       const existingCategory = await this.categoryRepository.findByName(
         categoryData.category_name
       );
+
+      let imageUrlFinal = null;
+      if(files && files.image){
+        imageUrlFinal=await this.handleImageUpload(files,null,token);
+      }
+      if(imageUrlFinal){  
+        categoryData.image=imageUrlFinal
+      }
 
       if (existingCategory) {
         return { success: false, message: "Category already exists." };
@@ -60,7 +71,7 @@ class CategoryUseCase {
     }
   }
 
-  async editCategory(editCategoryData, id) {
+  async editCategory(editCategoryData, id,files) {
     try {
       // if(id !== 0 && id !== ''){
       //   const idValidation = this.validateObjectId(id, "category");
@@ -115,9 +126,29 @@ class CategoryUseCase {
         return { success: false, message: "No changes found" };
       }
 
+    if (files && files.image) {
+      const s3Configs = await this.s3Helper(
+        editCategoryData.id_branch || existingCategory.id_branch
+      );
+
+      try {
+        updateFields.image = await this.s3Service.uploadToS3(
+          files.image[0],
+          "category",            
+          s3Configs            
+        );
+      } catch (error) {
+        console.error("Error uploading category image:", error);
+        return {
+          success: false,
+          message: "Failed to upload category image. Please try again."
+        };
+      }
+    }
+
       const updateCategory = await this.categoryRepository.editCategory(
         id,
-        editCategoryData
+        updateFields
       );
       if (updateCategory) {
         return { success: true, message: "Category edited successfully" };
@@ -280,11 +311,11 @@ class CategoryUseCase {
       const pageSize = limit ? parseInt(limit) : 10;
       const skip = (pageNum - 1) * pageSize;
       const filter = { is_deleted: false };
-      if(active!==""){
-        if(active==true||active==false){
-          filter.active=active
-        }
+    
+      if (active !== undefined && active !== null && active !== "") {
+        filter.active = active === true || active === "true";
       }
+
 
       if (from_date && to_date) {
         const startDate = new Date(from_date);
@@ -367,43 +398,90 @@ class CategoryUseCase {
     }
   }
 
-  async getAllCategories(branchId) {
-    try {
-      if (branchId && branchId !== "null") {
-        const checkBranch = await this.branchRepository.findById(branchId);
-        if (!checkBranch) {
-          return { success: false, message: "Branch not found" };
-        }
-      } else {
-        const branchData = await this.branchRepository.findOne();
-        if (!branchData) {
-          return { success: false, message: "No default branch found" };
-        }
-        branchId = branchData._id;
+  async getAllCategories (branchId){
+    try{
+      const idValidation = this.validateObjectId(branchId, "id_branch");
+      if (idValidation) return idValidation;
+
+      const checkBranch= await this.branchRepository.findById(branchId)
+      if(!checkBranch){
+        return {success:false,message:"Branch not found"}
       }
-  
-      const data = await this.categoryRepository.getAllCategories(branchId);
-  
-      if (data && data.length > 0) {
-        return {
-          success: true,
-          message: "Categories retrieved successfully",
-          data,
-        };
+
+      const data = await this.categoryRepository.getAllCategories(branchId)
+      if(data.length>=0){
+        return {success:true,message:"Category retrieved successfully",data}
       }
-  
-      return { success: false, message: "No categories found", data: [] };
-  
-    } catch (err) {
-      console.error("Error in getAllCategories:", err);
+      return {success:false,message:"No category found"}
+    }catch(err){
+      console.error(err);
       return {
         success: false,
-        message: "An error occurred while fetching categories",
+        message: "An error occurred while get category",
         error: err.message,
       };
     }
   }
+
+  async getAllCategoriesWithoutBranch() {
+  try {
+    const data = await this.categoryRepository.getAllCategoriesWithoutBranch();
+
+    if (data && data.length > 0) {
+      return {
+        success: true,
+        message: "All categories retrieved successfully",
+        data,
+      };
+    }
+
+    return { success: false, message: "No categories found" };
+  } catch (err) {
+    console.error(err);
+    return {
+      success: false,
+      message: "An error occurred while fetching categories",
+      error: err.message,
+    };
+  }
+}
+
+
+  async handleImageUpload(files, imageUrl, token) {
+    if (imageUrl) return imageUrl;
+    if (files.image?.[0]) {
+      const s3Settings = await this.s3Repo.getSetting();
+      if (!s3Settings) throw new Error("S3 configuration not found");
+      return await this.s3Service.uploadToS3(
+        files.image[0],
+        "category",
+        s3Settings
+      );
+    }
+    return null;
+  }
+
+    async s3Helper() {
+      try {
+        const s3settings = await this.s3Repo.getSetting();
   
+        if (!s3settings) {
+          throw new Error("S3 configuration not found");
+        }
+  
+        return {
+          s3key: s3settings.s3key,
+          s3secret: s3settings.s3secret,
+          s3bucket_name: s3settings.s3bucket_name,
+          s3display_url: s3settings.s3display_url,
+          region: s3settings.region
+        };
+      } catch (error) {
+        console.error("Error in s3Helper:", error);
+        throw error;
+      }
+    }
+
 }
 
 export default CategoryUseCase;
