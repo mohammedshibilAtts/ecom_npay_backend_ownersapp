@@ -1,4 +1,4 @@
-import Joi from 'joi';
+import Joi from "joi";
 
 class Validator {
   branchValidationSchemas = {
@@ -74,19 +74,17 @@ class Validator {
         "any.required": "Metal name is required",
         "string.empty": "Metal name cannot be empty",
         "string.base": "Metal name must be a string",
-        "string.pattern.base": "Metal name cannot contain special characters or numbers",
+        "string.pattern.base":
+          "Metal name cannot contain special characters or numbers",
       }),
   };
 
   paymentModeValidations = Joi.object({
-    id_project: Joi.string()
-      .trim()
-      .required()
-      .messages({
-        "any.required": "Project id is required",
-        "string.empty": "Project id cannot be empty",
-        "string.base": "Project id must be a string",
-      }),
+    id_project: Joi.string().trim().required().messages({
+      "any.required": "Project id is required",
+      "string.empty": "Project id cannot be empty",
+      "string.base": "Project id must be a string",
+    }),
     mode_name: Joi.string()
       .trim()
       .required()
@@ -95,7 +93,8 @@ class Validator {
         "any.required": "Mode name is required",
         "string.empty": "Mode name cannot be empty",
         "string.base": "Mode name must be a string",
-        "string.pattern.base": "Mode name cannot contain special characters or numbers",
+        "string.pattern.base":
+          "Mode name cannot contain special characters or numbers",
       }),
     payment_method_type: Joi.string()
       .trim()
@@ -105,19 +104,17 @@ class Validator {
         "any.required": "Payment method is required",
         "string.empty": "Payment method cannot be empty",
         "string.base": "Payment method must be a string",
-        "string.pattern.base": "Payment method cannot contain special characters or numbers",
-      })
+        "string.pattern.base":
+          "Payment method cannot contain special characters or numbers",
+      }),
   });
 
   menuSettngValidations = Joi.object({
-    id_project: Joi.string()
-      .trim()
-      .required()
-      .messages({
-        "any.required": "Project id is required",
-        "string.empty": "Project id cannot be empty",
-        "string.base": "Project id must be a string",
-      }),
+    id_project: Joi.string().trim().required().messages({
+      "any.required": "Project id is required",
+      "string.empty": "Project id cannot be empty",
+      "string.base": "Project id must be a string",
+    }),
     menu_name: Joi.string()
       .trim()
       .required()
@@ -126,38 +123,33 @@ class Validator {
         "any.required": "Menu name is required",
         "string.empty": "Menu name cannot be empty",
         "string.base": "Menu name must be a string",
-        "string.pattern.base": "Mode name cannot contain special characters or numbers",
+        "string.pattern.base":
+          "Mode name cannot contain special characters or numbers",
       }),
     menu_icon: Joi.string().optional(),
     component_name: Joi.string().optional(),
     menu_path: Joi.string().optional(),
-    display_order: Joi.number()
-      .required()
-      .messages({
-        "any.required": "Payment method is required",
-        "string.empty": "Payment method cannot be empty",
-        "string.base": "Payment method must be a string",
-        "string.pattern.base": "Payment method cannot contain special characters or numbers",
-      })
+    display_order: Joi.number().required().messages({
+      "any.required": "Payment method is required",
+      "string.empty": "Payment method cannot be empty",
+      "string.base": "Payment method must be a string",
+      "string.pattern.base":
+        "Payment method cannot contain special characters or numbers",
+    }),
+    isEcom: Joi.boolean(),
   });
 
   subMenuSettngValidations = Joi.object({
-    id_project: Joi.string()
-      .trim()
-      .required()
-      .messages({
-        "any.required": "Project id is required",
-        "string.empty": "Project id cannot be empty",
-        "string.base": "Project id must be a string",
-      }),
-    id_menu: Joi.string()
-      .trim()
-      .required()
-      .messages({
-        "any.required": "Project id is required",
-        "string.empty": "Project id cannot be empty",
-        "string.base": "Project id must be a string",
-      }),
+    id_project: Joi.string().trim().required().messages({
+      "any.required": "Project id is required",
+      "string.empty": "Project id cannot be empty",
+      "string.base": "Project id must be a string",
+    }),
+    id_menu: Joi.string().trim().required().messages({
+      "any.required": "Project id is required",
+      "string.empty": "Project id cannot be empty",
+      "string.base": "Project id must be a string",
+    }),
     submenu_name: Joi.string()
       .trim()
       .required()
@@ -166,41 +158,35 @@ class Validator {
         "any.required": "Menu name is required",
         "string.empty": "Menu name cannot be empty",
         "string.base": "Menu name must be a string",
-        "string.pattern.base": "Mode name cannot contain special characters or numbers",
+        "string.pattern.base":
+          "Mode name cannot contain special characters or numbers",
       }),
-    display_order: Joi.number()
-      .required()
-      .messages({
-        "any.required": "display order is required",
-        "string.empty": "display order cannot be empty",
-        "string.base": "display order must be a string",
-        "string.pattern.base": "display order cannot contain special characters or numbers",
-      }),
-    pathurl: Joi.string()
-      .required()
-      .messages({
-        "any.required": "Path url is required",
-        "string.empty": "Path url cannot be empty",
-        "string.base": "Path url must be a string",
-        "string.pattern.base": "Path url cannot contain special characters or numbers",
-      })
+    display_order: Joi.number().required().messages({
+      "any.required": "display order is required",
+      "string.empty": "display order cannot be empty",
+      "string.base": "display order must be a string",
+      "string.pattern.base":
+        "display order cannot contain special characters or numbers",
+    }),
+    pathurl: Joi.string().required().messages({
+      "any.required": "Path url is required",
+      "string.empty": "Path url cannot be empty",
+      "string.base": "Path url must be a string",
+      "string.pattern.base":
+        "Path url cannot contain special characters or numbers",
+    }),
+    isEcom: Joi.boolean(),
   });
 
-  campaignTypeValidations = Joi.object({ // todo
-    name: Joi.string()
-      .trim()
-      .required()
-      .messages({
-        "any.required": "Name is required",
-        "string.empty": "Name cannot be empty",
-        "string.base": "Name must be a string",
-      }),
-    description: Joi.string()
-      .allow(null, '')
-      .optional(),
-
+  campaignTypeValidations = Joi.object({
+    // todo
+    name: Joi.string().trim().required().messages({
+      "any.required": "Name is required",
+      "string.empty": "Name cannot be empty",
+      "string.base": "Name must be a string",
+    }),
+    description: Joi.string().allow(null, "").optional(),
   });
-
 }
 
 export default Validator;
