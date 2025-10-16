@@ -21,10 +21,15 @@ class PrintRepository {
           },
         },
       ];
- 
+
       if (filter?.accountNumber) {
         pipeline.push({
-          $match: { "schemeaccounts.scheme_acc_number": filter.accountNumber },
+          $match: {
+            "schemeaccounts.scheme_acc_number": {
+              $regex: `^${filter.accountNumber}$`,
+              $options: "i",
+            },
+          },
         });
       }
       pipeline.push({
@@ -33,9 +38,10 @@ class PrintRepository {
           payment_receipt: 1,
           paid_installments: 1,
           createdAt: 1,
+          payment_amount: 1,
         },
       });
- 
+
       const result = await paymentModel.aggregate(pipeline);
       return result;
     } catch (error) {
@@ -46,11 +52,12 @@ class PrintRepository {
       };
     }
   }
- 
+
   async getReceiptByPaymentId(paymentIds) {
     try {
+      // Convert string IDs to ObjectId
       const objectIds = paymentIds.map((id) => new mongoose.Types.ObjectId(id));
- 
+
       const result = await paymentModel.aggregate([
         {
           $match: {
@@ -73,14 +80,35 @@ class PrintRepository {
         },
 
         {
+          $lookup: {
+            from: "schemes",
+            localField: "id_scheme",
+            foreignField: "_id",
+            as: "Scheme",
+          },
+        },
+        {
+          $unwind: {
+            path: "$Scheme",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
+        {
           $project: {
             receiptNo: "$payment_receipt",
             paymentModeName: 1,
             date: "$createdAt",
             amount: "$payment_amount",
             metalRate: "$metal_rate",
+            installmentNo: {
+              $concat: [
+                { $toString: "$installment" },
+                "/",
+                { $toString: "$Scheme.total_installments" },
+              ],
+            },
             metal_weight: 1,
-            installmentNo:"$paid_installments"
           },
         },
       ]);
@@ -94,7 +122,7 @@ class PrintRepository {
       };
     }
   }
- 
+
   async findSchemeInfoByPaymentId(paymentId) {
     try {
       const objectId = new mongoose.Types.ObjectId(paymentId);
@@ -129,7 +157,6 @@ class PrintRepository {
             preserveNullAndEmptyArrays: true,
           },
         },
- 
 
         {
           $lookup: {
@@ -148,12 +175,13 @@ class PrintRepository {
         {
           $project: {
             total_weight: "$schemeaccounts.weight",
+            total_amt: "$schemeaccounts.amount",
             customerName: "$customer.firstname",
             mobile: "$customer.mobile",
             schemeName: "$Scheme.scheme_name",
             accounterName: "$schemeaccounts.account_name",
             schemeCode: "$schemeaccounts.scheme_acc_number",
-            
+            scheme_type:"$Scheme.scheme_type"
           },
         },
       ]);
@@ -167,29 +195,33 @@ class PrintRepository {
     }
   }
 
-  async getBranchDetails(branchId) {
+  async findCompanyDetails(branchId) {
     try {
-      const branchData = await branchModel
+      const findCompanyData = await branchModel
         .findById(branchId)
         .populate("id_city")
-        .populate("id_state")
-        .populate("id_country")
-        .populate("id_client");
-      if (branchData) {
-        return {
-          companyName: branchData?.id_client?.company_name,
-          address: `${branchData?.address} ${branchData?.id_city?.city_name}`,
-          phone: `${branchData?.branch_landline}, ${branchData?.mobile}`,
-        };
-      }
-    } catch (error) {
-      console.log(error);
+        .populate("id_state");
       return {
-        success: false,
-        message: "Failed to get payments",
+        branch_name: findCompanyData?.branch_name,
+        address: [
+          findCompanyData?.address,
+          findCompanyData?.id_city?.city_name,
+          findCompanyData?.id_state?.state_name,
+        ]
+          .filter(Boolean) // removes undefined, null, empty string
+          .join(", "), // join with commas only when values exist
+        phone: [
+          findCompanyData?.branch_landline &&
+            `Cell ${findCompanyData?.branch_landline}`,
+          findCompanyData?.mobile && findCompanyData?.mobile,
+        ]
+          .filter(Boolean)
+          .join(", "),
       };
+    } catch (error) {
+      throw error;
     }
   }
 }
- 
+
 export default PrintRepository;
