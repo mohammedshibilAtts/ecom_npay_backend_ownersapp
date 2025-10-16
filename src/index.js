@@ -8,6 +8,7 @@ import adminRoutes from './interfaces/routes/chit/admin/adminRoutes.js';
 import clientRoutes from './interfaces/routes/chit/client/indexRoute.js';
 import paymentHook from './config/chit/paymentService.js'
 import otpRoutes from './interfaces/routes/chit/client/otpRoutes.js'
+// import ausaleRoutes from './interfaces/routes/chit/admin/ausleRoutes.js'
 import AppError from './utils/errors/AppError.js';
 import cors from 'cors';
 import path from 'path';
@@ -15,8 +16,8 @@ import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import notificationRoutes from './notification-routes.js'
 import './config/chit/cronSetup.js'
-import './cron/digigoldAutoCron.js'
 import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
+import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
 
 (function setupGlobalErrorLogger() {
   if (typeof process !== 'undefined' && process.on) {
@@ -44,6 +45,8 @@ const app = express();
   await connectDB();
 })();
 
+
+// Middleware setup
 app.use(
   bodyParser.json({
     verify: (req, res, buf) => {
@@ -78,18 +81,26 @@ app.use('/api/client', clientRoutes);
 app.use('/api/otp',otpRoutes)
 app.use('/api/webhook',paymentHook);
 app.use('/api/push', notificationRoutes);
+//api to import excel data
 app.use('/api/import',exportRoutes)
 
+//aupay ecom routes
+app.use('/api/shop',shopRoutes)
 
+//aupay-ausale support api
+// app.use('/api/sales',ausaleRoutes)
+
+// Serve static files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, 'public')));
 
-
+// Handle undefined routes
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
+// Global error handler
 app.use((err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
@@ -100,6 +111,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Start the server
 const PORT = config.PORT;
 app.listen(PORT, () => {
   console.info(`Server running in ${config.NODE_ENV} mode on port ${PORT}`);

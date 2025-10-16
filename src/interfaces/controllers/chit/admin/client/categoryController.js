@@ -5,17 +5,26 @@ class CategoryController {
   }
 
   async addCategory(req, res) {
+
     try {
       const {category_name,id_metal,id_branch} = req.body;
 
+
       const  validate=  {category_name,id_metal,id_branch}
+      const files = req.files;
+      const data=req.body;
+      // const files = req.files?.image || null;
+
+      if (!files?.image) {
+        return res.status(400).json({ message: "Image is required" });
+      }
       
       const { error } = this.validator.categoryValidations.validate(validate);
       if (error) {
         return res.status(400).json(error.details[0].message);
       }
       req.body.created_by = req.user.id_employee;
-      const categoryResult = await this.categoryUsecase.addCategory(req.body);
+      const categoryResult = await this.categoryUsecase.addCategory(data,files,req.user);
 
       if (categoryResult.success) {
         return res.status(201).json({ message: categoryResult.message });
@@ -28,6 +37,8 @@ class CategoryController {
   }
 
   async editCategory(req, res) {
+    console.log("Request Body:", req.body);
+
     try {
       const { id } = req.params;
       if (!id) {
@@ -36,16 +47,19 @@ class CategoryController {
 
       const {category_name,id_metal,id_branch} = req.body;
       const  validate=  {category_name,id_metal,id_branch}
+
+      const data=req.body;
+      const files=req.files;
      
       const { error } = this.validator.categoryValidations.validate(validate);
-
       if (error) {
         return res.status(400).json(error.details[0].message);
       }
 
       const editCategoryResult = await this.categoryUsecase.editCategory(
-        req.body,
-        id
+        data,
+        id,
+        files
       );
       if (editCategoryResult) {
         return res.status(200).json({ message: editCategoryResult.message });
@@ -202,7 +216,7 @@ class CategoryController {
       if(branch){
         branchId = branch
       }else{
-        branchId = req.user?.id_branch
+        branchId = req.user.id_branch
       }
       
       const result = await this.categoryUsecase.getAllCategories(branchId)
@@ -215,6 +229,21 @@ class CategoryController {
       return res.status(500).json({ message: "Internal server error" });
     }
   }
+
+  async getAllCategoriesWithoutBranch(req, res) {
+  try {
+    const result = await this.categoryUsecase.getAllCategoriesWithoutBranch();
+    return res.status(result.success ? 200 : 404).json(result);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+}
+
 }
 
 export default CategoryController;

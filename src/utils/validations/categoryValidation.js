@@ -22,6 +22,15 @@ class CategoryValidator {
         "string.base": "Metal must be a string",
       }),
 
+      // image:Joi.string()
+      // .trim()
+      // .required()
+      // .messages({
+      //   "any.required":"Image is required",
+      //   "string.empty":"Image cannot be empty",
+      //   "string.base":"Image must be a string"
+      // }),
+
     id_branch: Joi.string()
       .trim()
       .required()

@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
+import { Schema } from "mongoose";
 
 const chargeSchema = new mongoose.Schema({
-  mode:{
-    type:String,
-    enum:["amount","weight"],
-    required:false
+  mode: {
+    type: Number, // 1- amount , 2- amount
+    required: false,
   },
   actualValue: {
     type: Number,
@@ -59,8 +59,12 @@ const productSchema = new mongoose.Schema(
       ref: "Metal",
       required: true,
     },
-    weight: {
-      type: Number,
+    // weight: {
+    //   type: Number,
+    //   default: null,
+    // },
+    grossWt: {
+      type: Number,  // added in favour of new ecom implimentation
       default: null,
     },
     id_purity: {
@@ -78,7 +82,7 @@ const productSchema = new mongoose.Schema(
     },
     showprice: {
       type: Boolean,
-      default:false,
+      default: false,
       default: true,
     },
     makingCharges: {
@@ -107,6 +111,62 @@ const productSchema = new mongoose.Schema(
       required: true,
       ref: "Employee",
     },
+    collection: {
+      type: [Schema.Types.ObjectId],
+      default: [],
+      validate: {
+        validator: function (array) {
+          return array.every((item) => mongoose.Types.ObjectId.isValid(item));
+        },
+        message: "All items must be valid ObjectIds",
+      },
+    },
+    quantity: {
+      type: Number,
+      default: 0,
+    },
+    availableSizes: {
+      sizeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "SizeMaster",
+        required: true,
+      },
+      values: [
+        {
+          sizeValue: {
+            type: Number,
+            required: true,
+          },
+          quantity: {
+            type: Number,
+            required: true,
+            default: 0,
+          },
+        },
+      ],
+    },
+    // categoryId: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   required: true,
+    //   ref: "Category",
+    // },
+    subcategoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "SubCategory",
+    },
+    sku:{
+      type:String,
+      default:null
+    },
+    netWeight:{
+      type:Number
+    },
+    stoneDetails: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoneDetails" }],
+    bestSeller:{
+      type:Boolean,
+      default:false
+    }
   },
   {
     timestamps: true,
