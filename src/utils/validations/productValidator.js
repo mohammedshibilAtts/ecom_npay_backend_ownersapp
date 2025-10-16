@@ -14,7 +14,7 @@ class ProductValidator {
       "string.empty": "Code cannot be empty",
     }),
 
-    weight: Joi.number().greater(0).required().messages({
+    grossWt: Joi.number().greater(0).required().messages({
       "any.required": "Weight is required",
       "number.base": "Weight must be a number",
       "number.greater": "Weight must be greater than 0",
@@ -23,6 +23,10 @@ class ProductValidator {
     id_category: Joi.string().trim().required().messages({
       "any.required": "Category ID is required",
       "string.base": "Category ID must be a string",
+    }),
+     subcategoryId: Joi.string().trim().required().messages({
+      "any.required": "Subcategory is required",
+      "string.base": "Subcategory must be a string",
     }),
 
     id_purity: Joi.string().required().messages({

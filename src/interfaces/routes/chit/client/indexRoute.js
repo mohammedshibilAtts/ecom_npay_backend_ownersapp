@@ -46,6 +46,15 @@ import faqRoutes from "./faqRoutes.js";
 import wishlistRoutes from './wishlistRoutes.js'
 import SaveNotificationRoutes from './saveNotificationRoutes.js'
 import printRoutes from './printroutes.js'
+import subcategoryroutes from './subcategoryRoutes.js'
+import deliveryaddress from  './deliveryaddressRoutes.js'
+import uom from './uomRoutes.js'
+import clarity from './clarityRoutes.js';
+import shape from './shapeMasterroutes.js';
+import cut from './cutmasterRoutes.js';
+import color from './colormasterRoutes.js';
+import stonemaster from './stonemasterRoutes.js'
+
 
 const router = express.Router();
 
@@ -97,8 +106,18 @@ router.use('/faq', faqRoutes);
 router.use('/wishlist',wishlistRoutes)
 router.use('/notification',SaveNotificationRoutes);
 
+//ecom
+router.use('/subcategory',subcategoryroutes);
+router.use('/deliveryaddress',deliveryaddress);
+router.use('/Eom',uom);
+router.use('/clarity',clarity);
+router.use('/shape',shape)
+router.use('/cut',cut)
+router.use('/colour',color)
+router.use('/stonemaster',stonemaster)
 
-// //for print
+
+ //for print
 
 router.use('/print',printRoutes);
 
