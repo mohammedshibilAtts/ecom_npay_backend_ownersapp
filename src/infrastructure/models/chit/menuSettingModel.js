@@ -36,7 +36,7 @@ const menuSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    is_Ecom: {
+    isEcom: {
         type: Boolean,
         default: false
     }
