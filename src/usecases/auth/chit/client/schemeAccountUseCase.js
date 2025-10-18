@@ -558,30 +558,75 @@ class SchemeAccountUseCase {
         };
       }
 
+      // if (data?.referral_type === "Employee" || data?.typeof_referral === 1) {
+      //   data.typeofcustomer = 2;
+      // }
+
+      // if (customerData) {
+      //   if (customerData.referral_id == null && data.referral_id !== "") {
+          
+      //     const refData = {
+      //       referral_type: data?.referral_type,
+      //       referral_id: data?.referral_id,
+      //     };
+
+      //     await this.customerRepo.updateUniversal(data.id_customer, refData);
+      //   } else if (
+      //     customerData.referral_id !== null &&
+      //     data.referral_id !== null
+      //   ) {
+      //     return {
+      //       status: false,
+      //       message: "This user has already been referred",
+      //     };
+      //   }
+      // }
+
+      if (data.platform === "android" || data.platform === "ios") {
+        let referralType = "Customer";
+        let referralId = data?.referral_id;
+      
+        if (referralId) {
+          const employeeData = await this.employeeRepository.findById(referralId);
+          const customerRefData = await this.customerRepo.findById(referralId);
+      
+          if (employeeData) {
+            referralType = "Employee";
+          } else if (customerRefData) {
+            referralType = "Customer";
+          } else {
+            return {
+              status: false,
+              message: "Invalid referral ID — no matching employee or customer found.",
+            };
+          }
+      
+          data.referral_type = referralType;
+          data.typeof_referral = referralType === "Employee" ? 1 : 2; // example: 1=Employee, 2=Customer
+        }
+      }
+      
       if (data?.referral_type === "Employee" || data?.typeof_referral === 1) {
         data.typeofcustomer = 2;
       }
-
-
+      
       if (customerData) {
-        if (customerData.referral_id == null && data.referral_id !== "") {
-          
+        const hasExistingReferral = !!customerData.referral_id;
+      
+        if (!hasExistingReferral && data.referral_id) {
           const refData = {
             referral_type: data?.referral_type,
             referral_id: data?.referral_id,
           };
-
           await this.customerRepo.updateUniversal(data.id_customer, refData);
-        } else if (
-          customerData.referral_id !== null &&
-          data.referral_id !== null
-        ) {
+        } else if (hasExistingReferral) {
           return {
             status: false,
-            message: "This user has already been referred",
+            message: "This user has already been referred.",
           };
         }
       }
+      
 
       if (data.referral_id === "") {
         delete data.referral_id;
