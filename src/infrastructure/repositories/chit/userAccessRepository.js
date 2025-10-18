@@ -71,6 +71,7 @@ class UserAccessRepository{
                       "submenuDetails.active": true,
                       "submenuDetails.visible": true,
                       "menuDetails.is_deleted": false,
+                      "submenuDetails.is_deleted": false,
                       "menuDetails.active": true
                   }
               },
