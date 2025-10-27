@@ -35,6 +35,10 @@ const menuSchema = new mongoose.Schema({
     is_deleted: {
         type: Boolean,
         default: false
+    },
+    isEcom: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

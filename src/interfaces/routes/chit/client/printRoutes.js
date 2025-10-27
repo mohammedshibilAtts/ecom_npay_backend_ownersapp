@@ -1,8 +1,8 @@
 import express from 'express';
 import AuthMiddleware from '../../../../utils/middleware/authMiddleware.js';
 import TokenService from '../../../../utils/jwtToken.js';
-import PrintUseCase from '../../../../usecases/auth/chit/client/printUsecase.js';
-import PrintRepository from '../../../../infrastructure/repositories/chit/printRepositary.js';
+import PrintUseCase from '../../../../usecases/auth/chit/client/printUseCase.js';
+import PrintRepository from '../../../../infrastructure/repositories/chit/printRepository.js';
 import PrintController from '../../../controllers/chit/admin/client/printController.js';
 
 
