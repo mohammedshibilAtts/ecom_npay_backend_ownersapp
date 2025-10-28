@@ -228,7 +228,7 @@ class OrderUseCase {
         savedAmount:
           cartItems.overAllAmount.totalPrice -
           cartItems.overAllAmount.totalDiscount,
-        status: "Pending",
+        status: "Payment Pending",
         deliveryAddress: addressId,
         estimatedDeliveryDays,
         active: false,
