@@ -7,7 +7,7 @@ const orderStatus = new mongoose.Schema({
         required: true,
     },
     statusNo:{
-        type:String,
+        type:Number,
         required:true,
     },
     description:{
