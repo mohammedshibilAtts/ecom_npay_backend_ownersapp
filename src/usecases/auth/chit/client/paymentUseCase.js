@@ -1646,15 +1646,23 @@ class PaymentUseCase {
         status: 0,
       });
 
-      const schemeData = await this.schemeRepository.findById(data.idScheme);
-
       let newSchemeAcc = "";
       let customerData;
-      if (!schemeAccount) {
-        customerData = await this.customerRepo.findOne({ _id: customerId });
-        const existingReferral = customerData.referral_id;
-        const newReferral = referral_id?.trim();
 
+      const schemeData = await this.schemeRepository.findById(data.idScheme);
+
+      customerData = await this.customerRepo.findOne({ _id: customerId });
+      const existingReferral = customerData.referral_id;
+      const newReferral = referral_id?.trim();
+      
+      if (existingReferral && newReferral) {
+        return {
+          status: false,
+          message: "User is already referred",
+        };
+      }
+
+      if (!schemeAccount) {
         if (existingReferral && newReferral) {
           return {
             status: false,
@@ -1887,7 +1895,6 @@ class PaymentUseCase {
       customer = await this.customerRepo.findById(customerId);
       let initialWalletPoint = false;
 
-
       if (
         uniqueAccountIds.length === 1 &&
         schemeAccountDetails[0].active === false
@@ -2002,7 +2009,7 @@ class PaymentUseCase {
         this.paymentRepository.bulkWrite(paymentBulk),
       ]);
 
-       if(initialWalletPoint){
+      if (initialWalletPoint) {
         customer = await this.customerRepo.findById(customerId);
       }
 
@@ -2021,7 +2028,6 @@ class PaymentUseCase {
         );
 
         if (!paymentData) return;
-
 
         const referral = {
           id_scheme_account: referralScheme._id,
