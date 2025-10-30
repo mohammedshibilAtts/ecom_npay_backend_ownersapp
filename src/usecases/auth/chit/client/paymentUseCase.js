@@ -2105,6 +2105,66 @@ async completePayment(data) {
     }
   }
 
+   async sendAccountCreationNotifications(
+    data,
+    schemedData,
+    notificationData,
+    referralNotification = null
+  ) {
+    if (notificationData.push) {
+      const input = {
+        recipients: [data.id_customer],
+        title: "Scheme Account Created",
+        message: `Congratulations! Your ${schemedData?.schemeName} Scheme Account has been successfully created at SENKA JWELLERS.`,
+        channel: "push",
+      };
+      await smsService.sendNotification(input);
+
+      await this.saveNotificationRepo.saveNotification({
+        title: input.title,
+        message: input.message,
+        type: "alert",
+        category: "Scheme account",
+      });
+    }
+
+    if (notificationData?.whatsapp?.enabled) {
+      const schemeCustomer = await this.customerRepo.findOne({
+        _id: data.id_customer,
+      });
+      const whatsAppData = {
+        phone: schemeCustomer.mobile,
+        name: schemeCustomer.firstname,
+        schemeName: schemedData?.schemeName,
+        messageType: "scheme_account_creations",
+      };
+      const whatsMessageStatus = await smsService.sendNotification({
+        channel: "whatsapp",
+        whatsAppData,
+      });
+    }
+
+    if (data.referral_id && referralNotification) {
+      if (notificationData.push) {
+        const input = {
+          recipients: [data.referral_id],
+          title: "Scheme Account Created",
+          message: `Thank you for referring ${data?.customer_name} to SENKA JEWELERS! Your referral has successfully created a ${schemedData?.schemeName} Scheme Account.`,
+          channel: "push",
+        };
+        await smsService.sendNotification(input);
+        await this.saveNotificationRepo.saveNotification(
+          {
+            title: input.title,
+            message: input.message,
+            type: "alert",
+            category: "Referral",
+          },
+          data.referral_id
+        );
+      }
+    }
+  }
 
 }
 
