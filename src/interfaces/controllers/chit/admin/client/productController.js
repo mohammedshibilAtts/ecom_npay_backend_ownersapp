@@ -395,9 +395,31 @@ class ProductController {
 
   async getProductStockReport(req, res) {
     try {
-      const { page, limit,search,from_date,to_date } = req.query;
+      const { page, limit,search,from_date,to_date,category, } = req.query;
 
-      const response = await this.productUsecase.getProductStockReport(page, limit,search,from_date,to_date);
+      const response = await this.productUsecase.getProductStockReport(page, limit,search,from_date,to_date,category);
+
+      if (response.success) {
+        return res.status(200).json(response);
+      } else {
+        return res.status(404).json(response);
+      }
+    } catch (error) {
+      console.error("Controller Error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
+
+   async getProductLowStockReport(req, res) {
+    try {
+      const { page, limit,lowstock} = req.query;
+
+      console.log()
+
+      const response = await this.productUsecase.getProductLowStockReport(page, limit,lowstock);
 
       if (response.success) {
         return res.status(200).json(response);

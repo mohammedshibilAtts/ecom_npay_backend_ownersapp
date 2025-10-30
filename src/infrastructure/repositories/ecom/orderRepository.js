@@ -776,6 +776,29 @@ const result = await Order.aggregate([
           }
         },
         { $count: "count" }
+      ],
+       totalSales: [
+        {
+          $match: {
+            // orderStatus: { $in: [1, 2, 3, 4] },
+            createdAt: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$totalAmount" }
+          }
+        }
+      ],
+      enquiries:[
+        {
+          $match:{
+            status:"Ordered",
+            createdAt: { $gte: startDate, $lte: endDate }
+          }
+        },
+        { $count: "count" }
       ]
     }
   },
@@ -784,10 +807,12 @@ const result = await Order.aggregate([
       newOrders: { $ifNull: [{ $arrayElemAt: ["$newOrders.count", 0] }, 0] },
       pendingOrders: { $ifNull: [{ $arrayElemAt: ["$pendingOrders.count", 0] }, 0] },
       deliveredToday: { $ifNull: [{ $arrayElemAt: ["$deliveredToday.count", 0] }, 0] },
-      inShipment: { $ifNull: [{ $arrayElemAt: ["$inShipment.count", 0] }, 0] }
+      inShipment: { $ifNull: [{ $arrayElemAt: ["$inShipment.count", 0] }, 0] },
+      totalSales: { $ifNull: [{ $arrayElemAt: ["$totalSales.total", 0] }, 0] },
+      enquiries:{$ifNull:[{$arrayElemAt:["$enquiries.count",0]},0]}
     }
   }
-]);
+]); 
 
 
     return result;
