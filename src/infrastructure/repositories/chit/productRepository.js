@@ -2504,6 +2504,86 @@ class ProductRepository {
     }
   }
 
+
+  async getProductLowStockReport(page, limit, filter = {}) {
+  try {
+    const skip = (page - 1) * limit;
+
+    const baseQuery = {
+      active: true,
+      is_deleted: false,
+    };
+
+   
+    let totalStockFilter = null;
+    let otherFilters = {};
+
+    
+    Object.keys(filter).forEach(key => {
+      if (key === 'total_stock') {
+        totalStockFilter = filter[key];
+      } else {
+        otherFilters[key] = filter[key];
+      }
+    });
+
+    const finalQuery = { ...baseQuery, ...otherFilters };
+
+    let products = await ProductModel.find(finalQuery)
+      .populate('id_category', 'category_name')
+      .select('product_name sku code id_category quantity availableSizes')
+      .lean();
+
+    
+    products = products.map((product) => {
+      let totalStock = product.quantity || 0;
+      let sizeDetails = [];
+
+      if (product.availableSizes && product.availableSizes.values) {
+
+        totalStock += product.availableSizes.values.reduce((sum, size) => sum + (size.quantity || 0), 0);
+        sizeDetails = product.availableSizes.values.map((size) => ({
+          sizeValue: size.sizeValue,
+          quantity: size.quantity,
+        }));
+      }
+
+      return {
+        _id: product._id,
+        product_name: product.product_name,
+        sku: product.sku,
+        category_name: product.id_category?.category_name || "N/A",
+        size: sizeDetails,
+        stock: sizeDetails,
+        total_stock: totalStock,
+      };
+    });
+
+    if (totalStockFilter && totalStockFilter.$lte) {
+      products = products.filter(product => product.total_stock <= totalStockFilter.$lte);
+    }
+
+    products = products.sort((a, b) => b.total_stock - a.total_stock);
+
+    const totalCount = products.length;
+
+    const paginatedProducts = products.slice(skip, skip + limit);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      products: paginatedProducts,
+      currentPage: page,
+      totalPages,
+      totalCount,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+  } catch (error) {
+    console.error("Error in getProductStockReport:", error);
+    throw error;
+  }
+}
   async toggleBestSeller(id, currentstatus) {
     try {
       const updateStatus = await ProductModel.updateOne(

@@ -51,6 +51,7 @@ router.patch('/best-seller/:id',(req,res)=>controller.toggleBestSeller(req,res))
 
 //product stock report
 router.get("/report/stock",(req,res)=>controller.getProductStockReport(req,res))
+router.get("/report/lowstock",(req,res)=>controller.getProductLowStockReport(req,res))
 
 
 export default router;

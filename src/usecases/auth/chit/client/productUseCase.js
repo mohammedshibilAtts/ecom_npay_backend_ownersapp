@@ -1234,7 +1234,7 @@ class ProductUseCase {
     }
   }
 
-  async getProductStockReport(page, limit, search, from_date, to_date) {
+  async getProductStockReport(page, limit, search, from_date, to_date,category) {
     try {
       const pageNumber = parseInt(page) || 1;
       const limitNumber = parseInt(limit) || 10;
@@ -1249,25 +1249,25 @@ class ProductUseCase {
 
       let filter = {};
 
-      if (from_date && to_date) {
-        if (new Date(to_date) < new Date(from_date)) {
-          throw new Error("End date cannot be before start date");
-        }
+      // if (from_date && to_date) {
+      //   if (new Date(to_date) < new Date(from_date)) {
+      //     throw new Error("End date cannot be before start date");
+      //   }
 
-        const startDate = moment
-          .tz(from_date, "Asia/Kolkata")
-          .startOf("day")
-          .toDate();
-        const endDate = moment
-          .tz(to_date, "Asia/Kolkata")
-          .endOf("day")
-          .toDate();
+      //   const startDate = moment
+      //     .tz(from_date, "Asia/Kolkata")
+      //     .startOf("day")
+      //     .toDate();
+      //   const endDate = moment
+      //     .tz(to_date, "Asia/Kolkata")
+      //     .endOf("day")
+      //     .toDate();
 
-        filter.createdAt = {
-          $gte: startDate,
-          $lte: endDate,
-        };
-      }
+      //   filter.createdAt = {
+      //     $gte: startDate,
+      //     $lte: endDate,
+      //   };
+      // }
 
       if (search && search.trim() !== "") {
         const searchRegex = new RegExp(search.trim(), "i");
@@ -1279,11 +1279,87 @@ class ProductUseCase {
         ];
       }
 
+      if (category && category.trim() !== "") {
+        filter.id_category = category.trim(); 
+      }
+
       const result = await this.productRepository.getProductStockReport(
         pageNumber,
         limitNumber,
         filter
       );
+
+      if (result.products.length > 0) {
+        const pathUrl = `${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}products/`;
+
+        return {
+          success: true,
+          message: "Products fetched successfully",
+          data: {
+            products: result.products,
+            pagination: {
+              currentPage: result.currentPage,
+              totalPages: result.totalPages,
+              totalProducts: result.totalCount,
+              hasNext: result.hasNext,
+              hasPrev: result.hasPrev,
+              limit: limitNumber,
+            },
+          },
+          pathUrl,
+        };
+      }
+
+      return {
+        success: false,
+        message: "No products found",
+        data: {
+          products: [],
+          pagination: {
+            currentPage: pageNumber,
+            totalPages: 0,
+            totalProducts: 0,
+            hasNext: false,
+            hasPrev: false,
+            limit: limitNumber,
+          },
+        },
+      };
+    } catch (err) {
+      console.error(err);
+      throw new Error("Internal server error");
+    }
+  }
+
+    async getProductLowStockReport(page, limit,lowstock) {
+
+    try {
+      const pageNumber = parseInt(page) || 1;
+      const limitNumber = parseInt(limit) || 10;
+    
+
+      if (pageNumber < 1 || limitNumber < 1) {
+        return {
+          success: false,
+          message: "Page and limit must be positive integers",
+          data: [],
+        };
+      }
+
+      let filter = {};
+
+      const lowstocknum = parseInt(lowstock);
+
+      if (lowstocknum && lowstocknum !== "") {
+        filter.total_stock = { $lte: parseInt(lowstock) };
+      }
+      const result = await this.productRepository.getProductLowStockReport(
+        pageNumber,
+        limitNumber,
+        filter
+      );
+
+      
 
       if (result.products.length > 0) {
         const pathUrl = `${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}products/`;
