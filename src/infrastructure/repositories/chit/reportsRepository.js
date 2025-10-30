@@ -3374,6 +3374,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             minWeight: "$Scheme.min_weight",
             maxWeight: "$Scheme.max_weight",
             schemeType: "$Scheme.scheme_type",
+            createdAt:1,
             ReferralBonuses: {
               payment_date: "$Payments.createdAt",
               payment_amount: "$Payments.payment_amount",
@@ -3383,6 +3384,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             },
           }
         },
+        { $sort: { createdAt: -1 } },
         {
           $facet: {
             data: [{ $skip: skip || 0 }, { $limit: limit || 50 }],
