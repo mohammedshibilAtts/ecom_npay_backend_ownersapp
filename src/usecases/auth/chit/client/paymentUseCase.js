@@ -1223,13 +1223,6 @@ class PaymentUseCase {
 
       const query = { id_scheme_account: id, active: true, payment_status: 1 };
 
-      // if (from_date && to_date) {
-      //   query.start_date = {
-      //     $gte: from_date,
-      //     $lte: to_date,
-      //   };
-      // }
-
       const paymentData = await this.paymentRepository.getPaymentsBySchemeId(
         query,
         documentskip,
@@ -1416,12 +1409,6 @@ class PaymentUseCase {
           Lastpayment?.payment_receipt || "REC/0001/a01"
         );
 
-        // const paymentReceipt = await this.updatePaymentReceipt(
-        //   generalSettings,
-        //   schemeData,
-        //   data.payment_receipt,
-        //   data.id_scheme
-        // );
         const runningTotalAmount =
           (Number(lastPaidData?.total_amt) || 0) + Number(data.amount);
 
@@ -1468,7 +1455,6 @@ class PaymentUseCase {
           paid_installments: data?.installments || 1,
           scheme_total: data.amount,
           metal_rate: data?.metal_rate,
-          // payment_mode: data.payment_mode,
           payment_type: 2,
           platform: 0,
           metal_weight: data?.weight || null,
