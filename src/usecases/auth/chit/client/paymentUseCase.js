@@ -45,12 +45,13 @@ class PaymentUseCase {
     this.employeeRepo = employeeRepo;
     this.walletRepo = walletRepo;
     this.notificationconfig = notificationconfig;
-    this.saveNotificationRepo = new SaveNotificationRepo()
-    this.saveNotificationUsecase = new SaveNotificationUsecase(this.saveNotificationRepo);
+    this.saveNotificationRepo = new SaveNotificationRepo();
+    this.saveNotificationUsecase = new SaveNotificationUsecase(
+      this.saveNotificationRepo
+    );
     this.baseUrl = config.CASH_FREE_URL || "https://sandbox.cashfree.com";
     this.url = `${this.baseUrl}/pg/orders`;
   }
-
 
   getDifferenceInMonths = (startDate, endDate) => {
     return moment(endDate).diff(moment(startDate), "months");
@@ -101,7 +102,6 @@ class PaymentUseCase {
     return `${start}/${last4}/${newEnd}`;
   }
 
-
   async sendPaymentNotifications(
     data,
     token,
@@ -121,7 +121,7 @@ class PaymentUseCase {
         };
 
         await smsService.sendNotification(inputMsg);
-        await  this.saveNotificationUsecase.saveNotification(
+        await this.saveNotificationUsecase.saveNotification(
           {
             title: inputMsg.title,
             message: inputMsg.message,
@@ -236,7 +236,7 @@ class PaymentUseCase {
       //       message = "Payment added successfully, SMS delivered to customer";
       //     }
       //   }
-      // } 
+      // }
       else if (notificationData.sms.enabled) {
         message = "Payment added successfully. Topup to send SMS to customers";
       }
@@ -352,8 +352,7 @@ class PaymentUseCase {
     try {
       const lastPayment = await this.paymentRepository.lastPayment(schemeId);
 
-      return lastPayment ?  lastPayment.payment_receipt + 1 : 1
-
+      return lastPayment ? lastPayment.payment_receipt + 1 : 1;
     } catch (error) {
       console.error("Error updating payment receipt:", error.message);
       throw error;
@@ -401,7 +400,7 @@ class PaymentUseCase {
 
         const totalInstallments =
           await this.paymentRepository.totalInstallments(
-            data.id_scheme_account 
+            data.id_scheme_account
           );
 
         if (
@@ -473,7 +472,7 @@ class PaymentUseCase {
         //   data.payment_receipt,
         //   data.id_scheme
         // );
-        
+
         let Lastpayment = await this.paymentRepository.lastPaymentReciept();
 
         const paymentReceipt = this.generateReceiptNumber(
@@ -481,7 +480,6 @@ class PaymentUseCase {
           "REC",
           Lastpayment?.payment_receipt || "REC/0001/a01"
         );
-
 
         let metalWeight = 0;
         if (!data?.metal_weight) {
@@ -507,7 +505,8 @@ class PaymentUseCase {
           total_amt: totalAmount,
           paymentModeName: paymentMode.mode_name,
           metal_weight: metalWeight,
-          installment:Number(schemeAccData.paid_installments) + Number(data.installments)
+          installment:
+            Number(schemeAccData.paid_installments) + Number(data.installments),
         };
 
         const savedPayment = await this.paymentRepository.addPayment(
@@ -740,7 +739,8 @@ class PaymentUseCase {
 
       if (
         scheme.limit_installment &&
-        Number(monthlyPayments) + Number(data.installments) > Number(scheme.limit_installment)
+        Number(monthlyPayments) + Number(data.installments) >
+          Number(scheme.limit_installment)
       ) {
         return { success: false, message: "Monthly payment limit reached" };
       }
@@ -808,10 +808,10 @@ class PaymentUseCase {
       let Lastpayment = await this.paymentRepository.lastPaymentReciept();
 
       const paymentReceipt = this.generateReceiptNumber(
-          data.id_scheme_account,
-          "REC",
-          Lastpayment?.payment_receipt || "REC/0001/a01"
-        );
+        data.id_scheme_account,
+        "REC",
+        Lastpayment?.payment_receipt || "REC/0001/a01"
+      );
 
       const totalAmount =
         (Number(lastPaidData?.total_amt) || 0) + Number(data.payment_amount);
@@ -1279,23 +1279,24 @@ class PaymentUseCase {
 
         const lastPaid = lastPaidData ? new Date(lastPaidData.createdAt) : null;
 
-        if(extraData?.digigold !== true){
+        if (extraData?.digigold !== true) {
           if (
             lastPaid &&
             this.toDateOnlyString(lastPaid) === this.toDateOnlyString(todayDate)
           ) {
-            const schemeLength = paymentArray.length
-           
-            let message =""
-            if(schemeLength == 1){
-              message = "Aleady completed today's payment"
-            }else{
-              message = "Already completed today's payment for one of the schemes"
+            const schemeLength = paymentArray.length;
+
+            let message = "";
+            if (schemeLength == 1) {
+              message = "Aleady completed today's payment";
+            } else {
+              message =
+                "Already completed today's payment for one of the schemes";
             }
 
             return {
               success: false,
-              message:message,
+              message: message,
             };
           }
         }
@@ -1304,10 +1305,11 @@ class PaymentUseCase {
           await this.paymentRepository.totalInstallments(
             data.id_scheme_account
           );
-          
+
         if (
           Number(totalInstallments) + Number(data.installments) >
-          Number(schemeData.total_installments) &&  extraData?.digigold !== true
+            Number(schemeData.total_installments) &&
+          extraData?.digigold !== true
         ) {
           return {
             success: false,
@@ -1333,7 +1335,11 @@ class PaymentUseCase {
           diffMonth = this.getDifferenceInMonths(lastDate, currentDate);
         }
 
-        if (schemeData.limit_notpaid > 0 && diffMonth > 5 &&  extraData?.digigold !== true) {
+        if (
+          schemeData.limit_notpaid > 0 &&
+          diffMonth > 5 &&
+          extraData?.digigold !== true
+        ) {
           return {
             success: false,
             message:
@@ -1415,9 +1421,8 @@ class PaymentUseCase {
           id_scheme: schemeAccData.id_scheme,
           payment_amount: data.amount,
           metal_weight: data.weight || 0,
-          installment: Number(schemeAccData.paid_installments) + 1
+          installment: Number(schemeAccData.paid_installments) + 1,
         };
-
 
         const savedPayment = await this.paymentRepository.addPayment(
           paymentData
@@ -1472,14 +1477,14 @@ class PaymentUseCase {
       }
 
       function sanitizeAmount(value) {
-        if (typeof value !== 'number') {
+        if (typeof value !== "number") {
           value = Number(value);
         }
-      
+
         return +value.toFixed(2);
       }
 
-      const totalData = sanitizeAmount(extraData.grandTotal)
+      const totalData = sanitizeAmount(extraData.grandTotal);
       const orderData = {
         order_id: transactionId,
         order_amount: totalData,
@@ -1630,22 +1635,41 @@ class PaymentUseCase {
         grandTotal,
         platform,
         schemeType,
+        referral_id,
       } = data;
-      console.log(data)
+      console.log(data);
 
       const schemeAccount = await this.schemeAccountRepository.findOne({
         id_customer: customerId,
         id_scheme: idScheme,
         id_classification: idClassification,
-        status:0
+        status: 0,
       });
-
-      const schemeData = await this.schemeRepository.findById(data.idScheme);
 
       let newSchemeAcc = "";
       let customerData;
+
+      const schemeData = await this.schemeRepository.findById(data.idScheme);
+
+      customerData = await this.customerRepo.findOne({ _id: customerId });
+      const existingReferral = customerData.referral_id;
+      const newReferral = referral_id?.trim();
+      
+      if (existingReferral && newReferral) {
+        return {
+          status: false,
+          message: "User is already referred",
+        };
+      }
+
       if (!schemeAccount) {
-        customerData = await this.customerRepo.findOne({ _id: customerId });
+        if (existingReferral && newReferral) {
+          return {
+            status: false,
+            message: "User is already referred",
+          };
+        }
+
         const accountData = {
           active: false,
           id_customer: customerId,
@@ -1662,6 +1686,10 @@ class PaymentUseCase {
             new Date(),
             schemeData.noOfDays
           );
+        }
+
+        if (referral_id) {
+          accountData.referral_id = referral_id;
         }
 
         newSchemeAcc = await this.schemeAccountRepository.addSchemeAccount(
@@ -1707,8 +1735,8 @@ class PaymentUseCase {
       await this.schemeAccountRepository.updateSchemNumber(newSchemeAcc._id, {
         scheme_acc_number: schemeAccNumber,
       });
-     
-      const metalWeightSaved= Number(amount)/Number(metal_rate)
+
+      const metalWeightSaved = Number(amount) / Number(metal_rate);
 
       const paymentData = {
         schemes: [
@@ -1759,7 +1787,7 @@ class PaymentUseCase {
   //!helper function for mobile
   async createOrder(data) {
     try {
-      console.log(this.url)
+      console.log(this.url);
       const url = `${this.url}`;
       const headers = {
         "Content-Type": "application/json",
@@ -1768,7 +1796,7 @@ class PaymentUseCase {
         "x-api-version": config.API_VERSION,
       };
       const response = await axios.post(url, data, { headers });
-      
+
       return response.data;
     } catch (error) {
       console.error(error);
@@ -1815,23 +1843,22 @@ class PaymentUseCase {
     }
   }
 
- formatPaymentGroup(paymentGroup) {
-    if (!paymentGroup) return '';
+  formatPaymentGroup(paymentGroup) {
+    if (!paymentGroup) return "";
     const formatted = paymentGroup
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
     return `${formatted}-online`;
   }
 
-  
   async completePayment(data) {
     try {
       const orderId = data?.data?.order?.order_id;
       const cfPaymentId = data?.data?.payment?.cf_payment_id;
       const customerId = data?.data?.customer_details?.customer_id;
-
+      let customer;
       if (data?.data?.payment?.payment_status !== "SUCCESS") {
         return;
       }
@@ -1847,54 +1874,102 @@ class PaymentUseCase {
       }
 
       const schemeAccounts = updatedPaymentOrder.scheme_payment_ids || [];
-      const uniqueAccountIds = [...new Set(schemeAccounts.map(id => id.toString()))];
+      const uniqueAccountIds = [
+        ...new Set(schemeAccounts.map((id) => id.toString())),
+      ];
 
       // Get all required data in parallel
-      const [schemeAccountDetails, payments, customer] = await Promise.all([
-        Promise.all(uniqueAccountIds.map(accountId => 
-          this.schemeAccountRepository.findById(accountId)
-        )),
+      const [schemeAccountDetails, payments] = await Promise.all([
+        Promise.all(
+          uniqueAccountIds.map((accountId) =>
+            this.schemeAccountRepository.findById(accountId)
+          )
+        ),
         this.paymentRepository.findNew({
           id_transaction: updatedPaymentOrder.orderId,
           id_scheme_account: { $in: uniqueAccountIds },
-          payment_status: { $ne: 1 }
+          payment_status: { $ne: 1 },
         }),
-        this.customerRepo.findById(customerId)
       ]);
 
+      customer = await this.customerRepo.findById(customerId);
+      let initialWalletPoint = false;
+
+      if (
+        uniqueAccountIds.length === 1 &&
+        schemeAccountDetails[0].active === false
+      ) {
+        const notificationData = await isNotificationEnabled("schemeJoining");
+        const referralNotification = await isNotificationEnabled(
+          "schemeReferral"
+        );
+
+        const userData = {
+          id_customer: customer?._id,
+          referral_id: customer?.referral_id || null,
+          customerName: customer?.firstname,
+        };
+
+        const savedData = {
+          schemeName: schemeAccountDetails[0]?.id_scheme?.scheme_name,
+        };
+
+        await this.sendAccountCreationNotifications(
+          userData,
+          savedData,
+          notificationData,
+          referralNotification
+        );
+
+        if (customer?.referral_id == null) {
+          initialWalletPoint = true;
+          await this.customerRepo.updateUniversal(customerId, {
+            referral_type: data?.referral_type || "Customer",
+            referral_id: schemeAccountDetails[0]?.referral_id,
+          });
+        }
+      }
       if (!customer) {
-        console.error('Customer not found');
+        console.error("Customer not found");
         return;
       }
 
-      const paymentMode = this.formatPaymentGroup(data?.data?.payment?.payment_group);
+      const paymentMode = this.formatPaymentGroup(
+        data?.data?.payment?.payment_group
+      );
 
       const schemeBulk = [];
       const paymentBulk = [];
 
       for (const accountId of uniqueAccountIds) {
-        const accountDetails = schemeAccountDetails.find(a => a?._id.toString() === accountId);
+        const accountDetails = schemeAccountDetails.find(
+          (a) => a?._id.toString() === accountId
+        );
         if (!accountDetails) continue;
 
-        const paymentData = payments.find(p => p.id_scheme_account.toString() === accountId);
+        const paymentData = payments.find(
+          (p) => p.id_scheme_account.toString() === accountId
+        );
         if (!paymentData) continue;
 
         // Calculate totals for this account
         const totals = {
           amount: paymentData.payment_amount || 0,
-          weight: paymentData.metal_weight || 0
+          weight: paymentData.metal_weight || 0,
         };
 
         // Prepare scheme account update
-        const isFinalInstallment = (accountDetails.paid_installments + 1) === accountDetails.total_installments;
+        const isFinalInstallment =
+          accountDetails.paid_installments + 1 ===
+          accountDetails.total_installments;
         const update = {
-          $set: { last_paid_date: new Date(),active:true},
+          $set: { last_paid_date: new Date(), active: true },
           $inc: {
             paid_installments: 1,
             paymentcount: 1,
             amount: totals.amount,
             weight: totals.weight,
-          }
+          },
         };
 
         if (isFinalInstallment) {
@@ -1904,8 +1979,8 @@ class PaymentUseCase {
         schemeBulk.push({
           updateOne: {
             filter: { _id: accountId },
-            update: update
-          }
+            update: update,
+          },
         });
 
         // Prepare payment update
@@ -1914,14 +1989,14 @@ class PaymentUseCase {
             filter: {
               id_scheme_account: accountId,
               id_transaction: updatedPaymentOrder.orderId,
-              payment_status: { $ne: 1 }
+              payment_status: { $ne: 1 },
             },
             update: {
-              $set: { 
-                payment_status: 1, 
+              $set: {
+                payment_status: 1,
                 updatedAt: new Date(),
-                payment_mode:"67682cf7666e32053d05e051",
-                paymentModeName: paymentMode 
+                payment_mode: "67682cf7666e32053d05e051",
+                paymentModeName: paymentMode,
               },
             },
           },
@@ -1934,28 +2009,34 @@ class PaymentUseCase {
         this.paymentRepository.bulkWrite(paymentBulk),
       ]);
 
+      if (initialWalletPoint) {
+        customer = await this.customerRepo.findById(customerId);
+      }
+
       if (customer?.referral_id) {
-        const referralScheme = schemeAccountDetails.find(a =>
-          a?.id_scheme?.referralPercentage !== null &&
-          a?.referral_id?.toString() === customer.referral_id.toString()
+        const referralScheme = schemeAccountDetails.find(
+          (a) =>
+            a?.id_scheme?.referralPercentage !== null &&
+            a?.referral_id?.toString() === customer.referral_id.toString()
         );
-      
+
         if (!referralScheme) return;
-      
-        const paymentData = payments.find(p =>
-          p.id_scheme_account.toString() === referralScheme._id.toString()
+
+        const paymentData = payments.find(
+          (p) =>
+            p.id_scheme_account.toString() === referralScheme._id.toString()
         );
-      
+
         if (!paymentData) return;
-      
+
         const referral = {
           id_scheme_account: referralScheme._id,
-          reference_no: customer.referral_code, 
+          reference_no: customer.referral_code,
           reward_mode: 1,
           created_by: data?.token?.id_employee || null,
           modified_by: data?.token?.id_employee || null,
         };
-      
+
         // Get the referrer details based on referral_id
         let referrer = null;
         if (customer.referral_type === "Customer") {
@@ -1967,43 +2048,103 @@ class PaymentUseCase {
           referral.referred_by = "Employee";
           referrer = await this.employeeRepo.findById(customer.referral_id);
         }
-      
+
         if (!referrer) {
-          console.error('Referrer not found');
+          console.error("Referrer not found");
           return;
         }
-      
         const mobile = referrer.mobile;
         let wallet = await this.walletRepo.findWallet({ mobile });
         const paymentAmount = Number(paymentData.payment_amount) || 0;
-        const referralPercentage = Number(referralScheme?.id_scheme?.referralPercentage) || 0;
+        const referralPercentage =
+          Number(referralScheme?.id_scheme?.referralPercentage) || 0;
         const creditedAmount = (paymentAmount * referralPercentage) / 100;
-      
         if (creditedAmount > 0 && !isNaN(creditedAmount)) {
           referral.credited_amount = creditedAmount;
-      
+
           if (!wallet) {
             const walletData = {
               mobile,
               balance_amt: creditedAmount,
               total_reward_amt: creditedAmount,
               created_by: data?.token?.id_employee || null,
-              ...(customer.referral_type === "Customer" 
-                ? { id_customer: referrer._id } 
-                : { id_employee: referrer._id })
+              ...(customer.referral_type === "Customer"
+                ? { id_customer: referrer._id }
+                : { id_employee: referrer._id }),
             };
-      
+
             await this.walletRepo.addWallet(walletData);
           } else {
             await this.walletRepo.creditAmount(wallet.id, creditedAmount);
           }
-      
+
           await this.paymentRepository.addReferralPoint(referral);
         }
-      }      
+      }
     } catch (error) {
       console.error("Error in completePayment:", error);
       throw error;
+    }
+  }
+
+  async sendAccountCreationNotifications(
+    data,
+    schemedData,
+    notificationData,
+    referralNotification = null
+  ) {
+    if (notificationData.push) {
+      const input = {
+        recipients: [data.id_customer],
+        title: "Scheme Account Created",
+        message: `Congratulations! Your ${schemedData?.schemeName} Scheme Account has been successfully created at SENKA JWELLERS.`,
+        channel: "push",
+      };
+      await smsService.sendNotification(input);
+
+      await this.saveNotificationRepo.saveNotification({
+        title: input.title,
+        message: input.message,
+        type: "alert",
+        category: "Scheme account",
+      });
+    }
+
+    if (notificationData?.whatsapp?.enabled) {
+      const schemeCustomer = await this.customerRepo.findOne({
+        _id: data.id_customer,
+      });
+      const whatsAppData = {
+        phone: schemeCustomer.mobile,
+        name: schemeCustomer.firstname,
+        schemeName: schemedData?.schemeName,
+        messageType: "scheme_account_creations",
+      };
+      const whatsMessageStatus = await smsService.sendNotification({
+        channel: "whatsapp",
+        whatsAppData,
+      });
+    }
+
+    if (data.referral_id && referralNotification) {
+      if (notificationData.push) {
+        const input = {
+          recipients: [data.referral_id],
+          title: "Scheme Account Created",
+          message: `Thank you for referring ${data?.customer_name} to SENKA JEWELERS! Your referral has successfully created a ${schemedData?.schemeName} Scheme Account.`,
+          channel: "push",
+        };
+        await smsService.sendNotification(input);
+        await this.saveNotificationRepo.saveNotification(
+          {
+            title: input.title,
+            message: input.message,
+            type: "alert",
+            category: "Referral",
+          },
+          data.referral_id
+        );
+      }
     }
   }
 }

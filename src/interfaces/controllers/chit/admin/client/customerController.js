@@ -243,10 +243,15 @@ class CustomerController {
         search,
         customer
       );
-
+      
+      if (!result.data) {
+        return res.status(400).json({ message: result.message });
+      }
+      
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
+
 
       const returnData = {
         firstname: result?.data?.firstname,
