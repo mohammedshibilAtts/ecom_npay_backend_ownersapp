@@ -467,13 +467,6 @@ class PaymentUseCase {
           };
         }
 
-        // const paymentReceipt = await this.updatePaymentReceipt(
-        //   generalSettings,
-        //   schemeData,
-        //   data.payment_receipt,
-        //   data.id_scheme
-        // );
-        
         let Lastpayment = await this.paymentRepository.lastPaymentReciept();
 
         const paymentReceipt = this.generateReceiptNumber(
@@ -491,23 +484,7 @@ class PaymentUseCase {
         }
         const totalAmount =
           (Number(lastPaidData?.total_amt) || 0) + Number(data.payment_amount);
-        // const dataToSave = {
-        //   ...data,
-        //   id_employee: data.created_by,
-        //   id_transaction: transactionId,
-        //   payment_receipt: paymentReceipt,
-        //   date_add: new Date(),
-        //   payment_status: data.payment_status || 1,
-        //   payment_type: data.payment_type || 1,
-        //   paid_installments: data.installments || 1,
-        //   cash_amount: data.cash_amount || 0,
-        //   card_amount: data.card_amount || 0,
-        //   gpay_amount: data.gpay_amount || 0,
-        //   itr_utr: data.itr_utr || null,
-        //   total_amt: totalAmount,
-        //   paymentModeName: paymentMode.mode_name,
-        //   installment:Number(schemeAccData.paid_installments) + Number(data.installments)
-        // };
+
         const rejectWeightField =[0,8,13,11,1,7]
         const dataToSave = {
           ...data,
@@ -529,13 +506,6 @@ class PaymentUseCase {
             ? 0
             : (metalWeight || 0),
         };
-        // metal_weight: metalWeight
-
-        // if(rejectWeightField.includes(schemeData?.scheme_type)){
-        //   dataToSave.metalWeight = 0
-        // }else{
-        //   dataToSave.metalWeight = metalWeight || 0
-        // }
 
         const savedPayment = await this.paymentRepository.addPayment(
           dataToSave
@@ -568,7 +538,6 @@ class PaymentUseCase {
           data?.id_scheme_account,
           data?.payment_amount || 0,
           metalWeight,
-          // data?.metal_weight || 0,
           new Date()
         );
 
@@ -592,8 +561,8 @@ class PaymentUseCase {
         if (paymentCountIncrement && schemeAccData.referral_id !== null) {
           if (
             schemeCustomer.referral_id !== null &&
-            schemeData.referralPercentage !== null
-          ) {
+            schemeData.display_referral
+          ) { 
             const referral = {
               id_scheme_account: data?.id_scheme_account,
               reference_no: schemeCustomer.referral_code,
@@ -622,13 +591,22 @@ class PaymentUseCase {
             let wallet = await this.walletRepo.findWallet({ mobile: mobile });
             let creditedAmount = 0;
             const walletData = {};
+            const referralTriggerType = Number(schemeData?.referralTriggerType) ||null
+            const commissionType = Number(schemeData?.commissionType) || null
+            const referralPercentage = Number(schemeData?.referralPercentage) || null;
 
             if (schemeCustomer?.referral_type === "Customer") {
-              const paymentAmount = Number(data?.payment_amount) || 0;
-              const referralPercentage =
-                Number(schemeData?.referralPercentage) || 0;
+              const paymentAmount = Number(data?.payment_amount) || null;
+              const referralAmount = Number(schemeData?.referralAmount) || null
 
-              creditedAmount = (paymentAmount * referralPercentage) / 100;
+              if(commissionType == 1){
+                creditedAmount = (paymentAmount * referralPercentage) / 100;
+              }else if(commissionType == 2){
+                creditedAmount = referralAmount;
+              }else if(!commissionType && referralPercentage){
+                creditedAmount = (paymentAmount * referralPercentage) / 100;
+              }
+
               walletData.id_customer = walletOwner?._id;
             } else {
               creditedAmount =
@@ -641,6 +619,7 @@ class PaymentUseCase {
             if (creditedAmount !== 0 && creditedAmount !== "NaN") {
               referral.credited_amount = creditedAmount;
 
+            if(referralTriggerType == 1){
               if (!wallet) {
                 walletData.mobile = mobile;
                 walletData.balance_amt = creditedAmount;
@@ -651,6 +630,29 @@ class PaymentUseCase {
                 await this.walletRepo.creditAmount(wallet.id, creditedAmount);
               }
               await this.paymentRepository.addReferralPoint(referral);
+            }else if(referralTriggerType == 2 && lastPaidData == null){
+              if (!wallet) {
+                walletData.mobile = mobile;
+                walletData.balance_amt = creditedAmount;
+                walletData.total_reward_amt = creditedAmount;
+                walletData.created_by = token.id_employee;
+                wallet = await this.walletRepo.addWallet(walletData);
+              } else {
+                await this.walletRepo.creditAmount(wallet.id, creditedAmount);
+              }
+              await this.paymentRepository.addReferralPoint(referral);
+            }else if(!referralTriggerType && referralPercentage){
+              if (!wallet) {
+                walletData.mobile = mobile;
+                walletData.balance_amt = creditedAmount;
+                walletData.total_reward_amt = creditedAmount;
+                walletData.created_by = token.id_employee;
+                wallet = await this.walletRepo.addWallet(walletData);
+              } else {
+                await this.walletRepo.creditAmount(wallet.id, creditedAmount);
+              }
+              await this.paymentRepository.addReferralPoint(referral);
+            }
             }
           }
         }
@@ -756,9 +758,9 @@ class PaymentUseCase {
         data.id_scheme_account
       );
 
-      // if (Number(totalInstallments) + Number(data.installments) > Number(scheme.total_installments)) {
-      //   return { success: false, message: "Scheme installment limit reached" };
-      // }
+      if (Number(totalInstallments) + Number(data.installments) > Number(scheme.total_installments)) {
+        return { success: false, message: "Scheme installment limit reached" };
+      }
 
       const monthlyPayments = await this.paymentRepository.getMonthlyPayments({
         id: data.id_scheme_account,
@@ -793,12 +795,12 @@ class PaymentUseCase {
         diffMonth = this.getDifferenceInMonths(lastDate, currentDate);
       }
 
-      // if (scheme.limit_notpaid > 0 && diffMonth > 5) {
-      //   return {
-      //     success: false,
-      //     message: "Scheme Account has not paid for over 6 months, move to preclose",
-      //   };
-      // }
+      if (scheme.limit_notpaid > 0 && diffMonth > 5) {
+        return {
+          success: false,
+          message: "Scheme Account has not paid for over 6 months, move to preclose",
+        };
+      }
 
       const args = {
         scheme,
@@ -824,13 +826,6 @@ class PaymentUseCase {
           success: false,
           message: "No general settings found for this branch",
         };
-
-      // const paymentReceipt = await this.updatePaymentReceipt(
-      //   generalSettings,
-      //   scheme,
-      //   data.payment_receipt,
-      //   data.id_scheme
-      // );
 
       let Lastpayment = await this.paymentRepository.lastPaymentReciept();
 
@@ -1221,13 +1216,6 @@ class PaymentUseCase {
 
       const query = { id_scheme_account: id, active: true, payment_status: 1 };
 
-      // if (from_date && to_date) {
-      //   query.start_date = {
-      //     $gte: from_date,
-      //     $lte: to_date,
-      //   };
-      // }
-
       const paymentData = await this.paymentRepository.getPaymentsBySchemeId(
         query,
         documentskip,
@@ -1414,15 +1402,10 @@ class PaymentUseCase {
           Lastpayment?.payment_receipt || "REC/0001/a01"
         );
 
-        // const paymentReceipt = await this.updatePaymentReceipt(
-        //   generalSettings,
-        //   schemeData,
-        //   data.payment_receipt,
-        //   data.id_scheme
-        // );
         const runningTotalAmount =
           (Number(lastPaidData?.total_amt) || 0) + Number(data.amount);
 
+        const rejectWeightField =[0,8,13,11,1,7]
         const paymentData = {
           ...data,
           id_transaction: transactionId,
@@ -1441,7 +1424,9 @@ class PaymentUseCase {
           id_customer: token._id,
           id_scheme: schemeAccData.id_scheme,
           payment_amount: data.amount,
-          metal_weight: data.weight || 0,
+          metal_weight: rejectWeightField.includes(schemeData?.scheme_type)
+            ? 0
+            : (metalWeight || 0),
           installment: Number(schemeAccData.paid_installments) + 1
         };
 
@@ -1466,7 +1451,6 @@ class PaymentUseCase {
           paid_installments: data?.installments || 1,
           scheme_total: data.amount,
           metal_rate: data?.metal_rate,
-          // payment_mode: data.payment_mode,
           payment_type: 2,
           platform: 0,
           metal_weight: data?.weight || null,
@@ -1476,26 +1460,6 @@ class PaymentUseCase {
         await this.transactionRepository.addTransaction(subtransaction);
         totalAmount += data.payment_amount;
         schemeAccountsProcessed.push(data);
-
-        // Update scheme account data
-        // const paymentCount = await this.paymentRepository.countDocuments(data.id_scheme_account);
-        // const lastPaidDate = moment(new Date()).format("YYYY-MM-DD");
-
-        // const newTotalInstallmentcount = Number(schemeAccData.paid_installments) + Number(data.installments);
-        // const updatedSchemeData = {
-        //   schemeAccountId: data.id_scheme_account,
-        //   paymentcount: paymentCount,
-        //   last_paid_date: lastPaidDate,
-        //   paid_installments: newTotalInstallmentcount,
-        // };
-
-        // const totalInstallments = await this.paymentRepository.totalInstallments(data.id_scheme_account);
-        // if (Number(totalInstallments) + Number(data.installments) === Number(schemeData.total_installments)) {
-        //   updatedSchemeData.status = 2;
-        //   updatedSchemeData.completedDate = new Date();
-        // }
-
-        // await this.schemeAccountRepository.updatePaymentCount(updatedSchemeData);
       }
 
       function sanitizeAmount(value) {
@@ -1520,14 +1484,7 @@ class PaymentUseCase {
         order_meta: {
           return_url: "https://example.com/return",
         },
-        // order_tags: {
-        //   paid_weight: extraData.paidWeight,
-        // },
       };
-
-      // if(extraData.digigold){
-      //   orderData.order_tags.digigold = true
-      // }
 
       if (extraData.schemeType) {
         orderData.order_note = "digi";
@@ -1558,8 +1515,6 @@ class PaymentUseCase {
         success: true,
         message: "Payment proceeded successfully",
         data,
-        // session: createdOrder.payment_session_id,
-        // transactionDetails: saveTransactionDetails,
       };
     } catch (error) {
       console.error("Error in multi-scheme payment:", error);
@@ -1659,7 +1614,6 @@ class PaymentUseCase {
         schemeType,
         referral_id,
       } = data;
-      console.log(data);
 
       const schemeAccount = await this.schemeAccountRepository.findOne({
         id_customer: customerId,
@@ -1766,7 +1720,7 @@ class PaymentUseCase {
             id_scheme_account: newSchemeAcc._id || schemeAccount._id,
             amount: amount,
             convenience_fee: convenienceFee,
-            weight: Number(metalWeightSaved.toFixed(3)),
+            weight: Number(metalWeightSaved),
             metal_rate: metal_rate,
           },
         ],
@@ -1781,7 +1735,7 @@ class PaymentUseCase {
           id_scheme_account: newSchemeAcc._id || schemeAccount._id,
           amount: amount,
           convenience_fee: convenienceFee,
-          weight: Number(metalWeightSaved.toFixed(3)),
+          weight: Number(metalWeightSaved),
           metal_rate: metal_rate,
         },
       ];
@@ -1902,7 +1856,6 @@ async completePayment(data) {
         ...new Set(schemeAccounts.map((id) => id.toString())),
       ];
 
-      // Get all required data in parallel
       const [schemeAccountDetails, payments] = await Promise.all([
         Promise.all(
           uniqueAccountIds.map((accountId) =>
@@ -2008,7 +1961,6 @@ async completePayment(data) {
           },
         });
 
-        // Prepare payment update
         paymentBulk.push({
           updateOne: {
             filter: {
@@ -2028,7 +1980,6 @@ async completePayment(data) {
         });
       }
 
-      // Execute bulk operations
       await Promise.all([
         this.schemeAccountRepository.bulkWrite(schemeBulk),
         this.paymentRepository.bulkWrite(paymentBulk),
@@ -2062,8 +2013,7 @@ async completePayment(data) {
           created_by: data?.token?.id_employee || null,
           modified_by: data?.token?.id_employee || null,
         };
-
-        // Get the referrer details based on referral_id
+  
         let referrer = null;
         if (customer.referral_type === "Customer") {
           referral.id_customer = customer.referral_id;
@@ -2074,41 +2024,80 @@ async completePayment(data) {
           referral.referred_by = "Employee";
           referrer = await this.employeeRepo.findById(customer.referral_id);
         }
-
+  
         if (!referrer) {
-          console.error("Referrer not found");
+          console.error("❌ Referrer not found for referral ID:", customer.referral_id);
           return;
         }
+  
         const mobile = referrer.mobile;
         let wallet = await this.walletRepo.findWallet({ mobile });
+  
         const paymentAmount = Number(paymentData.payment_amount) || 0;
-        const referralPercentage =
-          Number(referralScheme?.id_scheme?.referralPercentage) || 0;
-        const creditedAmount = (paymentAmount * referralPercentage) / 100;
+        const referralPercentage = Number(referralScheme?.id_scheme?.referralPercentage);
+        const referralAmount = Number(referralScheme?.id_scheme?.referralAmount);
+        const referralTriggerType = Number(referralScheme?.id_scheme?.referralTriggerType);
+        const commissionType = Number(referralScheme?.id_scheme?.commissionType);
+  
+        let creditedAmount = 0;
+        
+        if (commissionType === 1) {
+          creditedAmount = (paymentAmount * referralPercentage) / 100;
+        } else if (commissionType === 2) {
+          creditedAmount = referralAmount;
+        }else if(!commissionType && referralPercentage){
+          creditedAmount = (paymentAmount * referralPercentage) / 100;
+        }
+  
         if (creditedAmount > 0 && !isNaN(creditedAmount)) {
           referral.credited_amount = creditedAmount;
 
-          if (!wallet) {
-            const walletData = {
-              mobile,
-              balance_amt: creditedAmount,
-              total_reward_amt: creditedAmount,
-              created_by: data?.token?.id_employee || null,
-              ...(customer.referral_type === "Customer"
-                ? { id_customer: referrer._id }
-                : { id_employee: referrer._id }),
-            };
-
-            await this.walletRepo.addWallet(walletData);
-          } else {
-            await this.walletRepo.creditAmount(wallet.id, creditedAmount);
+          const isFirstPayment = !referralScheme?.last_paid_date;
+  
+          if (
+            referralTriggerType === 1 ||
+            (referralTriggerType === 2 && isFirstPayment)
+          ) {
+            if (!wallet) {
+              const walletData = {
+                mobile,
+                balance_amt: creditedAmount,
+                total_reward_amt: creditedAmount,
+                created_by: data?.token?.id_employee || null,
+                ...(customer.referral_type === "Customer"
+                  ? { id_customer: referrer._id }
+                  : { id_employee: referrer._id }),
+              };
+              await this.walletRepo.addWallet(walletData);
+            } else {
+              console.log("💰 Crediting existing wallet:", wallet.id);
+              await this.walletRepo.creditAmount(wallet.id, creditedAmount);
+            }
+  
+            await this.paymentRepository.addReferralPoint(referral);
+          } else if(!referralTriggerType && referralPercentage){
+            if (!wallet) {
+              const walletData = {
+                mobile,
+                balance_amt: creditedAmount,
+                total_reward_amt: creditedAmount,
+                created_by: data?.token?.id_employee || null,
+                ...(customer.referral_type === "Customer"
+                  ? { id_customer: referrer._id }
+                  : { id_employee: referrer._id }),
+              };
+              await this.walletRepo.addWallet(walletData);
+            } else {
+              console.log("💰 Crediting existing wallet:", wallet.id);
+              await this.walletRepo.creditAmount(wallet.id, creditedAmount);
+            }
+  
+            await this.paymentRepository.addReferralPoint(referral);
           }
-
-          await this.paymentRepository.addReferralPoint(referral);
         }
       }
     } catch (error) {
-      console.error("Error in completePayment:", error);
+      console.error("❌ Error in completePayment:", error);
       throw error;
     }
   }
