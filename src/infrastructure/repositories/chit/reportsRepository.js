@@ -168,36 +168,65 @@ class ReportRepository {
         {
           $lookup: {
             from: "payments",
-            localField: "closedSchemeAccountIds",
-            foreignField: "id_scheme_account",
+            let: { accountIds: "$closedSchemeAccountIds" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
+                  payment_status: 1
+                }
+              }
+            ],
             as: "ClosedPayments",
           },
         },
         {
           $lookup: {
             from: "payments",
-            localField: "refundSchemeAccountIds",
-            foreignField: "id_scheme_account",
+            let: { accountIds: "$refundSchemeAccountIds" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
+                  payment_status: 1
+                }
+              }
+            ],
             as: "RefundPayments",
           },
         },
         {
           $lookup: {
             from: "payments",
-            localField: "preCloseSchemeAccountIds",
-            foreignField: "id_scheme_account",
+            let: { accountIds: "$preCloseSchemeAccountIds" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
+                  payment_status: 1
+                }
+              }
+            ],
             as: "PreClosePayments",
           },
         },
         {
           $lookup: {
             from: "payments",
-            localField: "openSchemeAccountIds",
-            foreignField: "id_scheme_account",
+            let: { accountIds: "$openSchemeAccountIds" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
+                  payment_status: 1
+                }
+              }
+            ],
             as: "OpenPayments",
           },
         },
-  
+
+
         // Add totals
         {
           $addFields: {
@@ -1378,6 +1407,7 @@ class ReportRepository {
                 id_transaction: 1,
                 payment_receipt: 1,
                 createdAt: 1,
+                metal_weight:1,
                 totalPaidInstallment: "$installment",
               },
             },
@@ -2346,6 +2376,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       filter = {
         status: { $in: [0, 2] },
         weight: { $gte: 1 },
+      
       };
 
       const amountPaybleData = await schemeAccountModel.aggregate([
@@ -2775,6 +2806,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
               {
                 $match: {
                   $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                  payment_status:1,
                   ...(Object.keys(dateFilter).length > 0 && {
                     createdAt: dateFilter.createdAt
                   })
@@ -2853,6 +2885,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
               {
                 $match: {
                   $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                  payment_status:1,
                   ...(Object.keys(dateFilter).length > 0 && {
                     createdAt: dateFilter.createdAt
                   })
@@ -3057,7 +3090,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
   //   }
   // }
 
-  //! drill down api
+  // ! drill down api
   
   
   
@@ -3637,6 +3670,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                         {
                             $match: {
                                 $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                                payment_status:1,
                                 ...paymentMatch
                             }
                         },
