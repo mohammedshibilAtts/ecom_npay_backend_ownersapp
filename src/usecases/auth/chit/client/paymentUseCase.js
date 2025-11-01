@@ -758,9 +758,9 @@ class PaymentUseCase {
         data.id_scheme_account
       );
 
-      // if (Number(totalInstallments) + Number(data.installments) > Number(scheme.total_installments)) {
-      //   return { success: false, message: "Scheme installment limit reached" };
-      // }
+      if (Number(totalInstallments) + Number(data.installments) > Number(scheme.total_installments)) {
+        return { success: false, message: "Scheme installment limit reached" };
+      }
 
       const monthlyPayments = await this.paymentRepository.getMonthlyPayments({
         id: data.id_scheme_account,
@@ -795,12 +795,12 @@ class PaymentUseCase {
         diffMonth = this.getDifferenceInMonths(lastDate, currentDate);
       }
 
-      // if (scheme.limit_notpaid > 0 && diffMonth > 5) {
-      //   return {
-      //     success: false,
-      //     message: "Scheme Account has not paid for over 6 months, move to preclose",
-      //   };
-      // }
+      if (scheme.limit_notpaid > 0 && diffMonth > 5) {
+        return {
+          success: false,
+          message: "Scheme Account has not paid for over 6 months, move to preclose",
+        };
+      }
 
       const args = {
         scheme,
@@ -826,13 +826,6 @@ class PaymentUseCase {
           success: false,
           message: "No general settings found for this branch",
         };
-
-      // const paymentReceipt = await this.updatePaymentReceipt(
-      //   generalSettings,
-      //   scheme,
-      //   data.payment_receipt,
-      //   data.id_scheme
-      // );
 
       let Lastpayment = await this.paymentRepository.lastPaymentReciept();
 
@@ -1412,6 +1405,7 @@ class PaymentUseCase {
         const runningTotalAmount =
           (Number(lastPaidData?.total_amt) || 0) + Number(data.amount);
 
+        const rejectWeightField =[0,8,13,11,1,7]
         const paymentData = {
           ...data,
           id_transaction: transactionId,
@@ -1430,7 +1424,9 @@ class PaymentUseCase {
           id_customer: token._id,
           id_scheme: schemeAccData.id_scheme,
           payment_amount: data.amount,
-          metal_weight: data.weight || 0,
+          metal_weight: rejectWeightField.includes(schemeData?.scheme_type)
+            ? 0
+            : (metalWeight || 0),
           installment: Number(schemeAccData.paid_installments) + 1
         };
 
@@ -1618,7 +1614,6 @@ class PaymentUseCase {
         schemeType,
         referral_id,
       } = data;
-      console.log(data);
 
       const schemeAccount = await this.schemeAccountRepository.findOne({
         id_customer: customerId,
@@ -1725,7 +1720,7 @@ class PaymentUseCase {
             id_scheme_account: newSchemeAcc._id || schemeAccount._id,
             amount: amount,
             convenience_fee: convenienceFee,
-            weight: Number(metalWeightSaved.toFixed(3)),
+            weight: Number(metalWeightSaved),
             metal_rate: metal_rate,
           },
         ],
@@ -1740,7 +1735,7 @@ class PaymentUseCase {
           id_scheme_account: newSchemeAcc._id || schemeAccount._id,
           amount: amount,
           convenience_fee: convenienceFee,
-          weight: Number(metalWeightSaved.toFixed(3)),
+          weight: Number(metalWeightSaved),
           metal_rate: metal_rate,
         },
       ];
