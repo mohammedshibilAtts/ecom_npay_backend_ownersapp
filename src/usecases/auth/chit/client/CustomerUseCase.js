@@ -1019,7 +1019,7 @@ class CustomerUseCase {
       let code=''
       if(checkCusmoter.referral_code == "0" || checkCusmoter.referral_code == null){
         const referralCode = generateReferralCode(checkCusmoter.mobile);
-         code = `Cus-${referralCode}`;
+       code = `Cus-${referralCode}`;
         await this.customerRepository.updateUniversal(customerId,{referral_code:code})
       }
 
@@ -1027,16 +1027,20 @@ class CustomerUseCase {
 
       if (referralData) {
         const outputData ={
-          referralCode: checkCusmoter.referral_code || code,
-          referralMessage:referralData?.message,
-          applink: referralData?.appLink,
-          faq: referralData?.faq
+          referralCode: checkCusmoter?.referral_code || code,
+          referralMessage:referralData?.message || "",
+          applink: referralData?.appLink || "",
+          faq: referralData?.faq || ""
          }
 
         return { success: true, message: "Referral details fetched successfully" ,data:outputData};
       }
 
-      return { success: false, message: "Failed to get referral details" };
+      const outputdata={
+        referralData:checkCusmoter?.referral_code || code,
+      }
+
+      return { success: false, message: "Failed to get referral details" ,data:outputdata};
     } catch (error) {
       console.error(error);
       return { success: false, message: "Error while getting referral data" };
