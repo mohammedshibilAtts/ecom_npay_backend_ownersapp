@@ -121,7 +121,7 @@ class PaymentUseCase {
         };
 
         await smsService.sendNotification(inputMsg);
-        await  this.saveNotificationUsecase.saveNotification(
+        await this.saveNotificationUsecase.saveNotification(
           {
             title: inputMsg.title,
             message: inputMsg.message,
@@ -352,7 +352,7 @@ class PaymentUseCase {
     try {
       const lastPayment = await this.paymentRepository.lastPayment(schemeId);
 
-      return lastPayment ?  lastPayment.payment_receipt + 1 : 1
+      return lastPayment ? lastPayment.payment_receipt + 1 : 1
 
     } catch (error) {
       console.error("Error updating payment receipt:", error.message);
@@ -401,7 +401,7 @@ class PaymentUseCase {
 
         const totalInstallments =
           await this.paymentRepository.totalInstallments(
-            data.id_scheme_account 
+            data.id_scheme_account
           );
 
         if (
@@ -421,7 +421,7 @@ class PaymentUseCase {
         if (
           schemeData?.limit_installment &&
           Number(monthlyPaiments) + Number(data.installments) >
-            Number(schemeData?.limit_installment)
+          Number(schemeData?.limit_installment)
         ) {
           return { status: false, message: "Monthly payment limit reached" };
         }
@@ -473,7 +473,7 @@ class PaymentUseCase {
         //   data.payment_receipt,
         //   data.id_scheme
         // );
-        
+
         let Lastpayment = await this.paymentRepository.lastPaymentReciept();
 
         const paymentReceipt = this.generateReceiptNumber(
@@ -508,7 +508,7 @@ class PaymentUseCase {
         //   paymentModeName: paymentMode.mode_name,
         //   installment:Number(schemeAccData.paid_installments) + Number(data.installments)
         // };
-        const rejectWeightField =[0,8,13,11,1,7]
+        const rejectWeightField = [0, 8, 13, 11, 1, 7]
         const dataToSave = {
           ...data,
           id_employee: data.created_by,
@@ -778,7 +778,7 @@ class PaymentUseCase {
 
       if (
         Number(schemeAccData?.amount) + Number(data?.payment_amount) >
-          Number(scheme.maxLimit) &&
+        Number(scheme.maxLimit) &&
         scheme.maxLimit > 0
       ) {
         return { success: false, message: "Scheme payment limit reached" };
@@ -835,10 +835,10 @@ class PaymentUseCase {
       let Lastpayment = await this.paymentRepository.lastPaymentReciept();
 
       const paymentReceipt = this.generateReceiptNumber(
-          data.id_scheme_account,
-          "REC",
-          Lastpayment?.payment_receipt || "REC/0001/a01"
-        );
+        data.id_scheme_account,
+        "REC",
+        Lastpayment?.payment_receipt || "REC/0001/a01"
+      );
 
       const totalAmount =
         (Number(lastPaidData?.total_amt) || 0) + Number(data.payment_amount);
@@ -1304,15 +1304,17 @@ class PaymentUseCase {
           data.id_scheme_account
         );
 
+        const notDigiGold = !extraData?.digigold;
+
         const lastPaid = lastPaidData ? new Date(lastPaidData.createdAt) : null;
 
-        if(extraData?.digigold !== true){
+        if(notDigiGold){
           if (
             lastPaid &&
             this.toDateOnlyString(lastPaid) === this.toDateOnlyString(todayDate)
           ) {
             const schemeLength = paymentArray.length
-           
+
             let message =""
             if(schemeLength == 1){
               message = "Aleady completed today's payment"
@@ -1331,10 +1333,10 @@ class PaymentUseCase {
           await this.paymentRepository.totalInstallments(
             data.id_scheme_account
           );
-          
+
         if (
           Number(totalInstallments) + Number(data.installments) >
-          Number(schemeData.total_installments) &&  extraData?.digigold !== true
+          Number(schemeData.total_installments) && notDigiGold
         ) {
           return {
             success: false,
@@ -1346,10 +1348,10 @@ class PaymentUseCase {
           { id: data.id_scheme_account, date: todayDate }
         );
 
-        if (
-          Number(monthlyPayments) + Number(data.installments) >
-          Number(schemeData.limit_installment) &&  extraData?.digigold !== true
-        ) {
+        // return console.log(extraData)
+        const overLimit = Number(monthlyPayments) + 1 > Number(schemeData.limit_installment);
+
+        if (overLimit && notDigiGold) {
           return { success: false, message: "Monthly payment limit reached" };
         }
 
@@ -1360,7 +1362,7 @@ class PaymentUseCase {
           diffMonth = this.getDifferenceInMonths(lastDate, currentDate);
         }
 
-        if (schemeData.limit_notpaid > 0 && diffMonth > 5 &&  extraData?.digigold !== true) {
+        if (schemeData.limit_notpaid > 0 && diffMonth > 5 && notDigiGold) {
           return {
             success: false,
             message:
@@ -1502,7 +1504,7 @@ class PaymentUseCase {
         if (typeof value !== 'number') {
           value = Number(value);
         }
-      
+
         return +value.toFixed(2);
       }
 
@@ -1676,7 +1678,6 @@ class PaymentUseCase {
       customerData = await this.customerRepo.findOne({ _id: customerId });
       const existingReferral = customerData.referral_id;
       const newReferral = referral_id?.trim();
-      
       if (existingReferral && newReferral) {
         return {
           status: false,
@@ -1818,7 +1819,7 @@ class PaymentUseCase {
         "x-api-version": config.API_VERSION,
       };
       const response = await axios.post(url, data, { headers });
-      
+
       return response.data;
     } catch (error) {
       console.error(error);
@@ -1865,19 +1866,19 @@ class PaymentUseCase {
     }
   }
 
- formatPaymentGroup(paymentGroup) {
+  formatPaymentGroup(paymentGroup) {
     if (!paymentGroup) return '';
     const formatted = paymentGroup
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
-  
+
     return `${formatted}-online`;
   }
 
-  
 
-async completePayment(data) {
+
+  async completePayment(data) {
     try {
       const orderId = data?.data?.order?.order_id;
       const cfPaymentId = data?.data?.payment?.cf_payment_id;
@@ -2034,7 +2035,7 @@ async completePayment(data) {
         this.paymentRepository.bulkWrite(paymentBulk),
       ]);
 
-       if(initialWalletPoint){
+      if (initialWalletPoint) {
         customer = await this.customerRepo.findById(customerId);
       }
 
@@ -2113,7 +2114,7 @@ async completePayment(data) {
     }
   }
 
-   async sendAccountCreationNotifications(
+  async sendAccountCreationNotifications(
     data,
     schemedData,
     notificationData,

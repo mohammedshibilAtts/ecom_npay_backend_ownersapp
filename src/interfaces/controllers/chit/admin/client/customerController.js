@@ -665,7 +665,7 @@ class CustomerController {
           .json({ message: result.message, data: result.data });
       }
 
-      return res.status(400).json({ message: result.message });
+      return res.status(200).json({ message: result.message,data: result.data  });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
