@@ -41,7 +41,7 @@ class DashboardUseCase {
 
   async accountStat({id_branch, startDate, endDate}) {
     try {
-      const filter = { is_deleted: false };
+      const filter = { is_deleted: false,active:true };
       
       if (id_branch) {
         if (isValidObjectId(id_branch)) {
@@ -89,7 +89,7 @@ class DashboardUseCase {
 
   async account({id_branch, startDate, endDate}) {
     try {
-      const filter = { is_deleted: false };
+      const filter = { is_deleted: false,active:true };
   
       if (id_branch) {
         if (isValidObjectId(id_branch)) {
@@ -138,7 +138,7 @@ class DashboardUseCase {
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
       const skip = (pageNum - 1) * pageSize;
-      const filter={}
+      const filter={payment_status:1}
       if (id_branch) {
         if (isValidObjectId(id_branch)) {
           const isValidBranch = await this.branchRepository.findById(id_branch);
