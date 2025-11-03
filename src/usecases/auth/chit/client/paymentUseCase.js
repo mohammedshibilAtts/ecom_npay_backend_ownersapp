@@ -600,6 +600,7 @@ class PaymentUseCase {
               reward_mode: 1,
               created_by: token.id_employee,
               modified_by: token.id_employee,
+              id_payment:savedPayment._id
             };
 
             let walletOwner = null;
@@ -650,6 +651,7 @@ class PaymentUseCase {
               } else {
                 await this.walletRepo.creditAmount(wallet.id, creditedAmount);
               }
+              console.log("referralreferralreferralreferralreferralreferral",referral)
               await this.paymentRepository.addReferralPoint(referral);
             }
           }
@@ -918,6 +920,7 @@ class PaymentUseCase {
           reward_mode: 1,
           created_by: token.id_employee,
           modified_by: token.id_employee,
+          id_payment:savedPayment._id
         };
 
         let walletOwner = null;
@@ -1659,7 +1662,6 @@ class PaymentUseCase {
         schemeType,
         referral_id,
       } = data;
-      console.log(data);
 
       const schemeAccount = await this.schemeAccountRepository.findOne({
         id_customer: customerId,
@@ -1712,6 +1714,7 @@ class PaymentUseCase {
 
         if (referral_id) {
           accountData.referral_id = referral_id;
+          accountData.referral_type = "Customer";
         }
 
         newSchemeAcc = await this.schemeAccountRepository.addSchemeAccount(
@@ -2061,6 +2064,7 @@ async completePayment(data) {
           reward_mode: 1,
           created_by: data?.token?.id_employee || null,
           modified_by: data?.token?.id_employee || null,
+          id_payment:paymentData._id
         };
 
         // Get the referrer details based on referral_id

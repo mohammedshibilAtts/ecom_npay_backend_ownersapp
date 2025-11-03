@@ -3311,21 +3311,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         {
           $lookup: {
             from: "payments",
-            let: { schemeAccountId: "$SchemeAccount._id" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
-                      { $eq: ["$payment_status", 1] }
-                    ]
-                  }
-                }
-              },
-              { $sort: { createdAt: -1 } },
-              { $limit: 1 }
-            ],
+            localField:"id_payment",
+            foreignField:"_id",
             as: "Payments"
           }
         },
