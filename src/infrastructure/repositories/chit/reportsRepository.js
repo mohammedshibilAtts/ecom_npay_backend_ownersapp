@@ -2273,7 +2273,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       };
 
       const amountPaybleData = await schemeAccountModel.aggregate([
-        { $match: filter },
+        { $match: filter,status:0 },
         {
           $lookup: {
             from: "schemes",
@@ -2332,9 +2332,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           $facet: {
             metadata: [{ $count: "total" }],
             data: [
-              // { $sort: { [sortField]: sortOrder } },
-              // { $skip: Number(skip) },
-              // { $limit: Number(limit) },
               {
                 $project: {
                   account_name: 1,
@@ -2439,9 +2436,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           $facet: {
             metadata: [{ $count: "total" }],
             data: [
-              // { $sort: { [sortField]: sortOrder } },
-              // { $skip: Number(skip) },
-              // { $limit: Number(limit) },
               {
                 $project: {
                   account_name: 1,
@@ -2462,10 +2456,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           },
         },
       ]);
-
-      // const totalDocuments = amountPaybleData[0]?.metadata[0]?.total || 0;
-      // const totalPages = Math.ceil(totalDocuments / limit);
-      // const data = amountPaybleData[0]?.data || [];
 
       return {
         data: amountPaybleData,
@@ -2543,42 +2533,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   },
                   customerMobile: "$Customer.mobile",
                   referredDate: "$SchemeAccount.createdAt",
-                  ReferralBonuses:"$credited_amount"
-                  //  {
-                  //   $map: {
-                  //     input: "$Payments",
-                  //     as: "payment",
-                  //     in: {
-                  //       amount: {
-                  //         $round: [
-                  //           { $multiply: ["$$payment.payment_amount", 0.05] },
-                  //           2,
-                  //         ],
-                  //       },
-                  //       payment_date: "$$payment.createdAt",
-                  //       payment_id: "$$payment._id",
-                  //     },
-                  //   },
-                  // }
-                  ,
+                  ReferralBonuses:"$credited_amount",
                   totalBonus:"$credited_amount",
-                  //  {
-                  //   $round: [
-                  //     {
-                  //       $reduce: {
-                  //         input: "$Payments",
-                  //         initialValue: 0,
-                  //         in: {
-                  //           $add: [
-                  //             "$$value",
-                  //             { $multiply: ["$$this.payment_amount", 0.05] },
-                  //           ],
-                  //         },
-                  //       },
-                  //     },
-                  //     2,
-                  //   ],
-                  // },
                 },
               },
               { $skip: skip || 0 },
@@ -2605,160 +2561,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       throw err;
     }
   }
-
-  //amount payable
-  // async getAmountPayable(filter, skip = 0, limit = 10, type) {
-  //   try {
-  //     if (type === "weight") {
-  //       filter["scheme_type"] = { $in: [12, 3, 4, 2, 5, 6, 10, 14] };
-  //     }
-  //     else {
-  //       filter["scheme_type"] = { $nin: [12, 3, 4, 2, 5, 6, 10, 14] };
-  //     }
-
-  //     delete filter.createdAt;
-
-  //     const schemes = await schemeModel.aggregate([
-  //       { $match: { ...filter } },
-  //       {
-  //         $project: {
-  //           _id: 1,
-  //           schemeName: "$name",
-  //           classificationId: "$classification_id",
-  //         },
-  //       },
-  //     ]);
-
-  //     if (!schemes.length) {
-  //       return { success: false, message: "No schemes found" };
-  //     }
-
-  //     const fieldToSum = type === 'weight' ? "metal_weight" : "payment_amount";
-
-  //     // Main aggregation pipeline
-  //     const result = await schemeAccountModel.aggregate([
-  //       {
-  //         $match: {
-  //           id_scheme: { $in: schemes.map((scheme) => scheme._id) },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "payments",
-  //           localField: "_id",
-  //           foreignField: "id_scheme_account",
-  //           as: "Payments",
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           totalCollectedAmount: {
-  //             $sum: `$Payments.${fieldToSum}`
-  //           }
-  //         },
-  //       },
-  //       {
-  //         $match: {
-  //           totalCollectedAmount: { $gt: 0 }
-  //         }
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "schemes",
-  //           localField: "id_scheme",
-  //           foreignField: "_id",
-  //           as: "scheme",
-  //         },
-  //       },
-  //       { $unwind: "$scheme" },
-  //       {
-  //         $lookup: {
-  //           from: "schemeclassifications",
-  //           localField: "scheme.id_classification",
-  //           foreignField: "_id",
-  //           as: "classification",
-  //         },
-  //       },
-  //       { $unwind: "$classification" },
-  //       {
-  //         $project: {
-  //           schemeId: "$scheme._id",
-  //           schemeName: "$scheme.scheme_name",
-  //           classificationName: "$classification.name",
-  //           totalCollectedAmount: 1,
-  //         },
-  //       },
-  //       {
-  //         $group: {
-  //           _id: "$schemeId",
-  //           schemeName: { $first: "$schemeName" },
-  //           classificationName: { $first: "$classificationName" },
-  //           totalCollectedAmount: { $sum: "$totalCollectedAmount" },
-  //         },
-  //       },
-  //       {
-  //         $match: {
-  //           totalCollectedAmount: { $gt: 0 }
-  //         }
-  //       },
-  //       { $skip: skip },
-  //       { $limit: limit },
-  //     ]);
-
-  //     // For total count aggregation - modified to match the same criteria as the main query
-  //     const totalCountAgg = await schemeAccountModel.aggregate([
-  //       {
-  //         $match: {
-  //           id_scheme: { $in: schemes.map((scheme) => scheme._id) },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "payments",
-  //           localField: "_id",
-  //           foreignField: "id_scheme_account",
-  //           as: "Payments",
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           totalCollectedAmount: {
-  //             $sum: `$Payments.${fieldToSum}`
-  //           }
-  //         },
-  //       },
-  //       {
-  //         $match: {
-  //           totalCollectedAmount: { $gt: 0 }
-  //         }
-  //       },
-  //       {
-  //         $group: {
-  //           _id: "$id_scheme"
-  //         }
-  //       },
-  //       {
-  //         $count: "totalCount"
-  //       }
-  //     ]);
-
-  //     const totalCount = totalCountAgg[0]?.totalCount || 0;
-  //     const totalPages = Math.ceil(totalCount / limit) || 1;
-  //     const currentPage = Math.floor(skip / limit) + 1;
-
-  //     return {
-  //       success: true,
-  //       data: result,
-  //       totalPages,
-  //       totalCount,
-  //       currentPage,
-  //     };
-  //   } catch (err) {
-  //     console.error("Error in getAmountPayable:", err);
-  //     throw err;
-  //   }
-  // }
-
 
   async getAmountPayable(filter, skip = 0, limit = 10, type) {
     try {
@@ -2795,7 +2597,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       const result = await schemeAccountModel.aggregate([
         {
           $match: {
-            id_scheme: { $in: schemes.map((scheme) => scheme._id) },
+            id_scheme: { $in: schemes.map((scheme) => scheme._id) },status:{ $in: [0] },
           },
         },
         {
@@ -2934,337 +2736,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
     }
   }
 
-  // async getCustomerRefferal(filter, skip, limit) {
-  //   try {
-  //     const matchStage = {
-  //       $match: {
-  //         ...filter,
-  //         referred_by: "Customer",
-  //         id_customer: { $exists: true, $ne: null },
-  //       },
-  //     };
-
-  //     const pipeline = [
-  //       matchStage,
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "id_customer",
-  //           foreignField: "_id",
-  //           as: "Customer",
-  //         },
-  //       },
-  //       { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "schemeaccounts",
-  //           localField: "id_scheme_account",
-  //           foreignField: "_id",
-  //           as: "SchemeAccount",
-  //         },
-  //       },
-  //       {
-  //         $unwind: { path: "$SchemeAccount", preserveNullAndEmptyArrays: true },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "schemes",
-  //           localField: "SchemeAccount.id_scheme",
-  //           foreignField: "_id",
-  //           as: "Scheme",
-  //         },
-  //       },
-  //       {
-  //         $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "SchemeAccount.id_customer",
-  //           foreignField: "_id",
-  //           as: "referredCustomer",
-  //         },
-  //       },
-  //       {
-  //         $unwind: {
-  //           path: "$referredCustomer",
-  //           preserveNullAndEmptyArrays: true,
-  //         },
-  //       },
-  //       {
-  //           $lookup: {
-  //               from: "payments",
-  //               localField: "SchemeAccount._id",
-  //               foreignField: "id_scheme_account",
-  //               as: "Payments",
-  //               pipeline: [
-  //                   { $match: { status: 1 } }, // Only consider successful payments
-  //                   { $sort: { createdAt: 1 } } // Sort payments by date
-  //               ]
-  //           },
-  //       },
-  //       {
-  //         $project: {
-  //           // employee_name: null, // Since this is customer referral
-  //           customer_name: {
-  //             $concat: [
-  //               "$Customer.firstname",
-  //               " ",
-  //               { $ifNull: ["$Customer.lastname", ""] },
-  //             ],
-  //           },
-  //           customerMobile: "$Customer.mobile",
-  //           referredCusName: {
-  //             $concat: [
-  //               "$referredCustomer.firstname",
-  //               " ",
-  //               { $ifNull: ["$referredCustomer.lastname", ""] },
-  //             ],
-  //           },
-  //           referredCusMobile: "$referredCustomer.mobile",
-  //           referredDate: "$SchemeAccount.createdAt",
-  //           schemeName: "$Scheme.scheme_name",
-  //           minAmount: "$Scheme.min_amount",
-  //           maxAmount: "$Scheme.max_amount",
-  //           mixWeight: "$Scheme.min_weight",
-  //           maxWeight: "$Scheme.max_weight",
-  //           schemeType: "$Scheme.scheme_type",
-  //           ReferralBonuses: {
-  //             $map: {
-  //               input: "$Payments",
-  //               as: "payment",
-  //               in: {
-  //                 amount: {
-  //                   $round: [
-  //                     { $multiply: ["$$payment.payment_amount", 0.05] },
-  //                     2,
-  //                   ],
-  //                 },
-  //                 payment_date: "$$payment.createdAt",
-  //                 payment_id: "$$payment._id",
-  //                 original_payment_amount: "$$payment.payment_amount",
-  //                 original_payment_date: "$$payment.payment_date",
-  //               },
-  //             },
-  //           },
-  //           totalBonus: {
-  //             $round: [
-  //               {
-  //                 $sum: {
-  //                   $map: {
-  //                     input: "$Payments",
-  //                     as: "payment",
-  //                     in: { $multiply: ["$$payment.payment_amount", 0.05] },
-  //                   },
-  //                 },
-  //               },
-  //               2,
-  //             ],
-  //           },
-  //         },
-  //       },
-  //       { $match: { ReferralBonuses: { $ne: [] } } },
-  //       {
-  //         $facet: {
-  //           data: [{ $skip: skip || 0 }, { $limit: limit || 50 }],
-  //           totalCount: [{ $count: "count" }],
-  //         },
-  //       },
-  //     ];
-
-  //     const result = await referralListModel.aggregate(pipeline);
-
-  //     return {
-  //       success: true,
-  //       message: "Employee referral details fetched successfully",
-  //       data: result[0]?.data || [],
-  //       totalCount: result[0]?.totalCount || [{ count: 0 }],
-  //       totalPages: limit
-  //         ? Math.ceil((result[0]?.totalCount[0]?.count || 0) / limit)
-  //         : null,
-  //       currentPage: skip && limit ? Math.floor(skip / limit) + 1 : 1,
-  //     };
-  //   } catch (err) {
-  //     console.error(err);
-  //     throw err;
-  //   }
-  // }
-
-  // ! drill down api
-  
-  
-  
-  // async getCustomerRefferal(filter, skip, limit, type, search) {
-  //   try {
-  //     const matchStage = {
-  //       $match: {
-  //         ...filter,
-  //         referred_by: "Customer",
-  //         id_customer: { $exists: true, $ne: null },
-  //       },
-  //     };
-
-  //     // Add search conditions if search parameter exists
-  //     let searchConditions = [];
-  //     if (search) {
-  //       searchConditions = [
-  //         {
-  //           $match: {
-  //             $or: [
-  //               { 
-  //                 "Customer.mobile": { 
-  //                   $regex: search, 
-  //                   $options: 'i' 
-  //                 } 
-  //               },
-  //               { 
-  //                 "Customer.firstname": { 
-  //                   $regex: search, 
-  //                   $options: 'i' 
-  //                 } 
-  //               },
-  //               { 
-  //                 "Customer.lastname": { 
-  //                   $regex: search, 
-  //                   $options: 'i' 
-  //                 } 
-  //               },
-  //               {
-  //                 $expr: {
-  //                   $regexMatch: {
-  //                     input: { 
-  //                       $concat: [
-  //                         "$Customer.firstname", 
-  //                         " ", 
-  //                         { $ifNull: ["$Customer.lastname", ""] }
-  //                       ] 
-  //                     },
-  //                     regex: search,
-  //                     options: "i"
-  //                   }
-  //                 }
-  //               }
-  //             ]
-  //           }
-  //         }
-  //       ];
-  //     }
-
-  //     const pipeline = [
-  //       matchStage,
-  //       {
-  //         $lookup: {
-  //           from: "payments",
-  //           localField: "paymentId",
-  //           foreignField: "_id",
-  //           as: "Payment",
-  //           pipeline: [
-  //             { $match: { payment_status: 1 } },
-  //             { $limit: 1 } 
-  //           ]
-  //         }
-  //       },
-  //       { $unwind: { path: "$Payment", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "id_customer",
-  //           foreignField: "_id",
-  //           as: "Customer",
-  //         },
-  //       },
-  //       { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "schemeaccounts",
-  //           localField: "id_scheme_account",
-  //           foreignField: "_id",
-  //           as: "SchemeAccount",
-  //         },
-  //       },
-  //       { $unwind: { path: "$SchemeAccount", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "schemes",
-  //           localField: "SchemeAccount.id_scheme",
-  //           foreignField: "_id",
-  //           as: "Scheme",
-  //         },
-  //       },
-  //       { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "SchemeAccount.id_customer",
-  //           foreignField: "_id",
-  //           as: "referredCustomer",
-  //         },
-  //       },
-  //       { $unwind: { path: "$referredCustomer", preserveNullAndEmptyArrays: true } },
-  //       ...searchConditions, // Add search conditions here after all lookups are done
-  //       {
-  //         $project: {
-  //           customer_name: {
-  //             $concat: [
-  //               "$Customer.firstname",
-  //               " ",
-  //               { $ifNull: ["$Customer.lastname", ""] },
-  //             ],
-  //           },
-  //           customerMobile: "$Customer.mobile",
-  //           referredCusName: {
-  //             $concat: [
-  //               "$referredCustomer.firstname",
-  //               " ",
-  //               { $ifNull: ["$referredCustomer.lastname", ""] },
-  //             ],
-  //           },
-  //           referredCusMobile: "$referredCustomer.mobile",
-  //           referredDate: "$SchemeAccount.createdAt",
-  //           schemeName: "$Scheme.scheme_name",
-  //           minAmount: "$Scheme.min_amount",
-  //           maxAmount: "$Scheme.max_amount",
-  //           minWeight: "$Scheme.min_weight",
-  //           maxWeight: "$Scheme.max_weight",
-  //           schemeType: "$Scheme.scheme_type",
-  //           ReferralBonuses: {
-  //             payment_date: "$Payment.createdAt",
-  //             payment_amount: "$Payment.payment_amount",
-  //             referral_amount: "$credited_amount",
-  //             payment_id: "$Payment._id",
-  //             payment_status: "$Payment.payment_status"
-  //           },
-  //         }
-  //       },
-  //       {
-  //         $facet: {
-  //           data: [{ $skip: skip || 0 }, { $limit: limit || 50 }],
-  //           totalCount: [{ $count: "count" }],
-  //         },
-  //       },
-  //     ];
-
-  //     const result = await referralListModel.aggregate(pipeline);
-
-  //     console.log(result)
-
-  //     return {
-  //       success: true,
-  //       data: result[0]?.data || [],
-  //       totalCount: result[0]?.totalCount[0] || { count: 0 },
-  //       totalPages: limit
-  //         ? Math.ceil((result[0]?.totalCount[0]?.count || 0) / limit)
-  //         : null,
-  //       currentPage: skip && limit ? Math.floor(skip / limit) + 1 : 1,
-  //     };
-  //   } catch (err) {
-  //     console.log(err);
-  //     throw err;
-  //   }
-  // }
-
-
-
    async getCustomerRefferal(filter, skip, limit, type, search) {
     try {
       const matchStage = {
@@ -3275,7 +2746,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         },
       };
 
-      // Add search conditions if search parameter exists
       let searchConditions = [];
       if (search) {
         searchConditions = [
@@ -3535,95 +3005,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       throw err;
     }
   }
-
-  // async getAmountDetailedView(filter, skip = 0, limit = 10, schemeId,type) {
-  //   try { console.log(filter)
-  //     const totalCountAgg = await schemeAccountModel.aggregate([
-  //       {
-  //         $match: {
-  //           id_scheme: new mongoose.Types.ObjectId(schemeId),
-  //           ...filter,
-  //         },
-  //       },
-  //       {
-  //         $count: "totalCount",
-  //       },
-  //     ]);
-
-  //     const totalCount = totalCountAgg[0]?.totalCount || 0;
-  //     const totalPages = Math.ceil(totalCount / limit);
-  //     const currentPage = Math.floor(skip / limit) + 1;
-
-  //     const fieldToSum = type === 'weight' ? "$metal_weight" : "$payment_amount";
-  
-  //     const schemeDetails = await schemeAccountModel.aggregate([
-  //       {
-  //         $match: {
-  //           id_scheme: new mongoose.Types.ObjectId(schemeId),
-  //           ...filter,
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "id_customer",
-  //           foreignField: "_id",
-  //           as: "Customer",
-  //         },
-  //       },
-  //       { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "payments",
-  //           localField: "_id",
-  //           foreignField: "id_scheme_account",
-  //           pipeline: [
-  //             { 
-  //               $group: {
-  //                 _id: null,
-  //                 totalValue: { $sum: fieldToSum }
-  //               }
-  //             }
-  //           ],
-  //           as: "PaymentSummary",
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           totalValue: { 
-  //             $ifNull: [{ $arrayElemAt: ["$PaymentSummary.totalValue", 0] }, 0] 
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           _id: 0,
-  //           customer: "$account_name",
-  //           mobile: "$Customer.mobile",
-  //           accounter_fname: "$Customer.firstname",
-  //           accounter_lname: "$Customer.lastname",
-  //           schemeAccNumber: "$scheme_acc_number",
-  //           joinedDate: "$start_date",
-  //           maturityDate: "$maturity_date",
-  //           paidInstallments: "$paid_installments",
-  //           totalValue:1 ,
-  //         },
-  //       },
-  //       { $skip: skip },
-  //       { $limit: limit },
-  //     ]);
-  
-  //     return {
-  //       data: schemeDetails,
-  //       totalPages,
-  //       totalCount,
-  //       currentPage,
-  //     };
-  //   } catch (err) {
-  //     console.error(err);
-  //     throw err;
-  //   }
-  // }
   
   async getAmountDetailedView(filter, skip = 0, limit = 10, schemeId, type,from_date,to_date) {
     try {
@@ -3637,7 +3018,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             {
                 $match: {
                     id_scheme: new mongoose.Types.ObjectId(schemeId),
-                    ...filter
+                    ...filter,
+                    status:0
                 }
             },
             {
@@ -3698,16 +3080,12 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         // Get paginated results
         const schemeDetails = await schemeAccountModel.aggregate(aggregationPipeline);
 
-       
-        // const totalCount = await schemeAccountModel.countDocuments({
-        //     id_scheme: new mongoose.Types.ObjectId(schemeId),
-        //     filter
-        // });
       const totalCountAgg = await schemeAccountModel.aggregate([
         {
           $match: {
             id_scheme: new mongoose.Types.ObjectId(schemeId),
-            ...filter
+            ...filter,
+            status:0
           }
         },
         {
@@ -3732,8 +3110,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
 
 
         const totalCount = totalCountAgg[0]?.totalCount || 0;
-        console.log(totalCount)
-
         const totalPages = Math.ceil(totalCount / limit);
         const currentPage = Math.floor(skip / limit) + 1;
 
