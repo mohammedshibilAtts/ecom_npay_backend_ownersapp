@@ -404,18 +404,9 @@ class SchemeRepository {
 
       // Step 1: Find current count of active schemes
       const activeCount = await schemeModel.countDocuments({ active: true });
-
+        console.log("active Count .... ",activeCount)
       // Step 2: Move this scheme to end of active ones
       scheme.classification_order = activeCount + 1;
-
-      // Step 3: Shift inactive schemes below if needed
-      await schemeModel.updateMany(
-        {
-          active: false,
-          classification_order: { $lte: activeCount + 1 },
-        },
-        { $inc: { classification_order: 1 } }
-      );
     }
 
     scheme.active = newStatus;
