@@ -392,10 +392,10 @@ class PaymentUseCase {
             this.toDateOnlyString(lastPaid);
 
           if (todatPaidorNot) {
-            return {
-              status: false,
-              message: "Already completed today's payment",
-            };
+            // return {
+            //   status: false,
+            //   message: "Already completed today's payment",
+            // };
           }
         }
 
@@ -717,6 +717,7 @@ class PaymentUseCase {
             return {
               success: true,
               message: messageOut ? messageOut : message,
+              data:savedPayment
             };
           } else {
             return {
@@ -734,7 +735,7 @@ class PaymentUseCase {
         );
 
         if (digiCalc.success) {
-          return { success: true, message: digiCalc.message };
+         return { success: true, message: digiCalc.message,data:digiCalc.savedPayment };
         } else {
           return { success: false, message: digiCalc.message };
         }
@@ -1061,7 +1062,7 @@ class PaymentUseCase {
       return { success: true, message: "Payment added successfully" };
     } catch (error) {
       console.error(error);
-      return { success: false, message: "Failed to add payment" };
+      return { success: false, message: "Failed to add payment",savedPayment };
     }
   }
 
