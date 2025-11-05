@@ -1367,8 +1367,6 @@ class WalletRepository {
       
           const referralPipeline = [
             { $match: query },
-      
-            // Lookup customer who referred
             {
               $lookup: {
                 from: "customers",
@@ -1378,8 +1376,6 @@ class WalletRepository {
               },
             },
             { $unwind: { path: "$id_customer", preserveNullAndEmptyArrays: true } },
-      
-            // Lookup employee
             {
               $lookup: {
                 from: "employees",
@@ -1389,8 +1385,6 @@ class WalletRepository {
               },
             },
             { $unwind: { path: "$id_employee", preserveNullAndEmptyArrays: true } },
-      
-            // Lookup scheme account
             {
               $lookup: {
                 from: "schemeaccounts",
@@ -1405,8 +1399,6 @@ class WalletRepository {
                 preserveNullAndEmptyArrays: true,
               },
             },
-      
-            // Lookup the customer under the scheme account
             {
               $lookup: {
                 from: "customers",
@@ -1422,8 +1414,6 @@ class WalletRepository {
                 },
               },
             },
-      
-            // Lookup the scheme
             {
               $lookup: {
                 from: "schemes",
@@ -1437,30 +1427,30 @@ class WalletRepository {
                 id_scheme: { $arrayElemAt: ["$id_scheme", 0] },
               },
             },
-      
-            // Add referral_amount field
             {
-              $addFields: {
-                referral_amount: {
-                  $round: [
-                    {
-                      $multiply: [
-                        {
-                          $divide: [
-                            { $ifNull: ["$id_scheme.referralPercentage", 0] },
-                            100,
-                          ],
-                        },
-                        { $ifNull: ["$payment_amount", 0] },
-                      ],
-                    },
-                    2,
-                  ],
-                },
+                $addFields: {
+                  referral_amount: {
+                    $cond: {
+                      if: { $eq: ["$id_scheme.commissionType", 1] }, 
+                      then: {
+                        $round: [
+                          {
+                            $multiply: [
+                              { $divide: [ { $ifNull: ["$id_scheme.referralPercentage", 0] }, 100 ] },
+                              { $ifNull: ["$payment_amount", 0] }
+                            ]
+                          },
+                          2
+                        ]
+                      },
+                      else: { $ifNull: ["$id_scheme.referralAmount", 0] }
+                    }
+                  }
+                }
               },
-            },
-      
-            // Final projection
+              {
+                $match: { referral_amount: { $gt: 0 } } // ✅ Only include positive referral payments
+              },              
             {
               $project: {
                 id_customer: {
@@ -1502,6 +1492,8 @@ class WalletRepository {
                 referral_amount: 1,
                 payment_status: 1,
                 remarks: 1,
+                referrlTriggerType:"$id_scheme.referralTriggerType",
+                commissionType:"$id_scheme.referralTriggerType"
               },
             },
       
