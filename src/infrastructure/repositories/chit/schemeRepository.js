@@ -398,14 +398,8 @@ class SchemeRepository {
       scheme.classification_order = maxOrder;
     } else {
       const activeCount = await schemeModel.countDocuments({ active: true });
+      
       scheme.classification_order = activeCount + 1;
-      await schemeModel.updateMany(
-        {
-          active: false,
-          classification_order: { $lte: activeCount + 1 },
-        },
-        { $inc: { classification_order: 1 } }
-      );
     }
 
     scheme.active = newStatus;
