@@ -1677,6 +1677,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             total_paid_installments: { $sum: "$Payments.paid_installments" },
             totalPaidAmount: { $sum: "$Payments.payment_amount" },
             totalPaidWeight: { $sum: "$Payments.metal_weight" },
+            paymentModename: {$arrayElemAt: ["$Payments.paymentModeName", 0]}
           },
         },
         {
@@ -1714,6 +1715,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   gift_issues: 1,
                   createdAt: 1,
                   total_installments: 1,
+                  paymentModename:1,
+                  closingBonus:1,
                   // customer_name: {
                   //   $concat: ["$Customer.firstname", " ", "$Customer.lastname"],
                   // },
@@ -1889,6 +1892,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   last_paid_date: 1,
                   maturity_date: 1,
                   gift_issues: 1,
+                  closingBonus:1,
                   createdAt: 1,
                   total_installments: {
                     $cond: {
@@ -2004,6 +2008,9 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             totalPaidWeight: {
               $sum: "$Payments.metal_weight",
             },
+            paymentModename: {
+              $arrayElemAt: ["$Payments.paymentModeName", 0]
+            }
           },
         },
         {
@@ -2065,6 +2072,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   gift_issues: 1,
                   createdAt: 1,
                   total_installments: 1,
+                  paymentModename:1,
                   customer_name: {
                     $concat: ["$Customer.firstname", " ", "$Customer.lastname"],
                   },
