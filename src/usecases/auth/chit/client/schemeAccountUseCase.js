@@ -1188,6 +1188,7 @@ class SchemeAccountUseCase {
         bill_no,
         bill_date,
         total_paidamount,
+        closingBonus = 0,
         refund_paymenttype,
       } = data;
 
@@ -1225,6 +1226,7 @@ class SchemeAccountUseCase {
         closed_by: createdBy,
         closed_date: new Date(),
         status: status,
+        closingBonus: closingBonus,
       };
 
       const revertData = await this.schemeAccountRepository.closeSchemeAccount(

@@ -374,7 +374,8 @@ class PaymentUseCase {
     try {
       const schemeData = await this.schemeRepository.findById(data.id_scheme);
 
-      if (schemeData.scheme_type !== 10 && schemeData.scheme_type !== 14) {
+      if (schemeData.scheme_type != 10 && schemeData.scheme_type != 14) {
+
         if (!schemeData)
           return { success: false, message: "No related scheme found" };
 
@@ -392,10 +393,10 @@ class PaymentUseCase {
             this.toDateOnlyString(lastPaid);
 
           if (todatPaidorNot) {
-            // return {
-            //   status: false,
-            //   message: "Already completed today's payment",
-            // };
+            return {
+              status: false,
+              message: "Already completed today's payment",
+            };
           }
         }
 
@@ -761,33 +762,33 @@ class PaymentUseCase {
         data.id_scheme_account
       );
 
-      if (Number(totalInstallments) + Number(data.installments) > Number(scheme.total_installments)) {
-        return { success: false, message: "Scheme installment limit reached" };
-      }
+      // if (Number(totalInstallments) + Number(data.installments) > Number(scheme.total_installments)) {
+      //   return { success: false, message: "Scheme installment limit reached" };
+      // }
 
       const monthlyPayments = await this.paymentRepository.getMonthlyPayments({
         id: data.id_scheme_account,
         date: todayDate,
       });
 
-      if (
-        scheme.limit_installment &&
-        Number(monthlyPayments) + Number(data.installments) > Number(scheme.limit_installment)
-      ) {
-        return { success: false, message: "Monthly payment limit reached" };
-      }
+      // if (
+      //   scheme.limit_installment &&
+      //   Number(monthlyPayments) + Number(data.installments) > Number(scheme.limit_installment)
+      // ) {
+      //   return { success: false, message: "Monthly payment limit reached" };
+      // }
 
       const schemeAccData = await this.schemeAccountRepository.findById(
         data.id_scheme_account
       );
 
-      if (
-        Number(schemeAccData?.amount) + Number(data?.payment_amount) >
-        Number(scheme.maxLimit) &&
-        scheme.maxLimit > 0
-      ) {
-        return { success: false, message: "Scheme payment limit reached" };
-      }
+      // if (
+      //   Number(schemeAccData?.amount) + Number(data?.payment_amount) >
+      //   Number(scheme.maxLimit) &&
+      //   scheme.maxLimit > 0
+      // ) {
+      //   return { success: false, message: "Scheme payment limit reached" };
+      // }
 
       const paymentMode = await this.paymenModeRepo.findById(data.payment_mode);
 
@@ -798,12 +799,12 @@ class PaymentUseCase {
         diffMonth = this.getDifferenceInMonths(lastDate, currentDate);
       }
 
-      if (scheme.limit_notpaid > 0 && diffMonth > 5) {
-        return {
-          success: false,
-          message: "Scheme Account has not paid for over 6 months, move to preclose",
-        };
-      }
+      // if (scheme.limit_notpaid > 0 && diffMonth > 5) {
+      //   return {
+      //     success: false,
+      //     message: "Scheme Account has not paid for over 6 months, move to preclose",
+      //   };
+      // }
 
       const args = {
         scheme,
