@@ -1746,7 +1746,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                           "$Employee.lastname",
                         ],
                       },
-                      "Unknown",
+                      "Admin",
                     ],
                   },
                   closedDate: "$closed_date",

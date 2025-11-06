@@ -975,6 +975,16 @@ class DashboardRepository {
     try {
       const Data = await paymentModel.aggregate([
         { $match: { ...filter, payment_status: 1 } },
+        {
+          $lookup: {
+            from: "schemeaccounts",
+            localField: "id_scheme_account",
+            foreignField: "_id",
+            as: "schemeAccount",
+          },
+        },
+        { $unwind: "$schemeAccount" },
+        { $match: { "schemeAccount.status": { $nin: [4,3] } } },
 
         {
           $lookup: {
