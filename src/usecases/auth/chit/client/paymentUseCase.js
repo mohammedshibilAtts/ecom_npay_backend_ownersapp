@@ -835,7 +835,7 @@ class PaymentUseCase {
       const paymentReceipt = this.generateReceiptNumber(
         data.id_scheme_account,
         "REC",
-        Lastpayment?.payment_receipt || "REC/0001/a01"
+        Lastpayment?.payment_receipt || "REC/0001/a00"
       );
 
       const totalAmount =
@@ -1245,7 +1245,7 @@ class PaymentUseCase {
     }
   }
 
-  async processPayment(paymentArray, token = null, extraData = null) {
+  async processPayment(paymentArray, token = null, extraData = null,digigold= false) {
     try {
       if (!Array.isArray(paymentArray) || paymentArray.length === 0) {
         return {
@@ -1438,6 +1438,33 @@ class PaymentUseCase {
             : (metalWeight || 0),
           installment: Number(schemeAccData.paid_installments) + 1
         };
+
+        if (digigold) {
+          const todayDate = new Date();
+          const scheme = schemeData;
+          const paidAmount = Number(data.amount);
+          const args = {
+            scheme,
+            paymentDate: todayDate,
+            paymentAmount: paidAmount,
+            installmentNumber: Number(schemeAccData.paid_installments) + 1,
+            schemeJoinDate: schemeAccData.start_date,
+          };
+
+          const digidata = calculateDigiGoldBonus(args);
+          const bonusPercent = digidata.appliedBonusPercent;
+          const bonustAmount = Number(
+            ((bonusPercent / 100) * paidAmount).toFixed(2)
+          );
+          const metalRate = paymentArray[0]?.metal_rate;
+          const bonusWeight = bonustAmount / metalRate;
+          const savedWeight = data.amount / metalRate;
+          paymentData.bonusAmount = bonustAmount;
+          paymentData.bonusWeight = bonusWeight;
+          paymentData.metal_weight = savedWeight + bonusWeight;
+          paymentData.savedWeight = savedWeight;
+          paymentData.digiBonus = bonusPercent;
+        }
 
         const savedPayment = await this.paymentRepository.addPayment(
           paymentData
@@ -1748,10 +1775,12 @@ class PaymentUseCase {
         },
       ];
 
+      const digigold = true
       const processedData = await this.processPayment(
         processData,
         token,
-        paymentData
+        paymentData,
+        digigold
       );
 
       let message =
