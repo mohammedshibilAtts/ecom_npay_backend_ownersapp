@@ -296,7 +296,7 @@ class DashboardRepository {
             },
           },
           { $unwind: "$schemeAccount" },
-          { $match: { "schemeAccount.status": { $ne: 4 } } },
+          { $match: { "schemeAccount.status": { $nin: [4,3] } } },
   
           {
             $lookup: {
@@ -306,7 +306,12 @@ class DashboardRepository {
               as: "Scheme",
             },
           },
-          { $unwind: "$Scheme" },
+          {
+            $unwind: {
+              path: "$Scheme",
+              preserveNullAndEmptyArrays: true,
+            },
+          },          
   
           {
             $lookup: {
@@ -316,7 +321,7 @@ class DashboardRepository {
               as: "Metal",
             },
           },
-          { $unwind: "$Metal" },
+          { $unwind: {path:"$Metal" ,preserveNullAndEmptyArrays: true}},
   
           {
             $addFields: {
@@ -580,13 +585,102 @@ class DashboardRepository {
       const [newCustomer, paymentData, schemeData] = await Promise.all([
         await customerModel.countDocuments(customFilter),
         
-        await paymentModel.aggregate([
-          {
-            $match: {
-              ...customFilter,
-              payment_status: 1,
-            },
-          },
+        // await paymentModel.aggregate([
+        //   {
+        //     $match: {
+        //       ...customFilter,
+        //       payment_status: 1,
+        //     },
+        //   },
+        //   {
+        //     $lookup: {
+        //       from: "schemeaccounts",
+        //       localField: "id_scheme_account",
+        //       foreignField: "_id",
+        //       as: "schemeAccount",
+        //     },
+        //   },
+        //   {
+        //     $unwind: "$schemeAccount",
+        //   },
+        //   {
+        //     $match: {
+        //       "schemeAccount.status": { $ne: [4,3] },
+        //     },
+        //   },
+        //   {
+        //     $group: {
+        //       _id: null,
+        //       totalMetalWeight: { $sum: "$metal_weight" },
+        //       totalAmount: { $sum: "$payment_amount" },
+        //     },
+        //   },
+        //   {
+        //     $project: {
+        //       _id: 0,
+        //       totalMetalWeight: 1,
+        //       totalAmount: 1,
+        //     },
+        //   },
+        // ]),
+        // paymentModel.aggregate([
+        //   { $match: { ...customFilter, payment_status: 1 } },
+          
+        //   {
+        //     $lookup: {
+        //       from: "schemeaccounts",
+        //       localField: "id_scheme_account",
+        //       foreignField: "_id",
+        //       as: "schemeAccount",
+        //     },
+        //   },
+        //   { $unwind: "$schemeAccount" },
+        //   { $match: { "schemeAccount.status": { $nin: [4, 3] } } },
+        //   {
+        //     $lookup: {
+        //       from: "schemes",
+        //       localField: "schemeAccount.id_scheme",
+        //       foreignField: "_id",
+        //       as: "scheme",
+        //     },
+        //   },
+        //   { $unwind: {path:"$scheme" ,preserveNullAndEmptyArrays:false}},
+          
+        //   {
+        //     $addFields: {
+        //       includeWeight: {
+        //         $cond: {
+        //           if: {
+        //             $not: {
+        //               $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]]
+        //             }
+        //           },
+        //           then: "$metal_weight",
+        //           else: 0,
+        //         },
+        //       },
+        //     },
+        //   },
+        //   {
+        //     $group: {
+        //       _id: null,
+        //       totalMetalWeight: { $sum: "$metal_weight" },
+        //       totalIncludeWeight: { $sum: "$includeWeight" },
+        //       totalAmount: { $sum: "$payment_amount" },
+        //     },
+        //   },
+        //   {
+        //     $project: {
+        //       _id: 0,
+        //       totalMetalWeight: 1,
+        //       totalIncludeWeight: 1,
+        //       totalAmount: 1,
+        //     },
+        //   },
+        // ]),
+        paymentModel.aggregate([
+          { $match: { ...customFilter, payment_status: 1 } },
+          
           {
             $lookup: {
               from: "schemeaccounts",
@@ -595,32 +689,66 @@ class DashboardRepository {
               as: "schemeAccount",
             },
           },
+          { $unwind: "$schemeAccount" },
+          { $match: { "schemeAccount.status": { $nin: [4, 3] } } },
           {
-            $unwind: "$schemeAccount",
+            $lookup: {
+              from: "schemes",
+              localField: "schemeAccount.id_scheme",
+              foreignField: "_id",
+              as: "scheme",
+            },
           },
+          { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false }},
+          
           {
-            $match: {
-              "schemeAccount.status": { $ne: 4 },
+            $addFields: {
+              safeMetalWeight: {
+                $cond: {
+                  if: { $or: [{ $eq: ["$metal_weight", Infinity] }, { $eq: ["$metal_weight", -Infinity] }] },
+                  then: 0,
+                  else: { $ifNull: ["$metal_weight", 0] }
+                }
+              },
+              safePaymentAmount: { $ifNull: ["$payment_amount", 0] }
+            }
+          },
+          
+          {
+            $addFields: {
+              includeWeight: {
+                $cond: {
+                  if: {
+                    $not: {
+                      $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]]
+                    }
+                  },
+                  then: "$safeMetalWeight",
+                  else: 0,
+                },
+              },
             },
           },
           {
             $group: {
               _id: null,
-              totalMetalWeight: { $sum: "$metal_weight" },
-              totalAmount: { $sum: "$payment_amount" },
+              totalMetalWeight: { $sum: "$safeMetalWeight" },
+              totalIncludeWeight: { $sum: "$includeWeight" },
+              totalAmount: { $sum: "$safePaymentAmount" },
             },
           },
           {
             $project: {
               _id: 0,
               totalMetalWeight: 1,
+              totalIncludeWeight: 1,
               totalAmount: 1,
             },
           },
         ]),
 
         await schemeAccountModel.aggregate([
-          { $match: { ...customFilter, status: { $nin: [4] } } },
+          { $match: { ...customFilter, status: { $nin: [4,3] } } },
           {
             $facet: {
               totalAccounts: [{ $count: "count" }],
