@@ -200,7 +200,23 @@ const schemeSchema = new mongoose.Schema(
     maxLimit:{ //maximum gross payment limit for digi gold
       type:Number,
       default:0
-    }
+    },
+     description1:{
+      type:String,
+      default:""
+    },
+    description2:{
+      type:String,
+      default:""
+    },
+    description3:{
+      type:String,
+      default:""
+    },
+    description4:{
+      type:String,
+      default:""
+    },
   },
   {
     timestamps: true,
