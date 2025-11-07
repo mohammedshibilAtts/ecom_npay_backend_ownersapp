@@ -1746,10 +1746,11 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                           "$Employee.lastname",
                         ],
                       },
-                      "Unknown",
+                      "Admin",
                     ],
                   },
                   closedDate: "$closed_date",
+                  schemeType:"$Scheme.scheme_type"
                 },
               },
             ],
@@ -2092,6 +2093,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   closed_by: {
                     $concat: ["$Employee.firstname", " ", "$Employee.lastname"],
                   },
+                  schemeType:"$Scheme.scheme_type"
                 },
               },
             ],
@@ -2281,7 +2283,12 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       };
 
       const amountPaybleData = await schemeAccountModel.aggregate([
-        { $match: filter },
+        {
+          $match: {
+            ...filter,
+            status: { $eq:0 }
+          }
+        },        
         {
           $lookup: {
             from: "schemes",
@@ -2340,9 +2347,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           $facet: {
             metadata: [{ $count: "total" }],
             data: [
-              // { $sort: { [sortField]: sortOrder } },
-              // { $skip: Number(skip) },
-              // { $limit: Number(limit) },
               {
                 $project: {
                   account_name: 1,
