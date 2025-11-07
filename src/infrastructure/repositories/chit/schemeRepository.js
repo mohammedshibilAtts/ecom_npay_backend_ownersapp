@@ -7,27 +7,27 @@ class SchemeRepository {
     try {
       const schemeData = await schemeModel
         .findById(id)
-        .populate(['id_metal', 'id_purity', 'id_classification'])
+        .populate(["id_metal", "id_purity", "id_classification"])
         .lean();
-  
-      return schemeData || null; 
+
+      return schemeData || null;
     } catch (error) {
       console.error("Error fetching scheme by ID:", error);
       throw new Error("Failed to fetch scheme data");
     }
   }
-  
+
   async find(query) {
     try {
       const data = await schemeModel
         .find(query)
         .populate({
-          path: 'id_metal',
-          select: 'metal_name'
+          path: "id_metal",
+          select: "metal_name",
         })
         .populate({
-          path: 'id_purity',
-          select: 'purity_name'
+          path: "id_purity",
+          select: "purity_name",
         })
         .select("-createdAt -updatedAt -__v")
         .sort({ _id: -1 })
@@ -95,7 +95,24 @@ class SchemeRepository {
       { $unwind: "$s3Details" },
       {
         $project: {
-          scheme_name:1,
+          scheme_name: 1,
+          description: {
+            $filter: {
+              input: [
+                "$description1",
+                "$description2",
+                "$description3",
+                "$description4",
+              ],
+              as: "desc",
+              cond: {
+                $and: [
+                  { $ne: ["$$desc", null] },
+                  { $ne: ["$$desc", ""] }, // also remove empty strings (optional)
+                ],
+              },
+            },
+          },
           logo: 1,
           scheme_type: 1,
           pathurl: {
@@ -107,7 +124,7 @@ class SchemeRepository {
         },
       },
     ]);
-
+    console.log(schemeData);
     return schemeData.length > 0 ? schemeData : null;
   }
 
@@ -239,7 +256,7 @@ class SchemeRepository {
     try {
       const skip = documentskip || 0;
       const limit = documentlimit || 10;
-  
+
       const aggregationPipeline = [
         { $match: query },
         {
@@ -250,8 +267,10 @@ class SchemeRepository {
             as: "purityDetails",
           },
         },
-        { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
-  
+        {
+          $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true },
+        },
+
         {
           $lookup: {
             from: "branches",
@@ -260,8 +279,10 @@ class SchemeRepository {
             as: "branchDetails",
           },
         },
-        { $unwind: { path: "$branchDetails", preserveNullAndEmptyArrays: true } },
-  
+        {
+          $unwind: { path: "$branchDetails", preserveNullAndEmptyArrays: true },
+        },
+
         {
           $lookup: {
             from: "schemeclassifications",
@@ -270,8 +291,13 @@ class SchemeRepository {
             as: "classificationDetails",
           },
         },
-        { $unwind: { path: "$classificationDetails", preserveNullAndEmptyArrays: true } },
-  
+        {
+          $unwind: {
+            path: "$classificationDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
         {
           $lookup: {
             from: "metals",
@@ -280,7 +306,9 @@ class SchemeRepository {
             as: "metalDetails",
           },
         },
-        { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true },
+        },
         {
           $lookup: {
             from: "schemetypes",
@@ -289,15 +317,20 @@ class SchemeRepository {
             as: "schemeTypeDetails",
           },
         },
-        { $unwind: { path: "$schemeTypeDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$schemeTypeDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
         {
           $lookup: {
             from: "schemeaccounts",
             localField: "_id",
-            foreignField: "id_scheme", 
+            foreignField: "id_scheme",
             as: "schemeAccounts",
           },
-        },  
+        },
         {
           $addFields: {
             purity_name: "$purityDetails.purity_name",
@@ -309,16 +342,16 @@ class SchemeRepository {
             branch_obj: "$branchDetails._id",
             classification_obj: "$classificationDetails._id",
             schemetype_name: "$schemeTypeDetails.scheme_typename",
-            activeAccounts: { $gt: [{ $size: "$schemeAccounts" }, 0] }
+            activeAccounts: { $gt: [{ $size: "$schemeAccounts" }, 0] },
           },
-        },        
+        },
         {
           $project: {
             purityDetails: 0,
             metalDetails: 0,
             branchDetails: 0,
             classificationDetails: 0,
-            schemeTypeDetails:0,
+            schemeTypeDetails: 0,
             schemeAccounts: 0,
           },
         },
@@ -334,22 +367,21 @@ class SchemeRepository {
         { $replaceRoot: { newRoot: "$document" } },
         { $sort: { _id: -1 } },
       ];
-  
+
       const totalCount = await schemeModel.countDocuments(query);
-  
+
       const schemeData = await schemeModel.aggregate(aggregationPipeline);
-  
+
       if (!schemeData.length) {
         return { data: [], totalCount: 0 };
       }
-  
+
       return { data: schemeData, totalCount };
     } catch (error) {
       console.error("Error fetching schemes:", error);
       throw new Error("Database error while fetching schemes");
     }
   }
-  
 
   async deleteScheme(id) {
     const schemeData = await schemeModel.updateOne(
@@ -379,8 +411,9 @@ class SchemeRepository {
   }
 
   async getSchemeByclassificationId(id) {
-    const schemeData = await schemeModel.find({ id_classification: id,active:true})
-    .lean()
+    const schemeData = await schemeModel
+      .find({ id_classification: id, active: true })
+      .lean();
 
     if (schemeData.length > 0) {
       return schemeData;
@@ -416,10 +449,9 @@ class SchemeRepository {
   //       }
   //     }
   //   ]);
-  
+
   //   return schemes.length > 0 ? schemes : null;
   // }
-  
 
   async schemeName(id) {
     const schemeData = await schemeModel
@@ -434,8 +466,9 @@ class SchemeRepository {
   }
 
   async findByOrder(order) {
-    const schemeData = await schemeClassificationModel
-      .findOne({order:order})
+    const schemeData = await schemeClassificationModel.findOne({
+      order: order,
+    });
 
     if (schemeData) {
       return schemeData;
@@ -448,7 +481,7 @@ class SchemeRepository {
     try {
       const skip = documentskip || 0;
       const limit = documentlimit || 10;
-  
+
       const aggregationPipeline = [
         { $match: query },
         {
@@ -459,7 +492,9 @@ class SchemeRepository {
             as: "purityDetails",
           },
         },
-        { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true },
+        },
         {
           $lookup: {
             from: "installmenttypes",
@@ -468,7 +503,12 @@ class SchemeRepository {
             as: "installmenttypes",
           },
         },
-        { $unwind: { path: "$installmenttypes", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$installmenttypes",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
         {
           $lookup: {
             from: "schemeclassifications",
@@ -477,7 +517,12 @@ class SchemeRepository {
             as: "classificationDetails",
           },
         },
-        { $unwind: { path: "$classificationDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$classificationDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
         {
           $lookup: {
             from: "metals",
@@ -486,7 +531,9 @@ class SchemeRepository {
             as: "metalDetails",
           },
         },
-        { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true },
+        },
         {
           $lookup: {
             from: "schemetypes",
@@ -495,7 +542,12 @@ class SchemeRepository {
             as: "schemeTypeDetails",
           },
         },
-        { $unwind: { path: "$schemeTypeDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$schemeTypeDetails",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
         {
           $lookup: {
             from: "schemeaccounts",
@@ -512,15 +564,15 @@ class SchemeRepository {
             classification_name: "$classificationDetails.name",
             schemetype_name: "$schemeTypeDetails.scheme_typename",
             is_accounts: { $gt: [{ $size: "$schemeAccounts" }, 0] },
-            active:"$active",
+            active: "$active",
             installment_type: {
               $cond: {
                 if: { $in: ["$scheme_type", [10, 14]] },
                 then: "Days",
-                else: "$installmenttypes.installment_name"
-              }
+                else: "$installmenttypes.installment_name",
+              },
             },
-            activeAccounts: { $gt: [{ $size: "$schemeAccounts" }, 0] }
+            activeAccounts: { $gt: [{ $size: "$schemeAccounts" }, 0] },
           },
         },
         {
@@ -534,19 +586,19 @@ class SchemeRepository {
             schemetype_name: 1,
             is_accounts: 1,
             createdAt: 1,
-            active:1,
-            installment_type:1,
-            scheme_type:1
+            active: 1,
+            installment_type: 1,
+            scheme_type: 1,
           },
         },
         { $sort: { createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
       ];
-  
+
       const totalCount = await schemeModel.countDocuments(query);
       const schemeData = await schemeModel.aggregate(aggregationPipeline);
-  
+
       return { data: schemeData, totalCount };
     } catch (error) {
       console.error("Error fetching schemes:", error);
