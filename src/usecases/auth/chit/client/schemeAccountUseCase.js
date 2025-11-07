@@ -1206,6 +1206,12 @@ class SchemeAccountUseCase {
         previousStatus:schemeAccount?.status
       };
 
+      const billNoExists = await this.closeAccRepo.findByBillNmber(bill_no)
+
+      if(billNoExists){
+        return { success: false, message: "Bill number already exists" };
+      }
+
       let newClosedAccount = "";
       if (refund_paymenttype !== "") {
         newClosedAccount = await this.closeAccRepo.addCloseAccount(
