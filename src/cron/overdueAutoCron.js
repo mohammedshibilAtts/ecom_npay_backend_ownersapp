@@ -13,7 +13,6 @@ const TIMEZONE = "Asia/Kolkata";
 // Runs daily at 10:28 AM to prepare overdue messages
 const PREPARE_CRON = "0 3 * * *";
 
-// Sends at 8 PM
 const SEND_CRON = "0 7 * * *";
 
 const CUSTOMER_BATCH = 300;
