@@ -9,19 +9,18 @@ import schemeModel from "../../models/chit/schemeModel.js";
 
 class ReportRepository {
   async overAllReport(filter, skip, pageSize, sort = {}, dateFilter) {
-
     const sortField = Object.keys(sort)[0] || "createdAt";
     const sortOrder = sort[sortField] === "asc" ? 1 : -1;
-  
+
     try {
       const result = await Scheme.aggregate([
-        { 
+        {
           $match: {
             ...filter,
-            // ...dateFilter 
-          } 
+            // ...dateFilter
+          },
         },
-  
+
         {
           $lookup: {
             from: "schemeaccounts",
@@ -30,7 +29,7 @@ class ReportRepository {
             as: "SchemeAccount",
           },
         },
-  
+
         {
           $addFields: {
             SchemeAccount: {
@@ -39,19 +38,29 @@ class ReportRepository {
                 as: "account",
                 cond: {
                   $and: [
-                    dateFilter.createdAt?.$gte ? {
-                      $gte: ["$$account.createdAt", dateFilter.createdAt.$gte]
-                    } : true,
-                    dateFilter.createdAt?.$lte ? {
-                      $lte: ["$$account.createdAt", dateFilter.createdAt.$lte]
-                    } : true
-                  ]
-                }
-              }
-            }
-          }
+                    dateFilter.createdAt?.$gte
+                      ? {
+                          $gte: [
+                            "$$account.createdAt",
+                            dateFilter.createdAt.$gte,
+                          ],
+                        }
+                      : true,
+                    dateFilter.createdAt?.$lte
+                      ? {
+                          $lte: [
+                            "$$account.createdAt",
+                            dateFilter.createdAt.$lte,
+                          ],
+                        }
+                      : true,
+                  ],
+                },
+              },
+            },
+          },
         },
-  
+
         {
           $lookup: {
             from: "branches",
@@ -61,7 +70,7 @@ class ReportRepository {
           },
         },
         { $unwind: { path: "$Branch", preserveNullAndEmptyArrays: true } },
-  
+
         {
           $addFields: {
             closedSchemeAccountIds: {
@@ -152,7 +161,7 @@ class ReportRepository {
                 },
               },
             },
-              totalCompletedAccount: {
+            totalCompletedAccount: {
               $size: {
                 $filter: {
                   input: "$SchemeAccount",
@@ -163,7 +172,7 @@ class ReportRepository {
             },
           },
         },
-  
+
         // Payments lookups
         {
           $lookup: {
@@ -173,9 +182,9 @@ class ReportRepository {
               {
                 $match: {
                   $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
-                  payment_status: 1
-                }
-              }
+                  payment_status: 1,
+                },
+              },
             ],
             as: "ClosedPayments",
           },
@@ -188,9 +197,9 @@ class ReportRepository {
               {
                 $match: {
                   $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
-                  payment_status: 1
-                }
-              }
+                  payment_status: 1,
+                },
+              },
             ],
             as: "RefundPayments",
           },
@@ -203,9 +212,9 @@ class ReportRepository {
               {
                 $match: {
                   $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
-                  payment_status: 1
-                }
-              }
+                  payment_status: 1,
+                },
+              },
             ],
             as: "PreClosePayments",
           },
@@ -218,14 +227,13 @@ class ReportRepository {
               {
                 $match: {
                   $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
-                  payment_status: 1
-                }
-              }
+                  payment_status: 1,
+                },
+              },
             ],
             as: "OpenPayments",
           },
         },
-
 
         // Add totals
         {
@@ -255,7 +263,7 @@ class ReportRepository {
             },
           },
         },
-  
+
         {
           $facet: {
             paginatedData: [
@@ -270,7 +278,7 @@ class ReportRepository {
                   totalPaidAccounts: 1,
                   closedWeight: 1,
                   totalCloseAccount: 1,
-                  totalCompletedAccount:1,
+                  totalCompletedAccount: 1,
                   totalPreCloseAccount: 1,
                   totalRefundAccount: 1,
                   totalCloseAmount: 1,
@@ -285,11 +293,11 @@ class ReportRepository {
           },
         },
       ]);
-  
+
       const data = result[0].paginatedData;
       const totalDocs = result[0].totalCount[0]?.count || 0;
       const totalPages = Math.ceil(totalDocs / pageSize);
-  
+
       return { data, totalDocs, totalPages };
     } catch (err) {
       throw err;
@@ -305,7 +313,7 @@ class ReportRepository {
       const modifiedQuery = {
         ...query,
         status: 0,
-        active: true
+        active: true,
       };
 
       const dueData = await schemeAccountModel.aggregate([
@@ -447,7 +455,7 @@ class ReportRepository {
                 {
                   $subtract: [
                     "$expectedInstallmentsSinceLastPayment",
-                    { $cond: ["$hasPayments", 1, 0] }
+                    { $cond: ["$hasPayments", 1, 0] },
                   ],
                 },
                 0,
@@ -461,7 +469,7 @@ class ReportRepository {
                     {
                       $subtract: [
                         "$expectedInstallmentsSinceLastPayment",
-                        { $cond: ["$hasPayments", 1, 0] }
+                        { $cond: ["$hasPayments", 1, 0] },
                       ],
                     },
                     0,
@@ -512,10 +520,10 @@ class ReportRepository {
 
       const totalDocuments = dueData[0]?.metadata[0]?.total || 0;
       const data = dueData[0]?.data || [];
-     const  totalPages= Math.ceil(totalDocuments / limit)
-      const currentPage= page
-      
-      return { totalDocuments,totalPages,currentPage, data };
+      const totalPages = Math.ceil(totalDocuments / limit);
+      const currentPage = page;
+
+      return { totalDocuments, totalPages, currentPage, data };
     } catch (error) {
       console.error("Error in pendingDuePayment:", error);
       throw error;
@@ -1103,156 +1111,18 @@ class ReportRepository {
     }
   }
 
-  // async getPaymentReport(query = {}, skip, limit, sort = {}) {
-  //   try {
-  //     const sortField = (sort && Object.keys(sort)[0]) || "createdAt";
-  //     const sortOrder = sort && sort[sortField] === "asc" ? 1 : -1;
-
-  //     const paymentReport = await SchemePayment.aggregate([
-  //       { $match: query },
-  //       {
-  //         $lookup: {
-  //           from: "schemes",
-  //           localField: "id_scheme",
-  //           foreignField: "_id",
-  //           as: "Scheme",
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "id_customer",
-  //           foreignField: "_id",
-  //           as: "Customer",
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "paymentmodes",
-  //           foreignField: "_id",
-  //           localField: "payment_mode",
-  //           as: "PaymentMode",
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "paymentorders",
-  //           foreignField: "orderId",
-  //           localField: "id_transaction",
-  //           as: "paymentOrders",
-  //         },
-  //       },
-  //       { $unwind: { path: "$PaymentMode", preserveNullAndEmptyArrays: true } },
-  //       { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
-  //       { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
-  //       { $unwind: { path: "$paymentOrders", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "schemeclassifications",
-  //           localField: "Scheme.id_classification",
-  //           foreignField: "_id",
-  //           as: "Classification",
-  //         },
-  //       },
-  //       {
-  //         $unwind: {
-  //           path: "$Classification",
-  //           preserveNullAndEmptyArrays: true,
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "schemeaccounts",
-  //           localField: "id_scheme_account",
-  //           foreignField: "_id",
-  //           as: "SchemeAccount",
-  //         },
-  //       },
-  //       {
-  //         $unwind: {
-  //           path: "$SchemeAccount",
-  //           preserveNullAndEmptyArrays: true,
-  //         },
-  //       },
-  //       // Add this new stage to handle the id_transaction logic
-  //       {
-  //         $addFields: {
-  //           id_transaction: {
-  //             $cond: {
-  //               if: { $ifNull: ["$paymentOrders.cf_payment_id", false] },
-  //               then: "$paymentOrders.cf_payment_id",
-  //               else: "$id_transaction"
-  //             }
-  //           },
-  //           totalPaidInstallment: "$paid_installments", // just aliasing for consistency
-  //         },
-  //       },
-  //       {
-  //         $facet: {
-  //           metadata: [
-  //             {
-  //               $group: {
-  //                 _id: null,
-  //                 total: { $sum: 1 },
-  //                 totalPaidInstallments: { $sum: "$paid_installments" },
-  //               },
-  //             },
-  //           ],
-  //           data: [
-  //             { $sort: { [sortField]: sortOrder } },
-  //             { $skip: skip },
-  //             { $limit: limit },
-  //             {
-  //               $project: {
-  //                 scheme_name: "$Scheme.scheme_name",
-  //                 schemeType:"$Scheme.scheme_type",
-  //                 classification_name: "$Classification.name",
-  //                 customer_name: {
-  //                   $cond: {
-  //                     if: { $ne: ["$Customer.lastname", null] },
-  //                     then: {
-  //                       $concat: [
-  //                         "$Customer.firstname",
-  //                         " ",
-  //                         "$Customer.lastname",
-  //                       ],
-  //                     },
-  //                     else: "$Customer.firstname",
-  //                   },
-  //                 },
-  //                 customer_mobile: "$Customer.mobile",
-  //                 payment_mode: "$PaymentMode.mode_name",
-  //                 accounter_name: "$SchemeAccount.account_name",
-  //                 total_installments: "$SchemeAccount.total_installments",
-  //                 schemeAccNo: "$SchemeAccount.scheme_acc_number",
-  //                 payment_amount: 1,
-  //                 id_transaction: 1,
-  //                 payment_receipt: 1,
-  //                 createdAt: 1,
-  //                 totalPaidInstallment: "$installment",
-  //               },
-  //             },
-  //           ],
-  //         },
-  //       },
-  //     ]);
-
-  //     const meta = paymentReport[0]?.metadata[0] || {};
-  //     const totalDocuments = meta.total || 0;
-  //     const totalPaidInstallments = meta.totalPaidInstallments || 0;
-  //     const totalPages = Math.ceil(totalDocuments / limit);
-  //     const data = paymentReport[0]?.data || [];
-
-  //     return { totalDocuments, totalPages, totalPaidInstallments, data };
-  //   } catch (err) {
-  //     throw err;
-  //   }
-  // }
-  async getPaymentReport(query = {}, skip, limit, sort = {}, search = "", customerIdForSearch = null) {
+  async getPaymentReport(
+    query = {},
+    skip,
+    limit,
+    sort = {},
+    search = "",
+    customerIdForSearch = null
+  ) {
     try {
       const sortField = (sort && Object.keys(sort)[0]) || "createdAt";
       const sortOrder = sort && sort[sortField] === "asc" ? 1 : -1;
-  
+
       // Build the aggregation pipeline
       const pipeline = [
         { $match: query },
@@ -1291,7 +1161,9 @@ class ReportRepository {
         { $unwind: { path: "$PaymentMode", preserveNullAndEmptyArrays: true } },
         { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
         { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
-        { $unwind: { path: "$paymentOrders", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: { path: "$paymentOrders", preserveNullAndEmptyArrays: true },
+        },
         {
           $lookup: {
             from: "schemeclassifications",
@@ -1327,24 +1199,24 @@ class ReportRepository {
               $cond: {
                 if: { $ifNull: ["$paymentOrders.cf_payment_id", false] },
                 then: "$paymentOrders.cf_payment_id",
-                else: "$id_transaction"
-              }
+                else: "$id_transaction",
+              },
             },
             totalPaidInstallment: "$paid_installments",
           },
-        }
+        },
       ];
-  
+
       // Add search filter after all lookups
       if (search) {
         const searchRegex = new RegExp(search, "i");
-        
+
         if (customerIdForSearch) {
           // If we have a customer ID from mobile search, filter by customer ID
           pipeline.push({
             $match: {
-              id_customer: customerIdForSearch
-            }
+              id_customer: customerIdForSearch,
+            },
           });
         } else {
           // Regular text search
@@ -1357,13 +1229,13 @@ class ReportRepository {
                 { "SchemeAccount.account_name": { $regex: searchRegex } },
                 { "SchemeAccount.scheme_acc_number": { $regex: searchRegex } },
                 { "Customer.firstname": { $regex: searchRegex } },
-                { "Customer.lastname": { $regex: searchRegex } }
-              ]
-            }
+                { "Customer.lastname": { $regex: searchRegex } },
+              ],
+            },
           });
         }
       }
-  
+
       // Add the facet stage for pagination and metadata
       pipeline.push({
         $facet: {
@@ -1407,125 +1279,122 @@ class ReportRepository {
                 id_transaction: 1,
                 payment_receipt: 1,
                 createdAt: 1,
-                metal_weight:1,
+                metal_weight: 1,
                 totalPaidInstallment: "$installment",
               },
             },
           ],
         },
       });
-  
+
       const paymentReport = await SchemePayment.aggregate(pipeline);
-  
+
       const meta = paymentReport[0]?.metadata[0] || {};
       const totalDocuments = meta.total || 0;
       const totalPaidInstallments = meta.totalPaidInstallments || 0;
       const totalPages = Math.ceil(totalDocuments / limit);
       const data = paymentReport[0]?.data || [];
-  
+
       return { totalDocuments, totalPages, totalPaidInstallments, data };
     } catch (err) {
       throw err;
     }
   }
 
-
-async getPaymentLedger(query = {}, skip = 0, limit = 10) {
-  try {
-    const basePipeline = [
-      { $match: query },
-      {
-        $lookup: {
-          from: "schemes",
-          localField: "id_scheme",
-          foreignField: "_id",
-          as: "Scheme",
-        },
-      },
-      { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "paymentmodes",
-          foreignField: "_id",
-          localField: "payment_mode",
-          as: "PaymentMode",
-        },
-      },
-      { $unwind: { path: "$PaymentMode", preserveNullAndEmptyArrays: true } },
-    ];
-
-    const dataPipeline = [...basePipeline];
-
-    dataPipeline.push(
-      {
-        $group: {
-          _id: {
-            schemeId: "$id_scheme",
-            schemeName: "$Scheme.scheme_name",
-            modeId: "$payment_mode",
-            modeName: "$PaymentMode.mode_name",
-          },
-          totalAmount: { $sum: "$payment_amount" },
-          paymentCount: { $sum: 1 },
-          latestPayment: { $max: "$createdAt" },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          schemeId: "$_id.schemeId",
-          schemeName: "$_id.schemeName",
-          modeId: "$_id.modeId",
-          modeName: "$_id.modeName",
-          totalAmount: 1,
-          paymentCount: 1,
-          latestPayment: 1,
-        },
-      },
-      { $sort: { latestPayment: -1 } },
-      { $skip: skip },
-      { $limit: limit }
-    );
-
-    const countPipeline = [...basePipeline];
-    countPipeline.push(
-      {
-        $group: {
-          _id: {
-            schemeId: "$id_scheme",
-            schemeName: "$Scheme.scheme_name",
-            modeId: "$payment_mode",
-            modeName: "$PaymentMode.mode_name",
+  async getPaymentLedger(query = {}, skip = 0, limit = 10) {
+    try {
+      const basePipeline = [
+        { $match: query },
+        {
+          $lookup: {
+            from: "schemes",
+            localField: "id_scheme",
+            foreignField: "_id",
+            as: "Scheme",
           },
         },
-      },
-      { $count: "totalDocuments" }
-    );
+        { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "paymentmodes",
+            foreignField: "_id",
+            localField: "payment_mode",
+            as: "PaymentMode",
+          },
+        },
+        { $unwind: { path: "$PaymentMode", preserveNullAndEmptyArrays: true } },
+      ];
 
-    const [data, countResult] = await Promise.all([
-      SchemePayment.aggregate(dataPipeline),
-      SchemePayment.aggregate(countPipeline),
-    ]);
+      const dataPipeline = [...basePipeline];
 
-    const totalDocuments = countResult[0]?.totalDocuments || 0;
-    const totalPages = Math.ceil(totalDocuments / limit);
-    const currentPage = Math.floor(skip / limit) + 1;
+      dataPipeline.push(
+        {
+          $group: {
+            _id: {
+              schemeId: "$id_scheme",
+              schemeName: "$Scheme.scheme_name",
+              modeId: "$payment_mode",
+              modeName: "$PaymentMode.mode_name",
+            },
+            totalAmount: { $sum: "$payment_amount" },
+            paymentCount: { $sum: 1 },
+            latestPayment: { $max: "$createdAt" },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            schemeId: "$_id.schemeId",
+            schemeName: "$_id.schemeName",
+            modeId: "$_id.modeId",
+            modeName: "$_id.modeName",
+            totalAmount: 1,
+            paymentCount: 1,
+            latestPayment: 1,
+          },
+        },
+        { $sort: { latestPayment: -1 } },
+        { $skip: skip },
+        { $limit: limit }
+      );
 
-    return {
-      data,
-      totalDocuments,
-      totalPages,
-      currentPage,
-      limit,
-      hasMore: skip + limit < totalDocuments,
-    };
-  } catch (err) {
-    console.error(err);
-    throw err;
+      const countPipeline = [...basePipeline];
+      countPipeline.push(
+        {
+          $group: {
+            _id: {
+              schemeId: "$id_scheme",
+              schemeName: "$Scheme.scheme_name",
+              modeId: "$payment_mode",
+              modeName: "$PaymentMode.mode_name",
+            },
+          },
+        },
+        { $count: "totalDocuments" }
+      );
+
+      const [data, countResult] = await Promise.all([
+        SchemePayment.aggregate(dataPipeline),
+        SchemePayment.aggregate(countPipeline),
+      ]);
+
+      const totalDocuments = countResult[0]?.totalDocuments || 0;
+      const totalPages = Math.ceil(totalDocuments / limit);
+      const currentPage = Math.floor(skip / limit) + 1;
+
+      return {
+        data,
+        totalDocuments,
+        totalPages,
+        currentPage,
+        limit,
+        hasMore: skip + limit < totalDocuments,
+      };
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
   }
-}
-
-
 
   async getCompletedAccount(skip, limit, query = {}, sort = {}) {
     try {
@@ -1619,7 +1488,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
 
       return { totalDocuments, totalPages, data };
     } catch (err) {
-    console.error(err);
+      console.error(err);
       throw new Error("Failed to get completed Account data");
     }
   }
@@ -1677,7 +1546,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             total_paid_installments: { $sum: "$Payments.paid_installments" },
             totalPaidAmount: { $sum: "$Payments.payment_amount" },
             totalPaidWeight: { $sum: "$Payments.metal_weight" },
-            paymentModename: {$arrayElemAt: ["$Payments.paymentModeName", 0]}
+            paymentModename: { $arrayElemAt: ["$Payments.paymentModeName", 0] },
           },
         },
         {
@@ -1715,8 +1584,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   gift_issues: 1,
                   createdAt: 1,
                   total_installments: 1,
-                  paymentModename:1,
-                  closingBonus:1,
+                  paymentModename: 1,
+                  closingBonus: 1,
                   // customer_name: {
                   //   $concat: ["$Customer.firstname", " ", "$Customer.lastname"],
                   // },
@@ -1724,8 +1593,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                     $concat: [
                       { $ifNull: ["$Customer.firstname", ""] },
                       " ",
-                      { $ifNull: ["$Customer.lastname", ""] }
-                    ]
+                      { $ifNull: ["$Customer.lastname", ""] },
+                    ],
                   },
                   customer_mobile: "$Customer.mobile",
                   classification_name: "$Classification.name",
@@ -1750,7 +1619,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                     ],
                   },
                   closedDate: "$closed_date",
-                  schemeType:"$Scheme.scheme_type"
+                  schemeType: "$Scheme.scheme_type",
                 },
               },
             ],
@@ -1893,7 +1762,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   last_paid_date: 1,
                   maturity_date: 1,
                   gift_issues: 1,
-                  closingBonus:1,
+                  closingBonus: 1,
                   createdAt: 1,
                   total_installments: {
                     $cond: {
@@ -2010,8 +1879,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
               $sum: "$Payments.metal_weight",
             },
             paymentModename: {
-              $arrayElemAt: ["$Payments.paymentModeName", 0]
-            }
+              $arrayElemAt: ["$Payments.paymentModeName", 0],
+            },
           },
         },
         {
@@ -2073,7 +1942,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   gift_issues: 1,
                   createdAt: 1,
                   total_installments: 1,
-                  paymentModename:1,
+                  paymentModename: 1,
                   customer_name: {
                     $concat: ["$Customer.firstname", " ", "$Customer.lastname"],
                   },
@@ -2093,7 +1962,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   closed_by: {
                     $concat: ["$Employee.firstname", " ", "$Employee.lastname"],
                   },
-                  schemeType:"$Scheme.scheme_type"
+                  schemeType: "$Scheme.scheme_type",
                 },
               },
             ],
@@ -2132,8 +2001,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             as: "purchaseGifts",
           },
         },
-
-        // 3. Calculate total purchased quantity
         {
           $addFields: {
             totalPurchased: {
@@ -2142,15 +2009,13 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   input: "$purchaseGifts",
                   as: "g",
                   in: {
-                    $ifNull: ["$$g.inward_qty", 0], // Ensure nulls are treated as 0
+                    $ifNull: ["$$g.inward_qty", 0], 
                   },
                 },
               },
             },
           },
         },
-
-        // 4. Lookup total issued quantity from giftissues.gifts subarray
         {
           $lookup: {
             from: "giftissues",
@@ -2178,8 +2043,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             as: "handoverData",
           },
         },
-
-        // 5. Extract total handover quantity
         {
           $addFields: {
             totalHandovered: {
@@ -2187,8 +2050,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             },
           },
         },
-
-        // 6. Final projection
         {
           $project: {
             _id: 1,
@@ -2201,8 +2062,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             },
           },
         },
-
-        // 7. Sort and paginate
         { $sort: { _id: -1 } },
         { $skip: documentskip },
         { $limit: documentlimit },
@@ -2223,8 +2082,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
     try {
       const paymentLedger = await paymentModel.aggregate([
         { $match: filter },
-
-        // Join with schemes to get scheme_name
         {
           $lookup: {
             from: "schemes",
@@ -2234,8 +2091,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           },
         },
         { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
-
-        // Join with paymentmodes to get mode_name
         {
           $lookup: {
             from: "paymentmodes",
@@ -2245,8 +2100,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           },
         },
         { $unwind: { path: "$PaymentMode", preserveNullAndEmptyArrays: true } },
-
-        // Group by scheme_name and payment_mode
         {
           $group: {
             _id: {
@@ -2256,8 +2109,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             totalAmount: { $sum: "$payment_amount" },
           },
         },
-
-        // Format final output
         {
           $project: {
             _id: 0,
@@ -2286,9 +2137,9 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         {
           $match: {
             ...filter,
-            status: { $eq:0 }
-          }
-        },        
+            status: { $eq: 0 },
+          },
+        },
         {
           $lookup: {
             from: "schemes",
@@ -2389,7 +2240,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       filter = {
         status: { $in: [0, 2] },
         weight: { $gte: 1 },
-      
       };
 
       const amountPaybleData = await schemeAccountModel.aggregate([
@@ -2452,9 +2302,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           $facet: {
             metadata: [{ $count: "total" }],
             data: [
-              // { $sort: { [sortField]: sortOrder } },
-              // { $skip: Number(skip) },
-              // { $limit: Number(limit) },
               {
                 $project: {
                   account_name: 1,
@@ -2475,10 +2322,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           },
         },
       ]);
-
-      // const totalDocuments = amountPaybleData[0]?.metadata[0]?.total || 0;
-      // const totalPages = Math.ceil(totalDocuments / limit);
-      // const data = amountPaybleData[0]?.data || [];
 
       return {
         data: amountPaybleData,
@@ -2556,42 +2399,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   },
                   customerMobile: "$Customer.mobile",
                   referredDate: "$SchemeAccount.createdAt",
-                  ReferralBonuses:"$credited_amount"
-                  //  {
-                  //   $map: {
-                  //     input: "$Payments",
-                  //     as: "payment",
-                  //     in: {
-                  //       amount: {
-                  //         $round: [
-                  //           { $multiply: ["$$payment.payment_amount", 0.05] },
-                  //           2,
-                  //         ],
-                  //       },
-                  //       payment_date: "$$payment.createdAt",
-                  //       payment_id: "$$payment._id",
-                  //     },
-                  //   },
-                  // }
-                  ,
-                  totalBonus:"$credited_amount",
-                  //  {
-                  //   $round: [
-                  //     {
-                  //       $reduce: {
-                  //         input: "$Payments",
-                  //         initialValue: 0,
-                  //         in: {
-                  //           $add: [
-                  //             "$$value",
-                  //             { $multiply: ["$$this.payment_amount", 0.05] },
-                  //           ],
-                  //         },
-                  //       },
-                  //     },
-                  //     2,
-                  //   ],
-                  // },
+                  ReferralBonuses: "$credited_amount",
+                  totalBonus: "$credited_amount",
                 },
               },
               { $skip: skip || 0 },
@@ -2619,166 +2428,11 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
     }
   }
 
-  //amount payable
-  // async getAmountPayable(filter, skip = 0, limit = 10, type) {
-  //   try {
-  //     if (type === "weight") {
-  //       filter["scheme_type"] = { $in: [12, 3, 4, 2, 5, 6, 10, 14] };
-  //     }
-  //     else {
-  //       filter["scheme_type"] = { $nin: [12, 3, 4, 2, 5, 6, 10, 14] };
-  //     }
-
-  //     delete filter.createdAt;
-
-  //     const schemes = await schemeModel.aggregate([
-  //       { $match: { ...filter } },
-  //       {
-  //         $project: {
-  //           _id: 1,
-  //           schemeName: "$name",
-  //           classificationId: "$classification_id",
-  //         },
-  //       },
-  //     ]);
-
-  //     if (!schemes.length) {
-  //       return { success: false, message: "No schemes found" };
-  //     }
-
-  //     const fieldToSum = type === 'weight' ? "metal_weight" : "payment_amount";
-
-  //     // Main aggregation pipeline
-  //     const result = await schemeAccountModel.aggregate([
-  //       {
-  //         $match: {
-  //           id_scheme: { $in: schemes.map((scheme) => scheme._id) },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "payments",
-  //           localField: "_id",
-  //           foreignField: "id_scheme_account",
-  //           as: "Payments",
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           totalCollectedAmount: {
-  //             $sum: `$Payments.${fieldToSum}`
-  //           }
-  //         },
-  //       },
-  //       {
-  //         $match: {
-  //           totalCollectedAmount: { $gt: 0 }
-  //         }
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "schemes",
-  //           localField: "id_scheme",
-  //           foreignField: "_id",
-  //           as: "scheme",
-  //         },
-  //       },
-  //       { $unwind: "$scheme" },
-  //       {
-  //         $lookup: {
-  //           from: "schemeclassifications",
-  //           localField: "scheme.id_classification",
-  //           foreignField: "_id",
-  //           as: "classification",
-  //         },
-  //       },
-  //       { $unwind: "$classification" },
-  //       {
-  //         $project: {
-  //           schemeId: "$scheme._id",
-  //           schemeName: "$scheme.scheme_name",
-  //           classificationName: "$classification.name",
-  //           totalCollectedAmount: 1,
-  //         },
-  //       },
-  //       {
-  //         $group: {
-  //           _id: "$schemeId",
-  //           schemeName: { $first: "$schemeName" },
-  //           classificationName: { $first: "$classificationName" },
-  //           totalCollectedAmount: { $sum: "$totalCollectedAmount" },
-  //         },
-  //       },
-  //       {
-  //         $match: {
-  //           totalCollectedAmount: { $gt: 0 }
-  //         }
-  //       },
-  //       { $skip: skip },
-  //       { $limit: limit },
-  //     ]);
-
-  //     // For total count aggregation - modified to match the same criteria as the main query
-  //     const totalCountAgg = await schemeAccountModel.aggregate([
-  //       {
-  //         $match: {
-  //           id_scheme: { $in: schemes.map((scheme) => scheme._id) },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "payments",
-  //           localField: "_id",
-  //           foreignField: "id_scheme_account",
-  //           as: "Payments",
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           totalCollectedAmount: {
-  //             $sum: `$Payments.${fieldToSum}`
-  //           }
-  //         },
-  //       },
-  //       {
-  //         $match: {
-  //           totalCollectedAmount: { $gt: 0 }
-  //         }
-  //       },
-  //       {
-  //         $group: {
-  //           _id: "$id_scheme"
-  //         }
-  //       },
-  //       {
-  //         $count: "totalCount"
-  //       }
-  //     ]);
-
-  //     const totalCount = totalCountAgg[0]?.totalCount || 0;
-  //     const totalPages = Math.ceil(totalCount / limit) || 1;
-  //     const currentPage = Math.floor(skip / limit) + 1;
-
-  //     return {
-  //       success: true,
-  //       data: result,
-  //       totalPages,
-  //       totalCount,
-  //       currentPage,
-  //     };
-  //   } catch (err) {
-  //     console.error("Error in getAmountPayable:", err);
-  //     throw err;
-  //   }
-  // }
-
-
   async getAmountPayable(filter, skip = 0, limit = 10, type) {
     try {
       if (type === "weight") {
         filter["scheme_type"] = { $in: [12, 3, 4, 2, 5, 6, 10, 14] };
-      }
-      else {
+      } else {
         filter["scheme_type"] = { $nin: [12, 3, 4, 2, 5, 6, 10, 14] };
       }
 
@@ -2803,12 +2457,13 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         return { success: false, message: "No schemes found" };
       }
 
-      const fieldToSum = type === 'weight' ? "metal_weight" : "payment_amount";
+      const fieldToSum = type === "weight" ? "metal_weight" : "payment_amount";
 
       const result = await schemeAccountModel.aggregate([
         {
           $match: {
-            id_scheme: { $in: schemes.map((scheme) => scheme._id) },status: { $eq:0 },
+            id_scheme: { $in: schemes.map((scheme) => scheme._id) },
+            status: { $eq: 0 },
           },
         },
         {
@@ -2819,12 +2474,12 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
               {
                 $match: {
                   $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
-                  payment_status:1,
+                  payment_status: 1,
                   ...(Object.keys(dateFilter).length > 0 && {
-                    createdAt: dateFilter.createdAt
-                  })
-                }
-              }
+                    createdAt: dateFilter.createdAt,
+                  }),
+                },
+              },
             ],
             as: "Payments",
           },
@@ -2832,14 +2487,14 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         {
           $addFields: {
             totalCollectedAmount: {
-              $sum: `$Payments.${fieldToSum}`
-            }
+              $sum: `$Payments.${fieldToSum}`,
+            },
           },
         },
         {
           $match: {
-            totalCollectedAmount: { $gt: 0 }
-          }
+            totalCollectedAmount: { $gt: 0 },
+          },
         },
         {
           $lookup: {
@@ -2877,8 +2532,8 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         },
         {
           $match: {
-            totalCollectedAmount: { $gt: 0 }
-          }
+            totalCollectedAmount: { $gt: 0 },
+          },
         },
         { $skip: skip },
         { $limit: limit },
@@ -2898,12 +2553,12 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
               {
                 $match: {
                   $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
-                  payment_status:1,
+                  payment_status: 1,
                   ...(Object.keys(dateFilter).length > 0 && {
-                    createdAt: dateFilter.createdAt
-                  })
-                }
-              }
+                    createdAt: dateFilter.createdAt,
+                  }),
+                },
+              },
             ],
             as: "Payments",
           },
@@ -2911,23 +2566,23 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
         {
           $addFields: {
             totalCollectedAmount: {
-              $sum: `$Payments.${fieldToSum}`
-            }
+              $sum: `$Payments.${fieldToSum}`,
+            },
           },
         },
         {
           $match: {
-            totalCollectedAmount: { $gt: 0 }
-          }
+            totalCollectedAmount: { $gt: 0 },
+          },
         },
         {
           $group: {
-            _id: "$id_scheme"
-          }
+            _id: "$id_scheme",
+          },
         },
         {
-          $count: "totalCount"
-        }
+          $count: "totalCount",
+        },
       ]);
 
       const totalCount = totalCountAgg[0]?.totalCount || 0;
@@ -3104,181 +2759,7 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
   // }
 
   // ! drill down api
-  
-  
-  
-  // async getCustomerRefferal(filter, skip, limit, type, search) {
-  //   try {
-  //     const matchStage = {
-  //       $match: {
-  //         ...filter,
-  //         referred_by: "Customer",
-  //         id_customer: { $exists: true, $ne: null },
-  //       },
-  //     };
-
-  //     // Add search conditions if search parameter exists
-  //     let searchConditions = [];
-  //     if (search) {
-  //       searchConditions = [
-  //         {
-  //           $match: {
-  //             $or: [
-  //               { 
-  //                 "Customer.mobile": { 
-  //                   $regex: search, 
-  //                   $options: 'i' 
-  //                 } 
-  //               },
-  //               { 
-  //                 "Customer.firstname": { 
-  //                   $regex: search, 
-  //                   $options: 'i' 
-  //                 } 
-  //               },
-  //               { 
-  //                 "Customer.lastname": { 
-  //                   $regex: search, 
-  //                   $options: 'i' 
-  //                 } 
-  //               },
-  //               {
-  //                 $expr: {
-  //                   $regexMatch: {
-  //                     input: { 
-  //                       $concat: [
-  //                         "$Customer.firstname", 
-  //                         " ", 
-  //                         { $ifNull: ["$Customer.lastname", ""] }
-  //                       ] 
-  //                     },
-  //                     regex: search,
-  //                     options: "i"
-  //                   }
-  //                 }
-  //               }
-  //             ]
-  //           }
-  //         }
-  //       ];
-  //     }
-
-  //     const pipeline = [
-  //       matchStage,
-  //       {
-  //         $lookup: {
-  //           from: "payments",
-  //           localField: "paymentId",
-  //           foreignField: "_id",
-  //           as: "Payment",
-  //           pipeline: [
-  //             { $match: { payment_status: 1 } },
-  //             { $limit: 1 } 
-  //           ]
-  //         }
-  //       },
-  //       { $unwind: { path: "$Payment", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "id_customer",
-  //           foreignField: "_id",
-  //           as: "Customer",
-  //         },
-  //       },
-  //       { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "schemeaccounts",
-  //           localField: "id_scheme_account",
-  //           foreignField: "_id",
-  //           as: "SchemeAccount",
-  //         },
-  //       },
-  //       { $unwind: { path: "$SchemeAccount", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "schemes",
-  //           localField: "SchemeAccount.id_scheme",
-  //           foreignField: "_id",
-  //           as: "Scheme",
-  //         },
-  //       },
-  //       { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "SchemeAccount.id_customer",
-  //           foreignField: "_id",
-  //           as: "referredCustomer",
-  //         },
-  //       },
-  //       { $unwind: { path: "$referredCustomer", preserveNullAndEmptyArrays: true } },
-  //       ...searchConditions, // Add search conditions here after all lookups are done
-  //       {
-  //         $project: {
-  //           customer_name: {
-  //             $concat: [
-  //               "$Customer.firstname",
-  //               " ",
-  //               { $ifNull: ["$Customer.lastname", ""] },
-  //             ],
-  //           },
-  //           customerMobile: "$Customer.mobile",
-  //           referredCusName: {
-  //             $concat: [
-  //               "$referredCustomer.firstname",
-  //               " ",
-  //               { $ifNull: ["$referredCustomer.lastname", ""] },
-  //             ],
-  //           },
-  //           referredCusMobile: "$referredCustomer.mobile",
-  //           referredDate: "$SchemeAccount.createdAt",
-  //           schemeName: "$Scheme.scheme_name",
-  //           minAmount: "$Scheme.min_amount",
-  //           maxAmount: "$Scheme.max_amount",
-  //           minWeight: "$Scheme.min_weight",
-  //           maxWeight: "$Scheme.max_weight",
-  //           schemeType: "$Scheme.scheme_type",
-  //           ReferralBonuses: {
-  //             payment_date: "$Payment.createdAt",
-  //             payment_amount: "$Payment.payment_amount",
-  //             referral_amount: "$credited_amount",
-  //             payment_id: "$Payment._id",
-  //             payment_status: "$Payment.payment_status"
-  //           },
-  //         }
-  //       },
-  //       {
-  //         $facet: {
-  //           data: [{ $skip: skip || 0 }, { $limit: limit || 50 }],
-  //           totalCount: [{ $count: "count" }],
-  //         },
-  //       },
-  //     ];
-
-  //     const result = await referralListModel.aggregate(pipeline);
-
-  //     console.log(result)
-
-  //     return {
-  //       success: true,
-  //       data: result[0]?.data || [],
-  //       totalCount: result[0]?.totalCount[0] || { count: 0 },
-  //       totalPages: limit
-  //         ? Math.ceil((result[0]?.totalCount[0]?.count || 0) / limit)
-  //         : null,
-  //       currentPage: skip && limit ? Math.floor(skip / limit) + 1 : 1,
-  //     };
-  //   } catch (err) {
-  //     console.log(err);
-  //     throw err;
-  //   }
-  // }
-
-
-
-   async getCustomerRefferal(filter, skip, limit, type, search) {
+async getCustomerRefferal(filter, skip, limit, type, search) {
     try {
       const matchStage = {
         $match: {
@@ -3295,42 +2776,42 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
           {
             $match: {
               $or: [
-                { 
-                  "Customer.mobile": { 
-                    $regex: search, 
-                    $options: 'i' 
-                  } 
+                {
+                  "Customer.mobile": {
+                    $regex: search,
+                    $options: "i",
+                  },
                 },
-                { 
-                  "Customer.firstname": { 
-                    $regex: search, 
-                    $options: 'i' 
-                  } 
+                {
+                  "Customer.firstname": {
+                    $regex: search,
+                    $options: "i",
+                  },
                 },
-                { 
-                  "Customer.lastname": { 
-                    $regex: search, 
-                    $options: 'i' 
-                  } 
+                {
+                  "Customer.lastname": {
+                    $regex: search,
+                    $options: "i",
+                  },
                 },
                 {
                   $expr: {
                     $regexMatch: {
-                      input: { 
+                      input: {
                         $concat: [
-                          "$Customer.firstname", 
-                          " ", 
-                          { $ifNull: ["$Customer.lastname", ""] }
-                        ] 
+                          "$Customer.firstname",
+                          " ",
+                          { $ifNull: ["$Customer.lastname", ""] },
+                        ],
                       },
                       regex: search,
-                      options: "i"
-                    }
-                  }
-                }
-              ]
-            }
-          }
+                      options: "i",
+                    },
+                  },
+                },
+              ],
+            },
+          },
         ];
       }
 
@@ -3353,7 +2834,9 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             as: "SchemeAccount",
           },
         },
-        { $unwind: { path: "$SchemeAccount", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: { path: "$SchemeAccount", preserveNullAndEmptyArrays: true },
+        },
         {
           $lookup: {
             from: "payments",
@@ -3364,16 +2847,16 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
                   $expr: {
                     $and: [
                       { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
-                      { $eq: ["$payment_status", 1] }
-                    ]
-                  }
-                }
+                      { $eq: ["$payment_status", 1] },
+                    ],
+                  },
+                },
               },
               { $sort: { createdAt: -1 } },
-              { $limit: 1 }
+              { $limit: 1 },
             ],
-            as: "Payments"
-          }
+            as: "Payments",
+          },
         },
         { $unwind: { path: "$Payments", preserveNullAndEmptyArrays: true } },
         {
@@ -3393,7 +2876,12 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             as: "referredCustomer",
           },
         },
-        { $unwind: { path: "$referredCustomer", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$referredCustomer",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
         ...searchConditions, // Add search conditions here after all lookups are done
         {
           $project: {
@@ -3420,15 +2908,15 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
             minWeight: "$Scheme.min_weight",
             maxWeight: "$Scheme.max_weight",
             schemeType: "$Scheme.scheme_type",
-            createdAt:1,
+            createdAt: 1,
             ReferralBonuses: {
               payment_date: "$Payments.createdAt",
               payment_amount: "$Payments.payment_amount",
               referral_amount: "$credited_amount",
               payment_id: "$Payments._id",
-              payment_status: "$Payments.payment_status"
+              payment_status: "$Payments.payment_status",
             },
-          }
+          },
         },
         { $sort: { createdAt: -1 } },
         {
@@ -3440,7 +2928,6 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       ];
 
       const result = await referralListModel.aggregate(pipeline);
-
 
       return {
         success: true,
@@ -3561,146 +3048,161 @@ async getPaymentLedger(query = {}, skip = 0, limit = 10) {
       throw err;
     }
   }
-  
-async getAmountDetailedView(filter, skip = 0, limit = 10, schemeId, type, from_date, to_date) {
+
+  async getAmountDetailedView(
+    filter,
+    skip = 0,
+    limit = 10,
+    schemeId,
+    type,
+    from_date,
+    to_date
+  ) {
     try {
-        const paymentMatch = {};
-        if (from_date) paymentMatch.createdAt = { $gte: from_date };
-        if (to_date) paymentMatch.createdAt = { ...paymentMatch.createdAt, $lte: to_date };
+      const paymentMatch = {};
+      if (from_date) paymentMatch.createdAt = { $gte: from_date };
+      if (to_date)
+        paymentMatch.createdAt = { ...paymentMatch.createdAt, $lte: to_date };
 
-        const fieldToSum = type === 'weight' ? "metal_weight" : "payment_amount";
+      const fieldToSum = type === "weight" ? "metal_weight" : "payment_amount";
 
-        const aggregationPipeline = [
-            {
+      const aggregationPipeline = [
+        {
+          $match: {
+            id_scheme: new mongoose.Types.ObjectId(schemeId),
+            ...filter,
+            status: 0,
+          },
+        },
+        {
+          $lookup: {
+            from: "customers",
+            localField: "id_customer",
+            foreignField: "_id",
+            as: "Customer",
+          },
+        },
+        { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "payments",
+            let: { schemeAccountId: "$_id" },
+            pipeline: [
+              {
                 $match: {
-                    id_scheme: new mongoose.Types.ObjectId(schemeId),
-                    ...filter,
-                    status:0
-                }
+                  $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                  payment_status: 1,
+                  ...paymentMatch,
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalValue: { $sum: `$${fieldToSum}` },
+                },
+              },
+            ],
+            as: "PaymentSummary",
+          },
+        },
+        {
+          $addFields: {
+            totalValue: {
+              $ifNull: [{ $arrayElemAt: ["$PaymentSummary.totalValue", 0] }, 0],
             },
-            {
-                $lookup: {
-                    from: "customers",
-                    localField: "id_customer",
-                    foreignField: "_id",
-                    as: "Customer"
-                }
-            },
-            { $unwind: { path: "$Customer", preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: "payments",
-                    let: { schemeAccountId: "$_id" },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
-                                payment_status: 1,
-                                ...paymentMatch
-                            }
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalValue: { $sum: `$${fieldToSum}` }
-                            }
-                        }
-                    ],
-                    as: "PaymentSummary"
-                }
-            },
-            {
-                $addFields: {
-                    totalValue: { $ifNull: [{ $arrayElemAt: ["$PaymentSummary.totalValue", 0] }, 0] }
-                }
-            },
-            {
+          },
+        },
+        {
+          $match: {
+            totalValue: { $gt: 0 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            customer: "$account_name",
+            mobile: "$Customer.mobile",
+            accounter_fname: "$Customer.firstname",
+            accounter_lname: "$Customer.lastname",
+            schemeAccNumber: "$scheme_acc_number",
+            joinedDate: "$start_date",
+            maturityDate: "$maturity_date",
+            paidInstallments: "$paid_installments",
+            totalValue: 1,
+            customerId: "$Customer._id",
+          },
+        },
+        { $skip: skip },
+        { $limit: limit },
+      ];
+
+      // Get paginated results
+      const schemeDetails = await schemeAccountModel.aggregate(
+        aggregationPipeline
+      );
+
+      const totalCountAgg = await schemeAccountModel.aggregate([
+        {
+          $match: {
+            id_scheme: new mongoose.Types.ObjectId(schemeId),
+            ...filter,
+          },
+        },
+        {
+          $lookup: {
+            from: "payments",
+            let: { schemeAccountId: "$_id" },
+            pipeline: [
+              {
                 $match: {
-                    totalValue: { $gt: 0 }
-                }
+                  $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                  payment_status: 1,
+                  ...paymentMatch,
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalValue: { $sum: `$${fieldToSum}` },
+                },
+              },
+            ],
+            as: "PaymentSummary",
+          },
+        },
+        {
+          $addFields: {
+            totalValue: {
+              $ifNull: [{ $arrayElemAt: ["$PaymentSummary.totalValue", 0] }, 0],
             },
-            {
-                $project: {
-                    _id: 0,
-                    customer: "$account_name",
-                    mobile: "$Customer.mobile",
-                    accounter_fname: "$Customer.firstname",
-                    accounter_lname: "$Customer.lastname",
-                    schemeAccNumber: "$scheme_acc_number",
-                    joinedDate: "$start_date",
-                    maturityDate: "$maturity_date",
-                    paidInstallments: "$paid_installments",
-                    totalValue: 1,
-                    customerId:"$Customer._id"
-                }
-            },
-            { $skip: skip },
-            { $limit: limit }
-        ];
+          },
+        },
+        {
+          $match: {
+            totalValue: { $gt: 0 },
+          },
+        },
+        {
+          $count: "totalCount",
+        },
+      ]);
 
-        // Get paginated results
-        const schemeDetails = await schemeAccountModel.aggregate(aggregationPipeline);
+      const totalCount = totalCountAgg[0]?.totalCount || 0;
 
-        const totalCountAgg = await schemeAccountModel.aggregate([
-            {
-                $match: {
-                    id_scheme: new mongoose.Types.ObjectId(schemeId),
-                    ...filter
-                }
-            },
-            {
-                $lookup: {
-                    from: "payments",
-                    let: { schemeAccountId: "$_id" },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
-                                payment_status: 1,
-                                ...paymentMatch
-                            }
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                totalValue: { $sum: `$${fieldToSum}` }
-                            }
-                        }
-                    ],
-                    as: "PaymentSummary"
-                }
-            },
-            {
-                $addFields: {
-                    totalValue: { $ifNull: [{ $arrayElemAt: ["$PaymentSummary.totalValue", 0] }, 0] }
-                }
-            },
-            {
-                $match: {
-                    totalValue: { $gt: 0 }
-                }
-            },
-            {
-                $count: "totalCount"
-            }
-        ]);
+      const totalPages = Math.ceil(totalCount / limit);
+      const currentPage = Math.floor(skip / limit) + 1;
 
-        const totalCount = totalCountAgg[0]?.totalCount || 0;
-
-        const totalPages = Math.ceil(totalCount / limit);
-        const currentPage = Math.floor(skip / limit) + 1;
-
-        return {
-            data: schemeDetails,
-            totalPages,
-            totalCount,
-            currentPage
-        };
+      return {
+        data: schemeDetails,
+        totalPages,
+        totalCount,
+        currentPage,
+      };
     } catch (err) {
-        console.error(err);
-        throw err;
+      console.error(err);
+      throw err;
     }
-}
+  }
 
   async getActiveAccounts(filter, skip = 0, limit = 4) {
     try {
@@ -3841,7 +3343,7 @@ async getAmountDetailedView(filter, skip = 0, limit = 10, schemeId, type, from_d
                   gift_issues: "$gift_issues",
                   startDate: "$start_date",
                   maturityDate: "$maturity_date",
-                  schemeType:"$Scheme.scheme_type",
+                  schemeType: "$Scheme.scheme_type",
                   total_installments: {
                     $cond: {
                       if: { $eq: ["$total_installments", 0] },
@@ -3860,10 +3362,10 @@ async getAmountDetailedView(filter, skip = 0, limit = 10, schemeId, type, from_d
                       then: 0,
                       else: "$flexFixed",
                     },
-                  }
+                  },
                 },
               },
-              {$sort: { _id: -1 }},
+              { $sort: { _id: -1 } },
               { $skip: skip },
               { $limit: limit },
             ],
@@ -4031,15 +3533,7 @@ async getAmountDetailedView(filter, skip = 0, limit = 10, schemeId, type, from_d
                   paid_installments: "$paid_installments",
                   amountPaid: "$amount",
                   scheme_name: "$Scheme.scheme_name",
-                  closedDate:"$closed_date",
-                  // installmentDue: "$installmentDue",
-                  // flexFixed: {
-                  //   $cond: {
-                  //     if: { $eq: ["flexFixed", null] },
-                  //     then: 0,
-                  //     else: "$flexFixed",
-                  //   },
-                  // }
+                  closedDate: "$closed_date",
                 },
               },
               { $skip: skip },
