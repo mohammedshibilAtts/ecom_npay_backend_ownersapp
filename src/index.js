@@ -16,6 +16,7 @@ import bodyParser from 'body-parser';
 import notificationRoutes from './notification-routes.js'
 import './config/chit/cronSetup.js'
 import './cron/digigoldAutoCron.js'
+import './cron/overdueAutoCron.js'
 import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
 
 (function setupGlobalErrorLogger() {

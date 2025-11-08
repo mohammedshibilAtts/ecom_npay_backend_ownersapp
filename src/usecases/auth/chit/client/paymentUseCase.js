@@ -1343,7 +1343,6 @@ class PaymentUseCase {
           { id: data.id_scheme_account, date: todayDate }
         );
 
-        // return console.log(extraData)
         const overLimit = Number(monthlyPayments) + 1 > Number(schemeData.limit_installment);
 
         if (overLimit && notDigiGold) {
