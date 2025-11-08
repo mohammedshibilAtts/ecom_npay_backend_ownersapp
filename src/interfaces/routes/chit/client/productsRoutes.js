@@ -34,7 +34,15 @@ const controller=new ProductController(usecase,validator)
 
 router.post('/table',(req,res)=>controller.allProducts(req,res))
 router.get('/all',(req,res)=>controller.allProductsData(req,res))
+router.use(authMiddleware.bypassProtect);
+//aushop routes
+router.post('/search',(req,res)=>controller.searchProduct(req,res));
+router.get('/collection/:id/category',(req,res)=>controller.getCategoryByCollectionId(req,res))
+router.get('/subcategory/:id',(req,res)=>controller.getProductBySubcategroy(req,res))
+router.get('/category/:id',(req,res)=>controller.getProductByCategory(req,res))
+
 router.get('/:id',(req,res)=>controller.ProductById(req,res))
+
 router.use(authMiddleware.protect);
 router.get('/branch/:id',(req,res)=>controller.ProductByBranchId(req,res))
 router.post('/',upload.handleUpload([{name:"product_image",maxCount:3}]),(req, res) => controller.addProduct(req, res));
@@ -43,10 +51,8 @@ router.patch('/:id/active',(req,res)=>controller.changeStatus(req,res))
 router.delete('/:id',(req,res)=>controller.deleteProduct(req,res))
 
 //aushop routes
-router.post('/search',(req,res)=>controller.searchProduct(req,res));
-router.get('/collection/:id/category',(req,res)=>controller.getCategoryByCollectionId(req,res))
-router.get('/subcategory/:id',(req,res)=>controller.getProductBySubcategroy(req,res))
-router.get('/category/:id',(req,res)=>controller.getProductByCategory(req,res))
+
+
 router.patch('/best-seller/:id',(req,res)=>controller.toggleBestSeller(req,res))
 
 //product stock report

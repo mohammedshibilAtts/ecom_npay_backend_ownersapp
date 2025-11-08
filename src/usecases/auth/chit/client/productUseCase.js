@@ -716,6 +716,7 @@ class ProductUseCase {
 
   async findById(id, token=null) {
     try {
+      console.log("Token ",token)
       const idValidation = this.validateObjectId(id, "Product");
       if (idValidation) return idValidation;
 

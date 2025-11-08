@@ -104,7 +104,7 @@ class ProductController {
       if (!id) {
         return res.status(400).json({ message: "Product Id is required" });
       }
-
+     
       const productData = await this.productUsecase.findById(id,req.user);
       if (productData.success) {
         return res
