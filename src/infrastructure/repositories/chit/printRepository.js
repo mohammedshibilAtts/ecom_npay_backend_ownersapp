@@ -224,7 +224,8 @@ class PrintRepository {
       throw error;
     }
   }
-  async getPassbookData(filter) {
+
+ async getPassbookData(filter) {
     try {
       const page = parseInt(filter?.page) || 1;
       const limit = parseInt(filter?.limit) || 10;
@@ -310,7 +311,20 @@ class PrintRepository {
             },
           },
         },
-
+        // {
+        //   $setWindowFields: {
+        //     sortBy: { createdAt: 1 },
+        //     output: {
+        //       index: { $documentNumber: {} },
+        //       accWeight: {
+        //         $sum: "$metal_weight",
+        //         window: {
+        //           documents: ["unbounded", "current"],
+        //         },
+        //       },
+        //     },
+        //   },
+        // },
         {
           $project: {
             _id: 1,
@@ -381,24 +395,72 @@ class PrintRepository {
         { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
 
         {
+          $lookup: {
+            from: "cities",
+            localField: "Customer.id_city",
+            foreignField: "_id",
+            as: "City",
+          },
+        },
+        { $unwind: { path: "$City", preserveNullAndEmptyArrays: true } },
+
+        {
+          $lookup: {
+            from: "states",
+            localField: "Customer.id_state",
+            foreignField: "_id",
+            as: "State",
+          },
+        },
+        { $unwind: { path: "$State", preserveNullAndEmptyArrays: true } },
+
+        {
+          $lookup: {
+            from: "countries",
+            localField: "Customer.id_country",
+            foreignField: "_id",
+            as: "Country",
+          },
+        },
+        { $unwind: { path: "$Country", preserveNullAndEmptyArrays: true } },
+
+        {
           $project: {
             schemeName: "$Scheme.scheme_name",
             schemeType: "$Scheme.scheme_type",
             branchName: "$Branch.branch_name",
             schemeCode: "$scheme_acc_number",
-            // amount
-            name: "$account_name",
-            address: {
+
+            schemeAmount: {
               $cond: [
-                {
-                  $or: [
-                    { $eq: ["$Customer.address", null] },
-                    { $eq: ["$Customer.address", ""] },
+                { $in: ["$Scheme.scheme_type", [3, 4, 12]] },
+                null, // If weight type, no amount
+                "$flexFixed", // Otherwise show flexFixed
+              ],
+            },
+
+            schemeWeight: {
+              $cond: [
+                { $in: ["$Scheme.scheme_type", [3, 4, 12]] },
+                "$flexFixed", // If weight type, show weight
+                null, // Otherwise no weight
+              ],
+            },
+
+            name: "$account_name",
+            address: { $ifNull: ["$Customer.address", "N/A"] },
+            city: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: [{ $toString: "$City.city_name" }, ""] },
+                    {
+                      $cond: [{ $ne: ["$Customer.pincode", null] }, " - ", ""],
+                    },
+                    { $ifNull: [{ $toString: "$Customer.pincode" }, ""] },
                   ],
                 },
-                "N/A",
-                "$Customer.address",
-              ],
+              },
             },
 
             mobile: "$Customer.mobile",
