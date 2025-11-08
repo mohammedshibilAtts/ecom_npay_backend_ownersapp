@@ -37,7 +37,7 @@ function calculateDigiGoldBonus({
       const daysSinceJoin = Math.floor(
         (new Date(paymentDate) - joinedDate) / (1000 * 60 * 60 * 24)
       )+1;
-  
+
       if (entry_type === 1) {
         values.forEach((item, index) => {
           if (item.value === daysSinceJoin) {

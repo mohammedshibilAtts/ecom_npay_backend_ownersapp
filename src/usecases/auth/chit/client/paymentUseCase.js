@@ -1667,6 +1667,7 @@ class PaymentUseCase {
       customerData = await this.customerRepo.findOne({ _id: customerId });
       const existingReferral = customerData.referral_id;
       const newReferral = referral_id?.trim();
+
       if (existingReferral && newReferral) {
         return {
           status: false,
@@ -1718,10 +1719,12 @@ class PaymentUseCase {
           schemeData.noOfDays
         );
 
+       if(schemeAccount?.paid_installments == 0){
         await this.schemeAccountRepository.updateOne(
           schemeAccount._id,
           updateDate
         );
+       }
       }
 
       const schemeInfo = await this.schemeAccountRepository.findInfo(
