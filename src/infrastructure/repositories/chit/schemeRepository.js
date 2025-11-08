@@ -84,6 +84,7 @@ class SchemeRepository {
   async findAll(query) {
     const schemeData = await schemeModel.aggregate([
       { $match: query },
+  
       {
         $lookup: {
           from: "s3bucketsettings",
@@ -92,12 +93,15 @@ class SchemeRepository {
           as: "s3Details",
         },
       },
+  
       { $unwind: "$s3Details" },
+  
       {
         $project: {
-          scheme_name:1,
+          scheme_name: 1,
           logo: 1,
           scheme_type: 1,
+          classification_order: 1,
           pathurl: {
             $concat: [
               "$s3Details.s3display_url",
@@ -106,8 +110,10 @@ class SchemeRepository {
           },
         },
       },
+  
+      { $sort: { classification_order: 1 } }
     ]);
-
+  
     return schemeData.length > 0 ? schemeData : null;
   }
 
