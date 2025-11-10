@@ -40,6 +40,10 @@ const OrderSchema = new Schema(
       default: "created",
       index: true,
     },
+     onlineProduct: {
+      type: Boolean,
+      default: true,
+    },
     active:{type:Boolean,default:false},
     estimatedDeliveryDays: { type: Number, required: true },
     estimatedDeliveryDate: { type: Date },

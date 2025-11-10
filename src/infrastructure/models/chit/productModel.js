@@ -97,6 +97,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    onlineProduct: {
+      type: Boolean,
+      default: true,
+    },
     is_deleted: {
       type: Boolean,
       default: false,
