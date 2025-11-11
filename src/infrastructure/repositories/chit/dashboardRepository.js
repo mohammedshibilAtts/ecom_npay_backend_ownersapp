@@ -797,15 +797,6 @@ class DashboardRepository {
     }
   }
 
-  async getNotificationCount(id_branch) {
-    try {
-      // const count =
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  }
-
   async paymentModeData(filter) {
     try {
       const Data = await paymentModel.aggregate([
