@@ -34,8 +34,8 @@ router.get('/allcategories',(req,res)=>controller.getAllCategoriesWithoutBranch(
 router.post('/table',(req,res)=>controller.getCategory(req,res))
 router.get("/branch/:id", (req, res) => controller.getByBranchId(req, res));
 router.get("/metal/:id", (req, res) => controller.getByMetalId(req, res));
-router.post("/",upload.handleUpload([{name:"image",maxCount:1}]), (req, res) => controller.addCategory(req, res));
-router.patch("/:id",upload.handleUpload([{name:"image",maxCount:1}]), (req, res) => controller.editCategory(req, res));
+router.post("/",upload.handleUpload([{name:"image",maxCount:1},{name:"categoryBanner",maxCount:1}]), (req, res) => controller.addCategory(req, res));
+router.patch("/:id",upload.handleUpload([{name:"image",maxCount:1},{name:"categoryBanner",maxCount:1}]), (req, res) => controller.editCategory(req, res));
 router.patch("/:id/active", (req, res) => controller.changeStatus(req, res));
 router.delete("/:id", (req, res) => controller.deleteCategory(req, res));
 

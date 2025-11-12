@@ -33,6 +33,7 @@ router.use(authMiddleware.protect);
 router.get('/status',(req,res)=>orderController.verifyPaymentStatus(req,res))
 router.get('/items', (req, res) => orderController.getOrder(req, res));
 router.post('/order', (req, res) => orderController.placeOrder(req, res))
+router.post('/order-now', (req, res) => orderController.orderNow(req, res))
 router.get('/order', (req, res) => orderController.getMyOrder(req, res))
 router.get('/status/all', (req, res) => orderController.getOrderStatus(req, res))
 router.get('/order/items/:id', (req, res) => orderController.getOrderItems(req, res))

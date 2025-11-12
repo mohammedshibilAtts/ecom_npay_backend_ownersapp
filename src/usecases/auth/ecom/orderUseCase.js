@@ -74,7 +74,7 @@ class OrderUseCase {
         type: "alert",
         category: "Order",
       },
-     customerId
+      customerId
     );
 
     // if (
@@ -286,6 +286,276 @@ class OrderUseCase {
     }
   }
 
+  async orderNow(userData, addressId, productId) {
+    try {
+      if (!userData._id) {
+        throw new Error("User ID not found");
+      }
+      if (!addressId) {
+        throw new Error("Address Id is required");
+      }
+      if (!productId) {
+        throw new Error("Address Id is required");
+      }
+      const findAddress = await this.deliveryAddressRepository.findById(
+        addressId
+      );
+
+      if (!findAddress) {
+        return {
+          success: false,
+          message: "Invalid Address Id",
+        };
+      }
+      const findProduct = await this.productRepository.findById(productId);
+
+      if (!findProduct && findProduct.onlineProduct) {
+        return {
+          success: false,
+          message: "Product not found",
+        };
+      }
+
+      const findProductForOrderNow =
+        await this.productRepository.findProductForOrderNow(
+          productId,
+          userData._id
+        );
+        console.log(findProductForOrderNow)
+      if (findProductForOrderNow.alreadyOrdered) {
+        return {
+          success: false,
+          message:
+            "Order confirmation is pending. You can place a new order after it's confirmed.",
+        };
+      }
+
+     
+      const isPaid = true;
+      if (!isPaid) {
+        return {
+          success: false,
+          message: "Payment Failed",
+        };
+      }
+      const cartData = {};
+      const findCart = await this.cartRepository.findByUserId(userData._id);
+      let cartId = findCart && findCart._id ? findCart._id : null;
+      cartData.userId = userData._id;
+      if (!findCart) {
+        const cart = {
+          ...cartData,
+          status: "active",
+        };
+        const createCart = await this.cartRepository.create(cart);
+        cartId = createCart._id;
+      }
+
+      const shppingCharge = 0;
+      const raw = `${userData._id}${Date.now()}`;
+      const transactionId = crypto
+        .createHash("sha256")
+        .update(raw)
+        .digest("hex")
+        .slice(0, 15);
+      const orderData = {
+        orderId: `ORD-${transactionId}`,
+        userId: userData._id,
+        phone: userData?.mobile,
+        cartId: findCart._id,
+        shipping_is_billing: true,
+        itemsCount: 1,
+        subtotal: findProduct.totalAmount,
+        totalDiscount: findProduct.discountedAmount,
+        shippingFee: shppingCharge,
+        totalAmount: findProduct.discountedAmount + shppingCharge,
+        // couponCode: "NEWUSER100",
+        // payment: "68899df2c34cf80f45b7ed1c",
+        savedAmount: findProduct.totalAmount - findProduct.discountedAmount,
+        status: "Payment Pending",
+        deliveryAddress: addressId,
+        active: true,
+        onlineProduct: false,
+        orderStatus: 5,
+      };
+      const orderItems = {
+        productId: findProduct._id, // from API
+        sizeId: "69122ba9d7d21a0ab9978f12", // mapping `itemId` → `sizeId`
+        productName: findProduct.product_name,
+        sku: findProduct.sku, // not in response
+        image: findProduct.product_image[0],
+        grossWeight: findProduct.grossWt,
+        price: findProduct.totalAmount,
+        quantity: 1,
+        discountAmount: findProduct.discountedAmount,
+        categoryId: findProduct.categoryId, // not in response (set later if needed)
+        subCategoryId: findProduct.subCategoryId, // not in response
+        collectionId: findProduct.collectionId, // not in response
+        status: "pending", // default
+        trackingNumber: null,
+        shippedAt: new Date(),
+        returnStatus: "none",
+        refundAmount: 0,
+      };
+      const createOrder = await this.orderRepository.createOrder(orderData, [
+        orderItems,
+      ]);
+
+      if (!createOrder) {
+        return {
+          success: false,
+          message: "Failed to create order now",
+        };
+      }
+
+      return {
+        success: true,
+        message: "Your order has been placed successfully",
+        data: createOrder?.data,
+      };
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Failed to place order: ${error.message}`);
+    }
+  }
+
+  async placeOrder(userData, addressId, token, redeemedSchemeAccounts,isStorePickup) {
+    try {
+      if (!userData._id) {
+        throw new Error("User ID not found");
+      }
+      if (!addressId) {
+        throw new Error("Address Id is required");
+      }
+      const findAddress = await this.deliveryAddressRepository.findById(
+        addressId
+      );
+
+      if (!findAddress) {
+        return {
+          success: false,
+          message: "Invalid Address Id",
+        };
+      }
+      const findCart = await this.cartRepository.findCartByUserId(userData._id);
+      if (!findCart) {
+        return {
+          success: false,
+          message: "Cart not found",
+        };
+      }
+      const cartItems = await this.cartRepository.findById(findCart._id);
+      if (!cartItems) {
+        return {
+          success: false,
+          message: "Failed to retrieve order details.",
+          data: cartItems,
+        };
+      }
+       let estimatedDeliveryDays
+     if(!isStorePickup){
+       const findPincodeData = await this.pincodeUseCase.getPincodesByFilters({
+        pincode: findAddress.pincode,
+      });
+      const pincodeData = findPincodeData[0];
+      if (!pincodeData || !pincodeData.isDeliveryAvailable) {
+        return {
+          success: false,
+          message: "Delivery is not available for this pincode",
+        };
+      }
+      estimatedDeliveryDays = pincodeData?.estimatedDeliveryDays;
+     }
+     
+      const isPaid = true;
+      if (!isPaid) {
+        return {
+          success: false,
+          message: "Payment Failed",
+        };
+      }
+      const shppingCharge = 0;
+      const raw = `${userData._id}${Date.now()}`;
+      const transactionId = crypto
+        .createHash("sha256")
+        .update(raw)
+        .digest("hex")
+        .slice(0, 15);
+      const orderData = {
+        orderId: `ORD-${transactionId}`,
+        userId: userData._id,
+        phone: userData?.mobile,
+        cartId: findCart._id,
+        shipping_is_billing: true,
+        itemsCount: cartItems.items.length,
+        subtotal: cartItems.overAllAmount.totalDiscount,
+        totalDiscount: cartItems.overAllAmount.totalDiscount,
+        shippingFee: shppingCharge,
+        totalAmount: cartItems.overAllAmount.totalDiscount + shppingCharge,
+        // couponCode: "NEWUSER100",
+        // payment: "68899df2c34cf80f45b7ed1c",
+        savedAmount:
+          cartItems.overAllAmount.totalPrice -
+          cartItems.overAllAmount.totalDiscount,
+        status: "Payment Pending",
+        deliveryAddress: addressId,
+        estimatedDeliveryDays,
+        active: false,
+        isStorePickup
+      };
+      const orderItems = cartItems.items.map((item) => ({
+        productId: item.productId, // from API
+        sizeId: item.sizeId, // mapping `itemId` → `sizeId`
+        productName: item.productName,
+        sku: item.sku, // not in response
+        image: item.image,
+        grossWeight: item.grossWt,
+        price: item.price,
+        quantity: item.qty,
+        discountAmount: item.discount,
+        categoryId: item.categoryId, // not in response (set later if needed)
+        subCategoryId: item.subCategoryId, // not in response
+        collectionId: item.collectionId, // not in response
+        status: "pending", // default
+        trackingNumber: null,
+        shippedAt: new Date(),
+        estimatedDeliveryDays,
+        returnStatus: "none",
+        refundAmount: 0,
+      }));
+      const createOrder = await this.orderRepository.createOrder(
+        orderData,
+        orderItems
+      );
+
+      const paymentData = await this.orderpaymentUsecase.orderPaymentCreation(
+        createOrder,
+        token
+      );
+
+      if (!paymentData) {
+        return {
+          success: false,
+          message: "Failed to create order",
+        };
+      }
+
+      await this.schemeAccountRepo.closeSchemeAccount(
+        redeemedSchemeAccounts,
+        token?._id
+      );
+
+      return {
+        success: true,
+        message: "Your order has been placed successfully",
+        data: paymentData?.data,
+      };
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Failed to place order: ${error.message}`);
+    }
+  }
+
   async getMyOrder(userData) {
     try {
       if (!userData._id) {
@@ -337,10 +607,19 @@ class OrderUseCase {
           message: "Failed to get orders",
         };
       }
+      let orderType =""
+      if(findOrderItems[0].onlineProduct==false){
+        orderType="Offline Order"
+      }else if (findOrderItems[0].isStorePickup==true){
+        orderType="Store Pickup"
+      }else{
+        orderType="Online Order"
+      }
+      findOrderItems[1].overAll.orderType=orderType
       return {
         success: true,
         message: "order retrieved successfully.",
-        data: findOrderItems,
+        data: findOrderItems[1],
       };
     } catch (error) {
       console.error(error);
@@ -709,7 +988,7 @@ class OrderUseCase {
           message = `Your order has been cancelled. Order ID: ${remarks}`;
         }
 
-        await this.sendNotification(orderData?.userId,title,message)
+        await this.sendNotification(orderData?.userId, title, message);
         return {
           success: true,
           data: result,

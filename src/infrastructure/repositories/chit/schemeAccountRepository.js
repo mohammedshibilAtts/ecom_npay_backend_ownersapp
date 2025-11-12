@@ -125,6 +125,97 @@ class SchemeAccountRepository {
           }
         },
         { $unwind: { path: "$id_scheme", preserveNullAndEmptyArrays: false } },
+              {
+          $addFields: {
+            currentDate: new Date(),
+            startDateObj: "$start_date",
+            schemeInstallmentType: "$id_scheme.installment_type"
+          }
+        },
+        {
+          $addFields: {
+            expectedDueDates: {
+              $let: {
+                vars: {
+                  startDate: "$startDateObj",
+                  totalInstallments: "$total_installments",
+                  installmentType: "$schemeInstallmentType"
+                },
+                in: {
+                  $map: {
+                    input: { $range: [0, "$$totalInstallments"] },
+                    as: "i",
+                    in: {
+                      $dateAdd: {
+                        startDate: "$$startDate",
+                        unit: {
+                          $switch: {
+                            branches: [
+                              { case: { $eq: ["$$installmentType", 1] }, then: "month" },
+                              { case: { $eq: ["$$installmentType", 2] }, then: "week" },
+                              { case: { $eq: ["$$installmentType", 3] }, then: "day" },
+                              { case: { $eq: ["$$installmentType", 4] }, then: "year" }
+                            ],
+                            default: "month"
+                          }
+                        },
+                        amount: "$$i"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            expectedInstallmentCount: {
+              $size: {
+                $filter: {
+                  input: "$expectedDueDates",
+                  as: "dueDate",
+                  cond: { $lte: ["$$dueDate", "$currentDate"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            overdueInstallments: {
+              $cond: {
+                if: { $gt: ["$expectedInstallmentCount", "$paid_installments"] },
+                then: { $subtract: ["$expectedInstallmentCount", "$paid_installments"] },
+                else: 0
+              }
+            }
+          }
+        },
+        {
+  $addFields: {
+    nextDueDate: {
+      $let: {
+        vars: {
+          futureDates: {
+            $filter: {
+              input: "$expectedDueDates",
+              as: "date",
+              cond: { $gt: ["$$date", "$currentDate"] }
+            }
+          }
+        },
+        in: {
+          $cond: {
+            if: { $gt: [{ $size: "$$futureDates" }, 0] },
+            then: { $min: "$$futureDates" }, // the earliest future date
+            else: null // if no future date left (fully paid)
+          }
+        }
+      }
+    }
+  }
+},
         {
           $lookup: {
             from: "metalrates",
@@ -190,7 +281,9 @@ class SchemeAccountRepository {
           $project: {
             payments: 0,
             schemestatuses: 0,
-            metalrate: 0
+            metalrate: 0,
+            expectedDueDates:0,
+            expectedInstallmentCount:0
           }
         }
       ]);

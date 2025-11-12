@@ -71,6 +71,60 @@ class CategoryUseCase {
     }
   }
 
+//   async addCategory(categoryData, files, token) {
+//   try {
+//     console.log("files.......................",files)
+//     // Validate Object IDs
+//     const branchValidation = this.validateObjectId(categoryData.id_branch, "Branch");
+//     if (branchValidation) return branchValidation;
+
+//     const metalValidation = this.validateObjectId(categoryData.id_metal, "Metal");
+//     if (metalValidation) return metalValidation;
+
+//     // Check for duplicate category name first
+//     const existingCategory = await this.categoryRepository.findByName(
+//       categoryData.category_name
+//     );
+
+//     if (existingCategory) {
+//       return { success: false, message: "Category already exists." };
+//     }
+
+//     // Handle image uploads
+//     let imageUrlFinal = null;
+//     let bannerUrlFinal = null;
+
+//     if (files?.image) {
+//       imageUrlFinal = await this.handleImageUpload(files.image, null, token);
+//     }
+
+//     if (files?.categoryBanner) {
+//       bannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null, token);
+//     }
+
+//     if (imageUrlFinal) categoryData.image = imageUrlFinal;
+//     if (bannerUrlFinal) categoryData.categoryBanner = bannerUrlFinal;
+
+//     // Create category
+//     const categoryResult = await this.categoryRepository.addCategory(categoryData);
+
+//     if (categoryResult) {
+//       return { success: true, message: "Category created successfully." };
+//     }
+
+//     return { success: false, message: "Failed to create category." };
+
+//   } catch (err) {
+//     console.error("Error occurred while adding category:", err.stack || err.message);
+//     return {
+//       success: false,
+//       message: "An error occurred while adding category.",
+//       error: err.message,
+//     };
+//   }
+// }
+
+
   async editCategory(editCategoryData, id,files) {
     try {
       // if(id !== 0 && id !== ''){

@@ -10,7 +10,7 @@ class AuthMiddleware {
      const token = req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
        ? req.headers.authorization.split(' ')[1] 
       : null;
-      
+        
     if (!token) {
        throw new AppError('You are not logged in! Please log in to get access.', 401);
      }
@@ -22,7 +22,7 @@ class AuthMiddleware {
       next();
     } catch (error) {
       console.error(error);
-      return res.status(400).json({message:"Invalid toke,Please login again"})
+      return res.status(400).json({message:"Invalid token, Please login again"})
     }
   });
 bypassProtect = asyncHandler(async (req, res, next) => {

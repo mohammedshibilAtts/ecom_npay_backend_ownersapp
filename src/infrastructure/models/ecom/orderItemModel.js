@@ -46,7 +46,7 @@ const OrderItemSchema = new Schema(
       default: "none",
     },
     refundAmount: { type: Number, default: 0 },
-     estimatedDeliveryDays: { type: Number, required: true },
+     estimatedDeliveryDays: { type: Number, required: true,default:0 },
     estimatedDeliveryDate: { type: Date },
   },
   { timestamps: true }

@@ -39,16 +39,18 @@ const OrderSchema = new Schema(
       ],
       default: "created",
       index: true,
-    },
+    }, // ! 
      onlineProduct: {
       type: Boolean,
       default: true,
     },
     active:{type:Boolean,default:false},
-    estimatedDeliveryDays: { type: Number, required: true },
+    estimatedDeliveryDays: { type: Number,default:0 },
     estimatedDeliveryDate: { type: Date },
     deliveredDate: { type: Date },
-    orderStatus:{type:Number,enum:[1,2,3,4,5],default:4}  //1 Processing, 2 Placed  , 3 Delivered , 4 Cancelled , 5 payment pending
+    isStorePickup:{type:Boolean,default:false},
+    lastStatusUpdatedDate:{type:Date},
+    orderStatus:{type:Number,enum:[1,2,3,4,5,6],default:4}  //1 Processing, 2 Placed  , 3 Delivered , 4 Cancelled , 5 payment pending, 6 shipped
   },
   { timestamps: true }
 );

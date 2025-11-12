@@ -2,6 +2,7 @@ import ProductModel from "../../models/chit/productModel.js";
 import categoryModel from "../../models/chit/categoryModel.js";
 import mongoose from "mongoose";
 import moment from "moment";
+import { OrderItem } from "../../models/ecom/orderItemModel.js";
 
 class ProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -474,13 +475,15 @@ class ProductRepository {
             as: "branches",
           },
         },
-        {$lookup:{
-          from:"sizemasters",
-          localField:"availableSizes.sizeId",
-          foreignField:"_id",
-          as:"Size"
-        }},
-         { $unwind:{path:"$Size",preserveNullAndEmptyArrays:true} },
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "availableSizes.sizeId",
+            foreignField: "_id",
+            as: "Size",
+          },
+        },
+        { $unwind: { path: "$Size", preserveNullAndEmptyArrays: true } },
 
         { $unwind: "$branches" },
         ...(isValidCustomerId
@@ -1009,12 +1012,19 @@ class ProductRepository {
             netWeight: 1,
             grossWt: 1,
             sizeUnit: "$Size.unit",
+            onlineProduct: { $ifNull: ["$onlineProduct", true] },
           },
         },
         { $limit: 1 },
       ]);
 
-      return userData.length ? userData[0] : null;
+      const productData = userData[0]
+      if(productData.onlineProduct==false){
+      productData.orderStatus=await this.findProductForOrderNow(id,customerId)
+      }
+
+      console.log(productData)
+      return productData ? productData : null;
     } catch (err) {
       console.error(err);
       throw new Error("Database error occurred while finding Product by id");
@@ -2514,7 +2524,7 @@ class ProductRepository {
       const categories = await categoryModel
         .find(
           { _id: { $in: categoryIds } },
-          { _id: 1, category_name: 1, image: 1, pathUrl: 1 }
+          { _id: 1, category_name: 1, image: 1, pathUrl: 1,categoryBanner:1 }
         )
         .lean();
 
@@ -3107,6 +3117,60 @@ class ProductRepository {
       );
     }
   }
+
+async findProductForOrderNow(productId, userId) {
+  try {
+    const result = await OrderItem.aggregate([
+      {
+        $match: {
+          productId: new mongoose.Types.ObjectId(productId),
+        },
+      },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "Order",
+        },
+      },
+      { $unwind: "$Order" },
+      {
+        $match: {
+          "Order.userId": new mongoose.Types.ObjectId(userId),
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          orderId: "$Order._id",
+          onlineProduct: "$Order.onlineProduct",
+          orderStatus: "$Order.orderStatus",
+        },
+      },
+    ]);
+
+    if (!result.length) {
+      // no previous order found for this product
+      return { alreadyOrdered: false, orderId: null };
+    }
+
+    const hasActiveOrder = result.some(
+      (item) => item.onlineProduct === false && item.orderStatus === 5
+    );
+
+    // If has active order → user already ordered → return true
+    return {
+      alreadyOrdered: hasActiveOrder,
+      orderId: hasActiveOrder ? result.find(
+        (r) => r.onlineProduct === false && r.orderStatus === 5
+      )?.orderId : null,
+    };
+  } catch (error) {
+    throw error;
+  }
+}
+
 }
 
 export default ProductRepository;

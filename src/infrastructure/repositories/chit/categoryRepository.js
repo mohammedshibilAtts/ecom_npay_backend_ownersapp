@@ -331,6 +331,7 @@ async getAllCategories(branch) {
         $project: {
           category_name: 1,
           image: 1,
+          categoryBanner: 1,
           metal_name: "$id_metal.metal_name",
           pathurl: {
               $concat: [
