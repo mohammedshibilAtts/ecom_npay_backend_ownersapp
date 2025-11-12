@@ -4,37 +4,68 @@ class CategoryController {
     this.validator = validator;
   }
 
-  async addCategory(req, res) {
+  // async addCategory(req, res) {
 
-    try {
-      const {category_name,id_metal,id_branch} = req.body;
+  //   try {
+  //     const {category_name,id_metal,id_branch} = req.body;
 
 
-      const  validate=  {category_name,id_metal,id_branch}
-      const files = req.files;
-      const data=req.body;
-      // const files = req.files?.image || null;
+  //     const  validate=  {category_name,id_metal,id_branch}
+  //     const files = req.files;
+  //     const data=req.body;
+  //     // const files = req.files?.image || null;
 
-      if (!files?.image) {
-        return res.status(400).json({ message: "Image is required" });
-      }
+  //     if (!files?.image) {
+  //       return res.status(400).json({ message: "Image is required" });
+  //     }
       
-      const { error } = this.validator.categoryValidations.validate(validate);
-      if (error) {
-        return res.status(400).json(error.details[0].message);
-      }
-      req.body.created_by = req.user.id_employee;
-      const categoryResult = await this.categoryUsecase.addCategory(data,files,req.user);
+  //     const { error } = this.validator.categoryValidations.validate(validate);
+  //     if (error) {
+  //       return res.status(400).json(error.details[0].message);
+  //     }
+  //     req.body.created_by = req.user.id_employee;
+  //     const categoryResult = await this.categoryUsecase.addCategory(data,files,req.user);
 
-      if (categoryResult.success) {
-        return res.status(201).json({ message: categoryResult.message });
-      }
-      return res.status(400).json({ message: categoryResult.message });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ message: "Internal server error" });
+  //     if (categoryResult.success) {
+  //       return res.status(201).json({ message: categoryResult.message });
+  //     }
+  //     return res.status(400).json({ message: categoryResult.message });
+  //   } catch (err) {
+  //     console.error(err);
+  //     return res.status(500).json({ message: "Internal server error" });
+  //   }
+  // }
+
+  async addCategory(req, res) {
+  try {
+    const {category_name, id_metal, id_branch} = req.body;
+
+    const validate = {category_name, id_metal, id_branch};
+    const files = req.files;
+    const data = req.body;
+
+    // Check if at least the main image is provided
+    if (!files?.image) {
+      return res.status(400).json({ message: "Image is required" });
     }
+    
+    const { error } = this.validator.categoryValidations.validate(validate);
+    if (error) {
+      return res.status(400).json(error.details[0].message);
+    }
+    
+    req.body.created_by = req.user.id_employee;
+    const categoryResult = await this.categoryUsecase.addCategory(data, files, req.user);
+
+    if (categoryResult.success) {
+      return res.status(201).json({ message: categoryResult.message });
+    }
+    return res.status(400).json({ message: categoryResult.message });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Internal server error" });
   }
+}
 
   async editCategory(req, res) {
     console.log("Request Body:", req.body);
@@ -232,6 +263,7 @@ class CategoryController {
 
   async getAllCategoriesWithoutBranch(req, res) {
   try {
+    console.log("result......................",req)
     const result = await this.categoryUsecase.getAllCategoriesWithoutBranch();
     return res.status(result.success ? 200 : 404).json(result);
   } catch (err) {

@@ -15,114 +15,128 @@ class CategoryUseCase {
     return null;
   }
 
-  async addCategory(categoryData,files,token) {
-    try {
-      console.log(categoryData)
-      const branchValidation = this.validateObjectId(
-        categoryData.id_branch,
-        "Branch"
-      );
-      if (branchValidation) return branchValidation;
+  // async addCategory(categoryData,files,token) {
+  //   try {
+  //     console.log(categoryData)
+  //     const branchValidation = this.validateObjectId(
+  //       categoryData.id_branch,
+  //       "Branch"
+  //     );
+  //     if (branchValidation) return branchValidation;
 
-      const metalValidation = this.validateObjectId(
-        categoryData.id_metal,
-        "Metal"
-      );
-      if (metalValidation) return metalValidation;
+  //     const metalValidation = this.validateObjectId(
+  //       categoryData.id_metal,
+  //       "Metal"
+  //     );
+  //     if (metalValidation) return metalValidation;
 
-      const existingCategory = await this.categoryRepository.findByName(
-        categoryData.category_name
-      );
+  //     const existingCategory = await this.categoryRepository.findByName(
+  //       categoryData.category_name
+  //     );
 
-      let imageUrlFinal = null;
-      if(files && files.image){
-        imageUrlFinal=await this.handleImageUpload(files,null,token);
-      }
-      if(imageUrlFinal){  
-        categoryData.image=imageUrlFinal
-      }
+  //     let imageUrlFinal = null;
+  //     if(files && files.image){
+  //       imageUrlFinal=await this.handleImageUpload(files,null,token);
+  //     }
+  //     if(imageUrlFinal){  
+  //       categoryData.image=imageUrlFinal
+  //     }
 
-      if (existingCategory) {
-        return { success: false, message: "Category already exists." };
-      }
+  //     if (existingCategory) {
+  //       return { success: false, message: "Category already exists." };
+  //     }
 
-      const categoryResult = await this.categoryRepository.addCategory(
-        categoryData
-      );
+  //     const categoryResult = await this.categoryRepository.addCategory(
+  //       categoryData
+  //     );
 
-      if (categoryResult) {
-        return { success: true, message: "Category created successfully." };
-      }
+  //     if (categoryResult) {
+  //       return { success: true, message: "Category created successfully." };
+  //     }
 
-      return {
-        success: false,
-        message: "Failed to create category. Please try again later.",
-      };
-    } catch (err) {
-      console.error(
-        "Error occurred while adding category:",
-        err.stack || err.message
-      );
-      return {
-        success: false,
-        message: "An error occurred while adding  category.",
-        error: err.message,
-      };
+  //     return {
+  //       success: false,
+  //       message: "Failed to create category. Please try again later.",
+  //     };
+  //   } catch (err) {
+  //     console.error(
+  //       "Error occurred while adding category:",
+  //       err.stack || err.message
+  //     );
+  //     return {
+  //       success: false,
+  //       message: "An error occurred while adding  category.",
+  //       error: err.message,
+  //     };
+  //   }
+  // }
+
+  async addCategory(categoryData, files, token) {
+  try {
+    
+    const branchValidation = this.validateObjectId(
+      categoryData.id_branch,
+      "Branch"
+    );
+    if (branchValidation) return branchValidation;
+
+    const metalValidation = this.validateObjectId(
+      categoryData.id_metal,
+      "Metal"
+    );
+    if (metalValidation) return metalValidation;
+
+    const existingCategory = await this.categoryRepository.findByName(
+      categoryData.category_name
+    );
+
+    if (existingCategory) {
+      return { success: false, message: "Category already exists." };
     }
+
+    // Handle main image upload
+    let imageUrlFinal = null;
+    if (files && files.image) {
+      imageUrlFinal = await this.handleImageUpload(files.image, null, token);
+      if (imageUrlFinal) {
+        categoryData.image = imageUrlFinal;
+      }
+    }
+
+    // Handle category banner upload
+    let categoryBannerUrlFinal = null;
+    if (files && files.categoryBanner) {
+      categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null, token);
+      console.log("....................................",categoryBannerUrlFinal)
+      if (categoryBannerUrlFinal) {
+        categoryData.categoryBanner = categoryBannerUrlFinal;
+      }
+    }
+  
+    const categoryResult = await this.categoryRepository.addCategory(
+      categoryData
+    );
+
+    if (categoryResult) {
+      return { success: true, message: "Category created successfully." };
+    }
+
+    return {
+      success: false,
+      message: "Failed to create category. Please try again later.",
+    };
+  } catch (err) {
+    console.error(
+      "Error occurred while adding category:",
+      err.stack || err.message
+    );
+    return {
+      success: false,
+      message: "An error occurred while adding category.",
+      error: err.message,
+    };
   }
-
-//   async addCategory(categoryData, files, token) {
-//   try {
-//     console.log("files.......................",files)
-//     // Validate Object IDs
-//     const branchValidation = this.validateObjectId(categoryData.id_branch, "Branch");
-//     if (branchValidation) return branchValidation;
-
-//     const metalValidation = this.validateObjectId(categoryData.id_metal, "Metal");
-//     if (metalValidation) return metalValidation;
-
-//     // Check for duplicate category name first
-//     const existingCategory = await this.categoryRepository.findByName(
-//       categoryData.category_name
-//     );
-
-//     if (existingCategory) {
-//       return { success: false, message: "Category already exists." };
-//     }
-
-//     // Handle image uploads
-//     let imageUrlFinal = null;
-//     let bannerUrlFinal = null;
-
-//     if (files?.image) {
-//       imageUrlFinal = await this.handleImageUpload(files.image, null, token);
-//     }
-
-//     if (files?.categoryBanner) {
-//       bannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null, token);
-//     }
-
-//     if (imageUrlFinal) categoryData.image = imageUrlFinal;
-//     if (bannerUrlFinal) categoryData.categoryBanner = bannerUrlFinal;
-
-//     // Create category
-//     const categoryResult = await this.categoryRepository.addCategory(categoryData);
-
-//     if (categoryResult) {
-//       return { success: true, message: "Category created successfully." };
-//     }
-
-//     return { success: false, message: "Failed to create category." };
-
-//   } catch (err) {
-//     console.error("Error occurred while adding category:", err.stack || err.message);
-//     return {
-//       success: false,
-//       message: "An error occurred while adding category.",
-//       error: err.message,
-//     };
-//   }
-// }
+}
 
 
   async editCategory(editCategoryData, id,files) {
