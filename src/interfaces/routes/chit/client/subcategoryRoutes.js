@@ -25,10 +25,10 @@ const controller = new SubCategoryController(useCase, validator);
 
 const router = express.Router();
 
+router.get("/category/:id", (req, res) => controller.getByCategoryId(req, res));
 router.use(authMiddleware.protect);
 router.post("/table", (req, res) => controller.getSubCategory(req, res));
 router.get("/:id", (req, res) => controller.getById(req, res));
-router.get("/category/:id", (req, res) => controller.getByCategoryId(req, res));
 router.post(
   "/",
   upload.handleUpload([{ name: "image", maxCount: 1 }]),

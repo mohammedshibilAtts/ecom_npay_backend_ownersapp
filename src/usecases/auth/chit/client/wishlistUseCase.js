@@ -1,3 +1,5 @@
+import config from "../../../../config/chit/env.js";
+
 class WishlistUsecase {
     constructor(wishlistRepo){
         this.wishlistRepo= wishlistRepo;
@@ -35,12 +37,12 @@ class WishlistUsecase {
     async getWishlist(customerId) {
         try {
             const wishlistData = await this.wishlistRepo.getWishlist(customerId)
-
+ 
             if(!wishlistData){
                 return {status:false,message:"No wishlist items"}
             }
-
-            return {status:true,message:"wishlist data fetched successfully",data:wishlistData}
+ 
+            return {status:true,message:"wishlist data fetched successfully",data:{wishlistData,pathUrl:`${config.DISPLAY_IMG_URL}products/`}}
         } catch (error) {
             console.error(error);
             return {status:false,message:"Error while adding to wishlist"}

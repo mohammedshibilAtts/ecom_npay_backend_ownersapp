@@ -36,6 +36,11 @@ const categorySchema= new mongoose.Schema({
         type:String,
         // default:null
         required:true
+    },
+    categoryBanner:{
+        type:String,
+        // default:null
+        // required:true
     }
 },{
     timestamps:true
