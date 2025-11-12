@@ -4,274 +4,6 @@ import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
 import topupModel from "../../models/chit/topupModel.js";
 
 class DashboardRepository {
-  // async getAllOver(filter) {
-  //   try {
-  //     const openAccountFilter = { ...filter };
-
-  //     const [totalCustomers, payment, totalAccounts, overdueAccounts] =
-  //       await Promise.all([
-  //         customerModel.find(filter).countDocuments(),
-
-  //         await paymentModel.aggregate([
-  //           { $match: { ...filter, payment_status: 1 } },
-  //           {
-  //             $lookup: {
-  //               from: "schemeaccounts",
-  //               localField: "id_scheme_account",
-  //               foreignField: "_id",
-  //               as: "schemeAccount",
-  //             },
-  //           },
-  //           { $unwind: "$schemeAccount" },
-  //           {
-  //             $lookup: {
-  //               from: "schemes",
-  //               localField: "id_scheme",
-  //               foreignField: "_id",
-  //               as: "Scheme",
-  //             },
-  //           },
-  //           { $unwind: "$Scheme" },
-  //           {
-  //             $lookup: {
-  //               from: "metals",
-  //               localField: "Scheme.id_metal",
-  //               foreignField: "_id",
-  //               as: "Metal",
-  //             },
-  //           },
-  //           { $unwind: "$Metal" },
-  //           {
-  //             $addFields: {
-  //               includeWeight: {
-  //                 $cond: {
-  //                   if: {
-  //                     $and: [
-  //                       { $ne: ["$schemeAccount.status", 4] },
-  //                       {
-  //                         $in: [
-  //                           { $toLower: "$Metal.metal_name" },
-  //                           [
-  //                             "gold",
-  //                             "silver",
-  //                             "platinum",
-  //                             "diamond",
-  //                             "rose gold",
-  //                           ],
-  //                         ],
-  //                       },
-  //                       {
-  //                         $not: {
-  //                           $in: ["$Scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
-  //                         },
-  //                       },
-  //                     ],
-  //                   },
-  //                   then: "$metal_weight",
-  //                   else: 0,
-  //                 },
-  //               },
-  //             },
-  //           },
-  //           {
-  //             $group: {
-  //               _id: null,
-  //               totalGoldSave: {
-  //                 $sum: {
-  //                   $cond: [
-  //                     { $eq: [{ $toLower: "$Metal.metal_name" }, "gold"] },
-  //                     "$includeWeight",
-  //                     0,
-  //                   ],
-  //                 },
-  //               },
-  //               totalSilverSave: {
-  //                 $sum: {
-  //                   $cond: [
-  //                     { $eq: [{ $toLower: "$Metal.metal_name" }, "silver"] },
-  //                     "$includeWeight",
-  //                     0,
-  //                   ],
-  //                 },
-  //               },
-  //               totalAmount: { $sum: "$payment_amount" },
-  //             },
-  //           },
-  //           {
-  //             $project: {
-  //               _id: 0,
-  //               totalGoldSave: 1,
-  //               totalSilverSave: 1,
-  //               totalAmount: 1,
-  //             },
-  //           },
-  //         ]),
-
-  //         schemeAccountModel.find(openAccountFilter).countDocuments(),
-
-  //         schemeAccountModel.aggregate([
-  //           { $match: openAccountFilter },
-  //           {
-  //             $lookup: {
-  //               from: "schemes",
-  //               localField: "id_scheme",
-  //               foreignField: "_id",
-  //               as: "Scheme",
-  //             },
-  //           },
-  //           {
-  //             $lookup: {
-  //               from: "schemeclassifications",
-  //               localField: "id_classification",
-  //               foreignField: "_id",
-  //               as: "Classification",
-  //             },
-  //           },
-  //           {
-  //             $lookup: {
-  //               from: "customers",
-  //               localField: "id_customer",
-  //               foreignField: "_id",
-  //               as: "Customer",
-  //             },
-  //           },
-  //           { $unwind: "$Scheme" },
-  //           { $unwind: "$Classification" },
-  //           { $unwind: "$Customer" },
-
-  //           {
-  //             $addFields: {
-  //               daysPassed: {
-  //                 $add: [
-  //                   {
-  //                     $dateDiff: {
-  //                       startDate: "$start_date",
-  //                       endDate: new Date(),
-  //                       unit: "day",
-  //                     },
-  //                   },
-  //                   1,
-  //                 ],
-  //               },
-  //               monthsPassed: {
-  //                 $add: [
-  //                   {
-  //                     $dateDiff: {
-  //                       startDate: "$start_date",
-  //                       endDate: new Date(),
-  //                       unit: "month",
-  //                     },
-  //                   },
-  //                   1,
-  //                 ],
-  //               },
-  //               yearsPassed: {
-  //                 $add: [
-  //                   {
-  //                     $dateDiff: {
-  //                       startDate: "$start_date",
-  //                       endDate: new Date(),
-  //                       unit: "year",
-  //                     },
-  //                   },
-  //                   1,
-  //                 ],
-  //               },
-  //             },
-  //           },
-
-  //           {
-  //             $addFields: {
-  //               expectedInstallments: {
-  //                 $switch: {
-  //                   branches: [
-  //                     {
-  //                       case: { $eq: ["$Scheme.installment_type", 1] },
-  //                       then: "$monthsPassed",
-  //                     },
-  //                     {
-  //                       case: { $eq: ["$Scheme.installment_type", 2] },
-  //                       then: { $trunc: { $divide: ["$daysPassed", 7] } },
-  //                     },
-  //                     {
-  //                       case: { $eq: ["$Scheme.installment_type", 3] },
-  //                       then: "$daysPassed",
-  //                     },
-  //                     {
-  //                       case: { $eq: ["$Scheme.installment_type", 4] },
-  //                       then: "$yearsPassed",
-  //                     },
-  //                   ],
-  //                   default: 0,
-  //                 },
-  //               },
-  //             },
-  //           },
-
-  //           {
-  //             $addFields: {
-  //               totalPaidInstallments: { $sum: "$paid_installments" },
-  //             },
-  //           },
-  //           {
-  //             $addFields: {
-  //               installmentDue: {
-  //                 $max: [
-  //                   {
-  //                     $subtract: [
-  //                       "$expectedInstallments",
-  //                       "$totalPaidInstallments",
-  //                     ],
-  //                   },
-  //                   0,
-  //                 ],
-  //               },
-  //             },
-  //           },
-  //           { $match: { installmentDue: { $gt: 0 } } },
-  //           { $count: "overdueCount" },
-  //         ]),
-  //       ]);
-
-  //     // let totalGoldSave = 0;
-  //     // let totalSilverSave = 0;
-  //     // let totalAmount = 0;
-
-  //     // payment.forEach(p => {
-  //     //   const metalName = p.metalName.toLowerCase();
-  //     //   if (metalName === 'gold') {
-  //     //     totalGoldSave = p.totalMetalWeight || 0;
-  //     //   } else if (metalName === 'silver') {
-  //     //     totalSilverSave = p.totalMetalWeight || 0;
-  //     //   }
-  //     //   totalAmount += p.totalAmount || 0;
-  //     // });
-
-  //     // const data = {
-  //     //   totalAccounts,
-  //     //   totalCustomers,
-  //     //   totalGoldSave,
-  //     //   totalSilverSave,
-  //     //   totalAmount,
-  //     //   overdueAccounts: overdueAccounts[0]?.overdueCount || 0,
-  //     // };
-  //     const paymentSummary = payment[0] || {};
-  //     const data = {
-  //       totalAccounts,
-  //       totalCustomers,
-  //       totalGoldSave: paymentSummary.totalGoldSave || 0,
-  //       totalSilverSave: paymentSummary.totalSilverSave || 0,
-  //       totalAmount: paymentSummary.totalAmount || 0,
-  //       overdueAccounts: overdueAccounts[0]?.overdueCount || 0,
-  //     };
-
-  //     return data;
-  //   } catch (err) {
-  //     console.error(err);
-  //     throw new Error("Error fetching dashboard data");
-  //   }
-  // }
-
   async getAllOver(filter) {
     try {
       const openAccountFilter = { ...filter };
@@ -284,9 +16,109 @@ class DashboardRepository {
       ] = await Promise.all([
         customerModel.find(filter).countDocuments(),
         
+        // paymentModel.aggregate([
+        //   { $match: { ...filter, payment_status: 1 } },
+  
+        //   {
+        //     $lookup: {
+        //       from: "schemeaccounts",
+        //       localField: "id_scheme_account",
+        //       foreignField: "_id",
+        //       as: "schemeAccount",
+        //     },
+        //   },
+        //   { $unwind: "$schemeAccount" },
+        //   { $match: { "schemeAccount.status": { $nin: [4,3] } } },
+  
+        //   {
+        //     $lookup: {
+        //       from: "schemes",
+        //       localField: "id_scheme",
+        //       foreignField: "_id",
+        //       as: "Scheme",
+        //     },
+        //   },
+        //   {
+        //     $unwind: {
+        //       path: "$Scheme",
+        //       preserveNullAndEmptyArrays: true,
+        //     },
+        //   },          
+  
+        //   {
+        //     $lookup: {
+        //       from: "metals",
+        //       localField: "Scheme.id_metal",
+        //       foreignField: "_id",
+        //       as: "Metal",
+        //     },
+        //   },
+        //   { $unwind: {path:"$Metal" ,preserveNullAndEmptyArrays: true}},
+  
+        //   {
+        //     $addFields: {
+        //       includeWeight: {
+        //         $cond: {
+        //           if: {
+        //             $and: [
+        //               {
+        //                 $in: [
+        //                   { $toLower: "$Metal.metal_name" },
+        //                   ["gold", "silver", "platinum", "diamond", "rose gold"]
+        //                 ]
+        //               },
+        //               {
+        //                 $not: {
+        //                   $in: ["$Scheme.scheme_type", [0, 8, 13, 11, 1, 7]]
+        //                 }
+        //               }
+        //             ]
+        //           },
+        //           then: "$metal_weight",
+        //           else: 0,
+        //         },
+        //       },
+        //     },
+        //   },
+  
+        //   {
+        //     $group: {
+        //       _id: null,
+        //       totalGoldSave: {
+        //         $sum: {
+        //           $cond: [
+        //             { $eq: [{ $toLower: "$Metal.metal_name" }, "gold"] },
+        //             "$includeWeight",
+        //             0,
+        //           ],
+        //         },
+        //       },
+        //       totalSilverSave: {
+        //         $sum: {
+        //           $cond: [
+        //             { $eq: [{ $toLower: "$Metal.metal_name" }, "silver"] },
+        //             "$includeWeight",
+        //             0,
+        //           ],
+        //         },
+        //       },
+        //       totalAmount: { $sum: "$payment_amount" },
+        //     },
+        //   },
+  
+        //   {
+        //     $project: {
+        //       _id: 0,
+        //       totalGoldSave: 1,
+        //       totalSilverSave: 1,
+        //       totalAmount: 1,
+        //     },
+        //   },
+        // ]),
+
         paymentModel.aggregate([
           { $match: { ...filter, payment_status: 1 } },
-  
+        
           {
             $lookup: {
               from: "schemeaccounts",
@@ -296,12 +128,12 @@ class DashboardRepository {
             },
           },
           { $unwind: "$schemeAccount" },
-          { $match: { "schemeAccount.status": { $nin: [4,3] } } },
-  
+          { $match: { "schemeAccount.status": { $nin: [4, 3] } } },
+        
           {
             $lookup: {
               from: "schemes",
-              localField: "id_scheme",
+              localField: "schemeAccount.id_scheme",  // FIXED THIS LINE
               foreignField: "_id",
               as: "Scheme",
             },
@@ -312,7 +144,7 @@ class DashboardRepository {
               preserveNullAndEmptyArrays: true,
             },
           },          
-  
+        
           {
             $lookup: {
               from: "metals",
@@ -321,8 +153,26 @@ class DashboardRepository {
               as: "Metal",
             },
           },
-          { $unwind: {path:"$Metal" ,preserveNullAndEmptyArrays: true}},
-  
+          { $unwind: { path: "$Metal", preserveNullAndEmptyArrays: true } },
+          
+          // Add safe handling for metal_weight like in first query
+          {
+            $addFields: {
+              safeMetalWeight: {
+                $cond: {
+                  if: {
+                    $or: [
+                      { $eq: ["$metal_weight", Infinity] },
+                      { $eq: ["$metal_weight", -Infinity] },
+                    ],
+                  },
+                  then: 0,
+                  else: { $ifNull: ["$metal_weight", 0] },
+                },
+              },
+            },
+          },
+          
           {
             $addFields: {
               includeWeight: {
@@ -342,13 +192,13 @@ class DashboardRepository {
                       }
                     ]
                   },
-                  then: "$metal_weight",
+                  then: "$safeMetalWeight",  // Use safe version
                   else: 0,
                 },
               },
             },
           },
-  
+        
           {
             $group: {
               _id: null,
@@ -373,7 +223,7 @@ class DashboardRepository {
               totalAmount: { $sum: "$payment_amount" },
             },
           },
-  
+        
           {
             $project: {
               _id: 0,
@@ -585,47 +435,9 @@ class DashboardRepository {
       const [newCustomer, paymentData, schemeData] = await Promise.all([
         await customerModel.countDocuments(customFilter),
         
-        // await paymentModel.aggregate([
-        //   {
-        //     $match: {
-        //       ...customFilter,
-        //       payment_status: 1,
-        //     },
-        //   },
-        //   {
-        //     $lookup: {
-        //       from: "schemeaccounts",
-        //       localField: "id_scheme_account",
-        //       foreignField: "_id",
-        //       as: "schemeAccount",
-        //     },
-        //   },
-        //   {
-        //     $unwind: "$schemeAccount",
-        //   },
-        //   {
-        //     $match: {
-        //       "schemeAccount.status": { $ne: [4,3] },
-        //     },
-        //   },
-        //   {
-        //     $group: {
-        //       _id: null,
-        //       totalMetalWeight: { $sum: "$metal_weight" },
-        //       totalAmount: { $sum: "$payment_amount" },
-        //     },
-        //   },
-        //   {
-        //     $project: {
-        //       _id: 0,
-        //       totalMetalWeight: 1,
-        //       totalAmount: 1,
-        //     },
-        //   },
-        // ]),
         // paymentModel.aggregate([
         //   { $match: { ...customFilter, payment_status: 1 } },
-          
+
         //   {
         //     $lookup: {
         //       from: "schemeaccounts",
@@ -644,18 +456,36 @@ class DashboardRepository {
         //       as: "scheme",
         //     },
         //   },
-        //   { $unwind: {path:"$scheme" ,preserveNullAndEmptyArrays:false}},
-          
+        //   { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false } },
+
+        //   {
+        //     $addFields: {
+        //       safeMetalWeight: {
+        //         $cond: {
+        //           if: {
+        //             $or: [
+        //               { $eq: ["$metal_weight", Infinity] },
+        //               { $eq: ["$metal_weight", -Infinity] },
+        //             ],
+        //           },
+        //           then: 0,
+        //           else: { $ifNull: ["$metal_weight", 0] },
+        //         },
+        //       },
+        //       safePaymentAmount: { $ifNull: ["$payment_amount", 0] },
+        //     },
+        //   },
+
         //   {
         //     $addFields: {
         //       includeWeight: {
         //         $cond: {
         //           if: {
         //             $not: {
-        //               $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]]
-        //             }
+        //               $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
+        //             },
         //           },
-        //           then: "$metal_weight",
+        //           then: "$safeMetalWeight",
         //           else: 0,
         //         },
         //       },
@@ -664,9 +494,9 @@ class DashboardRepository {
         //   {
         //     $group: {
         //       _id: null,
-        //       totalMetalWeight: { $sum: "$metal_weight" },
+        //       totalMetalWeight: { $sum: "$includeWeight" },
         //       totalIncludeWeight: { $sum: "$includeWeight" },
-        //       totalAmount: { $sum: "$payment_amount" },
+        //       totalAmount: { $sum: "$safePaymentAmount" },
         //     },
         //   },
         //   {
@@ -680,7 +510,7 @@ class DashboardRepository {
         // ]),
         paymentModel.aggregate([
           { $match: { ...customFilter, payment_status: 1 } },
-          
+
           {
             $lookup: {
               from: "schemeaccounts",
@@ -699,29 +529,34 @@ class DashboardRepository {
               as: "scheme",
             },
           },
-          { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false }},
-          
+          { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false } },
+
           {
             $addFields: {
               safeMetalWeight: {
                 $cond: {
-                  if: { $or: [{ $eq: ["$metal_weight", Infinity] }, { $eq: ["$metal_weight", -Infinity] }] },
+                  if: {
+                    $or: [
+                      { $eq: ["$metal_weight", Infinity] },
+                      { $eq: ["$metal_weight", -Infinity] },
+                    ],
+                  },
                   then: 0,
-                  else: { $ifNull: ["$metal_weight", 0] }
-                }
+                  else: { $ifNull: ["$metal_weight", 0] },
+                },
               },
-              safePaymentAmount: { $ifNull: ["$payment_amount", 0] }
-            }
+              safePaymentAmount: { $ifNull: ["$payment_amount", 0] },
+            },
           },
-          
+
           {
             $addFields: {
               includeWeight: {
                 $cond: {
                   if: {
                     $not: {
-                      $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]]
-                    }
+                      $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
+                    },
                   },
                   then: "$safeMetalWeight",
                   else: 0,
@@ -732,7 +567,7 @@ class DashboardRepository {
           {
             $group: {
               _id: null,
-              totalMetalWeight: { $sum: "$safeMetalWeight" },
+              totalMetalWeight: { $sum: "$includeWeight" },
               totalIncludeWeight: { $sum: "$includeWeight" },
               totalAmount: { $sum: "$safePaymentAmount" },
             },
@@ -956,15 +791,6 @@ class DashboardRepository {
         data: paymentData,
         total,
       };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  }
-
-  async getNotificationCount(id_branch) {
-    try {
-      // const count =
     } catch (err) {
       console.error(err);
       throw err;
