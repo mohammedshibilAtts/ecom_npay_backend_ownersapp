@@ -1292,12 +1292,15 @@ class SchemeAccountUseCase {
   
         const scheme = account?.id_scheme;
   
-        if ([0, 1, 2, 5, 6, 7, 8, 9, 10, 11,13,14].includes(scheme?.scheme_type)) {
-          arrobject.scheme_name = `${scheme?.scheme_name} (Rs. ${scheme?.min_amount} - ${scheme?.max_amount})`;
-        } else if ([12, 3, 4].includes(scheme?.scheme_type)) {
-          arrobject.scheme_name = `${scheme?.scheme_name} (Gm ${scheme?.min_weight} - ${scheme?.max_weight})`;
-        } else {
-          arrobject.scheme_name = `${scheme?.scheme_name} (Rs. ${scheme?.amount})`;
+        // if ([0, 1, 2, 5, 6, 7, 8, 9, 10, 11,13,14].includes(scheme?.scheme_type)) {
+        //   arrobject.scheme_name = `${scheme?.scheme_name} (Rs. ${scheme?.min_amount} - ${scheme?.max_amount})`;
+        // } else if ([12, 3, 4].includes(scheme?.scheme_type)) {
+        //   arrobject.scheme_name = `${scheme?.scheme_name} (Gm ${scheme?.min_weight} - ${scheme?.max_weight})`;
+        // } else {
+        //   arrobject.scheme_name = `${scheme?.scheme_name} (Rs. ${scheme?.amount})`;
+        // }
+        if(scheme){
+          arrobject.scheme_name= `${scheme?.scheme_name} - ${account?.scheme_acc_number}`
         }
   
         const [
