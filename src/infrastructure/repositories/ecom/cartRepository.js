@@ -389,6 +389,33 @@ class CartRepository {
         },
         { $unwind: { path: "$Product", preserveNullAndEmptyArrays: true } },
 
+         {
+    $addFields: {
+      productSize: {
+        $arrayElemAt: [
+          {
+            $filter: {
+              input: "$Product.availableSizes.values",
+              as: "size",
+              cond: { $eq: ["$$size._id", "$sizeId"] }
+            }
+          },
+          0
+        ]
+      }
+    }
+  },
+
+    {
+          $lookup: {
+            from: "sizemasters",
+            localField: "Product.availableSizes.sizeId",
+            foreignField: "_id",
+            as: "SizeMaster",
+          },
+        },
+        { $unwind: { path: "$SizeMaster", preserveNullAndEmptyArrays: true } },
+
         // Lookup latest metal rate
         {
           $lookup: {
@@ -691,6 +718,13 @@ class CartRepository {
             categoryId: "$Product.id_category",
             subCategoryId: "$Product.subcategoryId",
             collectionId: "$Product.collection",
+             productSize: {
+        $concat: [
+          { $toString: "$productSize.sizeValue" },
+          { $ifNull: ["$SizeMaster.unit", ""] }
+        ]
+      },
+            
           },
         },
 

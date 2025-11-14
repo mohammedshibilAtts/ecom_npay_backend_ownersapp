@@ -143,6 +143,7 @@ class CategoryController {
 
   async getById(req, res) {
     try {
+      console.log("1234567890-")
       const { id } = req.params;
       if (!id) {
         return res.status(400).json({ message: "Category id is required" });
@@ -263,7 +264,6 @@ class CategoryController {
 
   async getAllCategoriesWithoutBranch(req, res) {
   try {
-    console.log("result......................",req)
     const result = await this.categoryUsecase.getAllCategoriesWithoutBranch();
     return res.status(result.success ? 200 : 404).json(result);
   } catch (err) {

@@ -7,10 +7,12 @@ import productModel from "../../models/chit/productModel.js";
 import orderStatusModel from "../../models/ecom/orderStatusModel.js";
 import orderPaymentModel from "../../models/ecom/orderPaymentModel.js";
 import ecomPaymentOrderModel from "../../models/ecom/ecomPaymentOrderModel.js";
+import { ORDER_STATUS, ORDER_STATUS_NO, ORDER_TYPE } from "../../../config/chit/const.js";
 
 class OrderRepository {
   async createOrder(orderData, orderItems) {
     try {
+      console.log(orderData)
       const createdOrder = await Order.create(orderData);
       if (!createdOrder) {
         return null;
@@ -355,9 +357,7 @@ class OrderRepository {
       const findOrderItem = await OrderItem.find({ orderId }).populate(
         "productId"
       );
-      return [
-        findOrder,
-        {
+      return {
           item: findOrderItem,
           overAll: {
             placedAt: findOrder.createdAt,
@@ -374,8 +374,9 @@ class OrderRepository {
             courierPartner:"DTDC"
           },
           pathUrl: `${config.DISPLAY_IMG_URL}products/`,
-        },
-      ];
+        }
+      
+        
     } catch (error) {
       console.log(error);
       return null;
@@ -405,7 +406,10 @@ class OrderRepository {
   async getAllOrders(page = 1, limit = 10, filter = {}) {
     try {
       const skip = (page - 1) * limit;
-
+      filter = {
+        ...filter,
+        active:true
+      }
       // if (filter && Object.keys(filter).length > 0) {
       //   filter =  { ...filter, ...filter };
       // }
@@ -444,12 +448,24 @@ class OrderRepository {
 
   async updatePaymentCount(orderId) {
     try {
-      const updatedOrder = await Order.findByIdAndUpdate(
-        orderId,
-        {
-          $set: { active: true, status: "Processing", orderStatus: 1 },
+      const statusData={
+        name:ORDER_STATUS['2'],
+        statusNo:ORDER_STATUS_NO.PLACED,
+        date:new Date(),
+        remarks:"Order Placed"
+      }
+     const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          active: true,
+          status: ORDER_STATUS["2"],
+          orderStatus: ORDER_STATUS_NO.PLACED,
+          lastStatusUpdatedDate: new Date(),
         },
-        { new: true }
+        $push: { statusData: statusData }, // <-- record status history
+      },
+      { new: true }
       );
       await CartItem.updateMany(
         { cartId: updatedOrder.cartId },
@@ -867,30 +883,45 @@ class OrderRepository {
     }
   }
 
-  async changeOrderStatus(statusId, orderId) {
-    try {
-      const findStatus = await orderStatusModel.findById(statusId);
-      let updateData = {
-        status: findStatus.name,
-        orderStatus: findStatus.statusNo,
-      };
+async changeOrderStatus(statusId, orderId, statusData) {
+  try {
 
-      // If Delivered → add deliveredDate
-      if (findStatus.statusNo == 3) {
-        updateData.deliveredDate = new Date();
-      }
-
-      const order = await Order.findByIdAndUpdate(
-        orderId,
-        { $set: updateData, lastStatusUpdatedDate: new Date() },
-        { new: true } // returns updated document
-      );
-
-      return order;
-    } catch (error) {
-      return null;
+    const findStatus = await orderStatusModel.findById(statusId);
+    if (!findStatus) {
+      throw new Error("Invalid status ID");
     }
+
+    // Prepare update object
+    let updateData = {
+      status: findStatus.name,
+      orderStatus: findStatus.statusNo,
+      lastStatusUpdatedDate: new Date(),
+    };
+
+    // If Delivered → add deliveredDate
+    if (findStatus.statusNo === 3) {
+      updateData.deliveredDate = new Date();
+    }
+
+    // ✅ Push new status record into statusData array
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: updateData,
+        $push: {
+          statusData
+      }
+    },
+      { new: true }
+    );
+
+    return order;
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    return null;
   }
+}
+
 
   async getProductCountsByOrder(orderObjectId) {
     try {
@@ -1257,7 +1288,7 @@ class OrderRepository {
         {
           $project: {
             _id: 0,
-            onlineProduct: "$Order.onlineProduct",
+            orderType: "$Order.orderType",
             orderStatus: "$Order.orderStatus",
           },
         },
@@ -1265,7 +1296,7 @@ class OrderRepository {
 
       // If ANY order matches the condition, return false
       const hasActiveOrder = result.some(
-        (item) => item.onlineProduct === false && item.orderStatus === 5
+        (item) => item.orderType === ORDER_TYPE.OFFLINE_ORDER && item.orderStatus === 5
       );
 
       return !hasActiveOrder;

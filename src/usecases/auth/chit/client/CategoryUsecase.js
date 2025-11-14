@@ -528,12 +528,13 @@ class CategoryUseCase {
 
 
   async handleImageUpload(files, imageUrl, token) {
+  
     if (imageUrl) return imageUrl;
-    if (files.image?.[0]) {
+    if (files[0]) {
       const s3Settings = await this.s3Repo.getSetting();
       if (!s3Settings) throw new Error("S3 configuration not found");
       return await this.s3Service.uploadToS3(
-        files.image[0],
+        files[0],
         "category",
         s3Settings
       );
