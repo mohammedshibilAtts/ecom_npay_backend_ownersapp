@@ -6,7 +6,7 @@ const OrderItemSchema = new Schema(
 
     // Product linkage
     productId: { type: Types.ObjectId, ref: "Product", required: true },
-    sizeId: { type: Types.ObjectId, ref: "SizeMaster", required: true },
+    sizeId: { type: Types.ObjectId, ref: "SizeMaster", required: false },
     categoryId: { type: Types.ObjectId, ref: "Category" },
     subCategoryId: { type: Types.ObjectId, ref: "SubCategory" },
     // collectionId: { type: String,default:"" },

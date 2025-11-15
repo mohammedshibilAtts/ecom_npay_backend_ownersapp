@@ -4,7 +4,7 @@ const OrderSchema = new Schema(
   {
     userId: { type: Types.ObjectId, ref: "Customer", index: true },
     phone: String,
-    orderId:{type:String,required:true},
+    orderId: { type: String, required: true },
     cartId: { type: Types.ObjectId, ref: "Cart" },
 
     deliveryAddress: { type: Types.ObjectId, ref: "Deliveryaddress" },
@@ -39,18 +39,39 @@ const OrderSchema = new Schema(
       ],
       default: "created",
       index: true,
-    }, // ! 
-     onlineProduct: {
-      type: Boolean,
-      default: true,
-    },
-    active:{type:Boolean,default:false},
-    estimatedDeliveryDays: { type: Number,default:0 },
+    }, // !
+    active: { type: Boolean, default: false },
+    estimatedDeliveryDays: { type: Number, default: 0 },
     estimatedDeliveryDate: { type: Date },
     deliveredDate: { type: Date },
-    isStorePickup:{type:Boolean,default:false},
-    lastStatusUpdatedDate:{type:Date},
-    orderStatus:{type:Number,enum:[1,2,3,4,5,6],default:4}  //1 Processing, 2 Placed  , 3 Delivered , 4 Cancelled , 5 payment pending, 6 shipped
+    orderType: { type: Number, enum: [1, 2, 3], default: 1 }, // 1) Online order  2) store pickup order 3) offline order
+    lastStatusUpdatedDate: { type: Date },
+    statusData: [
+      {
+        name: {
+          type: String,
+          required: true,
+        },
+        statusNo: {
+          type: String,
+          required: true,
+        },
+        date: {
+          type: Date,
+          required: true,
+          default: Date.now,
+        },
+        remarks: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
+    orderStatus: { type: Number, enum: [1, 2, 3, 4, 5, 6, 7, 8], default: 4 }, //1 Processing, 2 Placed  , 3 Delivered , 4 Cancelled , 5 payment pending, 6 shipped , 7 Ordered , 8  Ready for Pickup
+    trackerId: { type: String},
+    parcelService: { type: String},
+    cancelReason: { type: String},
+
   },
   { timestamps: true }
 );

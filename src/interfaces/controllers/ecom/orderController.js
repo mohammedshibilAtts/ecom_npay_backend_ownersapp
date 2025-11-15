@@ -343,9 +343,8 @@ class OrderController {
 
     async changeOrderStatus(req, res) {
     try {
-      const {statusId,orderId,remarks}=req.body
-      
-      const result = await this.orderUseCase.changeOrderStatus(statusId,orderId,remarks);
+      const {statusId,orderId,remarks,statusData}=req.body
+      const result = await this.orderUseCase.changeOrderStatus(statusId,orderId,remarks,statusData);
       if (!result.success) {
         return res.status(400).json({
           success: false,

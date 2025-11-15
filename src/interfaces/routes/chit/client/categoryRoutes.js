@@ -27,10 +27,10 @@ const router = express.Router();
 
 
 router.get('/all',(req,res)=>controller.getAllCategories(req,res))
+router.get('/allcategories',(req,res)=>controller.getAllCategoriesWithoutBranch(req,res));
 router.get("/:id", (req, res) => controller.getById(req, res));
 router.use(authMiddleware.protect);
 router.get('/',(req,res)=>controller.getAllActiveCategory(req,res))
-router.get('/allcategories',(req,res)=>controller.getAllCategoriesWithoutBranch(req,res));
 router.post('/table',(req,res)=>controller.getCategory(req,res))
 router.get("/branch/:id", (req, res) => controller.getByBranchId(req, res));
 router.get("/metal/:id", (req, res) => controller.getByMetalId(req, res));

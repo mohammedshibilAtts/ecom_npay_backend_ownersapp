@@ -389,6 +389,38 @@ class CartRepository {
         },
         { $unwind: { path: "$Product", preserveNullAndEmptyArrays: true } },
 
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "Product.availableSizes.sizeId",
+            foreignField: "_id",
+            as: "SizeMaster",
+          },
+        },
+        {
+          $unwind: {
+            path: "$SizeMaster",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
+        {
+          $addFields: {
+            productSize: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$Product.availableSizes.values",
+                    as: "size",
+                    cond: { $eq: ["$$size._id", "$sizeId"] },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+
         // Lookup latest metal rate
         {
           $lookup: {
@@ -466,7 +498,9 @@ class CartRepository {
                 branches: [
                   {
                     case: { $eq: ["$Product.makingCharges.mode", 1] },
-                    then: { $ifNull: ["$Product.makingCharges.actualValue", 0] },
+                    then: {
+                      $ifNull: ["$Product.makingCharges.actualValue", 0],
+                    },
                   },
                   {
                     case: { $eq: ["$Product.makingCharges.mode", 2] },
@@ -490,7 +524,9 @@ class CartRepository {
                 branches: [
                   {
                     case: { $eq: ["$Product.wastageCharges.mode", 1] },
-                    then: { $ifNull: ["$Product.wastageCharges.actualValue", 0] },
+                    then: {
+                      $ifNull: ["$Product.wastageCharges.actualValue", 0],
+                    },
                   },
                   {
                     case: { $eq: ["$Product.wastageCharges.mode", 2] },
@@ -517,7 +553,10 @@ class CartRepository {
                       {
                         case: { $eq: ["$Product.makingCharges.mode", 1] },
                         then: {
-                          $ifNull: ["$Product.makingCharges.discountedValue", 0],
+                          $ifNull: [
+                            "$Product.makingCharges.discountedValue",
+                            0,
+                          ],
                         },
                       },
                       {
@@ -525,7 +564,12 @@ class CartRepository {
                         then: {
                           $multiply: [
                             { $ifNull: ["$Product.grossWt", 0] },
-                            { $ifNull: ["$Product.makingCharges.discountedValue", 0] },
+                            {
+                              $ifNull: [
+                                "$Product.makingCharges.discountedValue",
+                                0,
+                              ],
+                            },
                           ],
                         },
                       },
@@ -544,7 +588,10 @@ class CartRepository {
                       {
                         case: { $eq: ["$Product.wastageCharges.mode", 1] },
                         then: {
-                          $ifNull: ["$Product.wastageCharges.discountedValue", 0],
+                          $ifNull: [
+                            "$Product.wastageCharges.discountedValue",
+                            0,
+                          ],
                         },
                       },
                       {
@@ -552,7 +599,12 @@ class CartRepository {
                         then: {
                           $multiply: [
                             { $ifNull: ["$Product.grossWt", 0] },
-                            { $ifNull: ["$Product.wastageCharges.discountedValue", 0] },
+                            {
+                              $ifNull: [
+                                "$Product.wastageCharges.discountedValue",
+                                0,
+                              ],
+                            },
                           ],
                         },
                       },
@@ -691,6 +743,12 @@ class CartRepository {
             categoryId: "$Product.id_category",
             subCategoryId: "$Product.subcategoryId",
             collectionId: "$Product.collection",
+            productSize: {
+              $concat: [
+                { $toString: "$productSize.sizeValue" },
+                { $ifNull: ["$SizeMaster.unit", ""] },
+              ],
+            },
           },
         },
 
