@@ -8,7 +8,7 @@ import moment from "moment-timezone";
 import smsService from "../../../config/chit/smsService.js";
 import SaveNotificationRepo from "../../../infrastructure/repositories/chit/saveNotificationRepo.js";
 import SaveNotificationUsecase from "../chit/client/saveNotificationUsecase.js";
-import {  ORDER_STATUS, ORDER_TYPE, ORDER_TYPE_NAME } from "../../../config/chit/const.js";
+import {  ORDER_STATUS, ORDER_STATUS_NO, ORDER_TYPE, ORDER_TYPE_NAME } from "../../../config/chit/const.js";
 
 class OrderUseCase {
   constructor(
@@ -237,7 +237,7 @@ class OrderUseCase {
         status:ORDER_STATUS[1],
         deliveryAddress: addressId,
         active: true,
-        orderStatus: 5,
+        orderStatus: ORDER_STATUS_NO.PROCESSING,
         orderType:ORDER_TYPE.OFFLINE_ORDER
       };
       const orderItems = {
@@ -480,12 +480,18 @@ class OrderUseCase {
     }
   }
 
-  async getAllOrders({ page, limit, search, fromDate, toDate }) {
+  async getAllOrders({ page, limit, search, fromDate, toDate,orderStatus,orderType }) {
     page = page || 1;
     limit = limit || 10;
     let filter = {};
-
+    
     try {
+      if(orderStatus){
+        filter.orderStatus=orderStatus
+      } 
+      if(orderType){
+         filter.orderType=orderType
+      }
       if (fromDate && toDate) {
         if (new Date(toDate) < new Date(fromDate)) {
           throw new Error("End date cannot be before start date");
@@ -630,7 +636,7 @@ class OrderUseCase {
           message: "Order not found",
         };
       }
-      const result = await this.orderRepository.findOrderDetailReport(orderId);
+    const result = await this.orderRepository.findOrderDetailReport(orderId);
       if (!result) {
         return {
           success: false,

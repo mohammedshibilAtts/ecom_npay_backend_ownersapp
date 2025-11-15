@@ -137,9 +137,9 @@ class OrderController {
     const search=req.query.search;
     const fromDate=req.query.from_date;
     const toDate=req.query.to_date;
-
+    
     try {
-      const result = await this.orderUseCase.getAllOrders({ page, limit,search,fromDate,toDate });
+      const result = await this.orderUseCase.getAllOrders(req.query);
       if (!result.success) {
         return res.status(400).json({
           success: false,
