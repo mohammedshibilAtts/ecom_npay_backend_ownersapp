@@ -7,12 +7,16 @@ import productModel from "../../models/chit/productModel.js";
 import orderStatusModel from "../../models/ecom/orderStatusModel.js";
 import orderPaymentModel from "../../models/ecom/orderPaymentModel.js";
 import ecomPaymentOrderModel from "../../models/ecom/ecomPaymentOrderModel.js";
-import { ORDER_STATUS, ORDER_STATUS_NO, ORDER_TYPE } from "../../../config/chit/const.js";
+import {
+  ORDER_STATUS,
+  ORDER_STATUS_NO,
+  ORDER_TYPE,
+} from "../../../config/chit/const.js";
 
 class OrderRepository {
   async createOrder(orderData, orderItems) {
     try {
-      console.log(orderData)
+      console.log(orderData);
       const createdOrder = await Order.create(orderData);
       if (!createdOrder) {
         return null;
@@ -354,29 +358,93 @@ class OrderRepository {
           .filter(Boolean)
           .join(", ");
       }
-      const findOrderItem = await OrderItem.find({ orderId }).populate(
-        "productId"
-      );
-      return {
-          item: findOrderItem,
-          overAll: {
-            placedAt: findOrder.createdAt,
-            arrivedAt: findOrder.estimatedDeliveryDate,
-            orderId: findOrder.orderId,
-            address,
-            subTotal: findOrder.subtotal,
-            totalAmount: findOrder.totalAmount,
-            shippingCharge: findOrder.shippingFee,
-            status: findOrder.status,
-            statusType: findOrder.orderStatus,
-            savedAmount: findOrder.savedAmount,
-            awbNo:"123456789",
-            courierPartner:"DTDC"
+      const findOrderItem = await OrderItem.aggregate([
+        {
+          $match: {
+            orderId: new mongoose.Types.ObjectId(orderId),
           },
-          pathUrl: `${config.DISPLAY_IMG_URL}products/`,
-        }
-      
-        
+        },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        {
+          $unwind: {
+            path: "$product",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "product.availableSizes.sizeId",
+            foreignField: "_id",
+            as: "SizeMaster",
+          },
+        },
+        {
+          $unwind: {
+            path: "$SizeMaster",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
+        {
+          $addFields: {
+            productSize: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$product.availableSizes.values",
+                    as: "size",
+                    cond: { $eq: ["$$size._id", "$sizeId"] },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+
+        {
+          $addFields: {
+            size: {
+              $concat: [
+                { $toString: "$productSize.sizeValue" },
+                { $ifNull: ["$SizeMaster.unit", ""] },
+              ],
+            },
+          },
+        },
+        {$project:{
+          product:0,
+          SizeMaster:0,
+          productSize:0
+        }}
+      ]);
+      return {
+        item: findOrderItem,
+        overAll: {
+          placedAt: findOrder.createdAt,
+          arrivedAt: findOrder.estimatedDeliveryDate,
+          orderId: findOrder.orderId,
+          address,
+          subTotal: findOrder.subtotal,
+          totalAmount: findOrder.totalAmount,
+          shippingCharge: findOrder.shippingFee,
+          status: findOrder.status,
+          statusType: findOrder.orderStatus,
+          savedAmount: findOrder.savedAmount,
+          trackingNo: findOrder?.trackerId,
+          parcelService: findOrder?.parcelService,
+        },
+        pathUrl: `${config.DISPLAY_IMG_URL}products/`,
+      };
     } catch (error) {
       console.log(error);
       return null;
@@ -408,8 +476,8 @@ class OrderRepository {
       const skip = (page - 1) * limit;
       filter = {
         ...filter,
-        active:true
-      }
+        active: true,
+      };
       // if (filter && Object.keys(filter).length > 0) {
       //   filter =  { ...filter, ...filter };
       // }
@@ -448,30 +516,30 @@ class OrderRepository {
 
   async updatePaymentCount(orderId) {
     try {
-      const statusData={
-        name:ORDER_STATUS['2'],
-        statusNo:ORDER_STATUS_NO.PLACED,
-        date:new Date(),
-        remarks:"Order Placed"
-      }
-     const updatedOrder = await Order.findByIdAndUpdate(
-      orderId,
-      {
-        $set: {
-          active: true,
-          status: ORDER_STATUS["2"],
-          orderStatus: ORDER_STATUS_NO.PLACED,
-          lastStatusUpdatedDate: new Date(),
+      const statusData = {
+        name: ORDER_STATUS["2"],
+        statusNo: ORDER_STATUS_NO.PLACED,
+        date: new Date(),
+        remarks: "Order Placed",
+      };
+      const updatedOrder = await Order.findByIdAndUpdate(
+        orderId,
+        {
+          $set: {
+            active: true,
+            status: ORDER_STATUS["2"],
+            orderStatus: ORDER_STATUS_NO.PLACED,
+            lastStatusUpdatedDate: new Date(),
+          },
+          $push: { statusData: statusData }, // <-- record status history
         },
-        $push: { statusData: statusData }, // <-- record status history
-      },
-      { new: true }
+        { new: true }
       );
       await CartItem.updateMany(
         { cartId: updatedOrder.cartId },
         { $set: { is_deleted: true } }
       );
-
+      await this.reduceProductQuatityCount(orderId);
       return updatedOrder || null;
     } catch (error) {
       console.error("Error updating payment count:", error);
@@ -584,6 +652,8 @@ class OrderRepository {
           cus_img: findOrder.userId?.cus_img,
           createdAt: findOrder.createdAt,
           orderStatus: findOrder.orderStatus,
+          orderstatusData: findOrder.statusData,
+          orderType: findOrder.orderType,
         },
         productPathUrl: `${config.DISPLAY_IMG_URL}products/`,
         customerPathUrl: `${config.DISPLAY_IMG_URL}customer/`,
@@ -883,45 +953,55 @@ class OrderRepository {
     }
   }
 
-async changeOrderStatus(statusId, orderId, statusData) {
-  try {
-
-    const findStatus = await orderStatusModel.findById(statusId);
-    if (!findStatus) {
-      throw new Error("Invalid status ID");
-    }
-
-    // Prepare update object
-    let updateData = {
-      status: findStatus.name,
-      orderStatus: findStatus.statusNo,
-      lastStatusUpdatedDate: new Date(),
-    };
-
-    // If Delivered → add deliveredDate
-    if (findStatus.statusNo === 3) {
-      updateData.deliveredDate = new Date();
-    }
-
-    // ✅ Push new status record into statusData array
-    const order = await Order.findByIdAndUpdate(
-      orderId,
-      {
-        $set: updateData,
-        $push: {
-          statusData
+  async changeOrderStatus(statusId, orderId, statusData) {
+    try {
+      const findStatus = await orderStatusModel.findById(statusId);
+      if (!findStatus) {
+        throw new Error("Invalid status ID");
       }
-    },
-      { new: true }
-    );
 
-    return order;
-  } catch (error) {
-    console.error("Error updating order status:", error);
-    return null;
+      // Prepare update object
+      let updateData = {
+        status: findStatus.name,
+        orderStatus: findStatus.statusNo,
+        lastStatusUpdatedDate: statusData.date,
+      };
+      if (findStatus.statusNo === ORDER_STATUS_NO.SHIPPED) {
+        (updateData.trackerId = statusData.trackerId),
+          (updateData.parcelService = statusData.parcelService);
+      }
+
+      if (findStatus.statusNo === ORDER_STATUS_NO.CANCELLED) {
+        updateData.cancelReason = statusData.cancelReason;
+      }
+
+      // If Delivered → add deliveredDate
+      if (findStatus.statusNo === ORDER_STATUS_NO.DELIVERED) {
+        updateData.deliveredDate = new Date();
+      }
+
+      // ✅ Push new status record into statusData array
+      const order = await Order.findByIdAndUpdate(
+        orderId,
+        {
+          $set: updateData,
+          $push: {
+            statusData,
+          },
+        },
+        { new: true }
+      );
+
+      if (findStatus.statusNo == ORDER_STATUS_NO.CANCELLED) {
+        await this.increaseProductQuatityCount(orderId);
+      }
+
+      return order;
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      return null;
+    }
   }
-}
-
 
   async getProductCountsByOrder(orderObjectId) {
     try {
@@ -1296,12 +1376,181 @@ async changeOrderStatus(statusId, orderId, statusData) {
 
       // If ANY order matches the condition, return false
       const hasActiveOrder = result.some(
-        (item) => item.orderType === ORDER_TYPE.OFFLINE_ORDER && item.orderStatus === 5
+        (item) =>
+          item.orderType === ORDER_TYPE.OFFLINE_ORDER && item.orderStatus === 5
       );
 
       return !hasActiveOrder;
     } catch (error) {
       throw error;
+    }
+  }
+
+  async reduceProductQuatityCount(orderId) {
+    try {
+      // Step 1: Fetch all order items
+      const orderItems = await OrderItem.aggregate([
+        {
+          $match: { orderId: new mongoose.Types.ObjectId(orderId) },
+        },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: "$product" },
+        {
+          $match: {
+            "product.onlineProduct": true,
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            productId: "$product._id",
+            sizeId: 1,
+            quantity: 1,
+          },
+        },
+      ]);
+
+      if (!orderItems.length) {
+        console.log("No products found for this order.");
+        return;
+      }
+
+      // Step 2: Update size quantities first
+      const bulkOps = orderItems.map((item) => ({
+        updateOne: {
+          filter: {
+            _id: item.productId,
+            "availableSizes.values._id": item.sizeId,
+          },
+          update: {
+            $inc: { "availableSizes.values.$.quantity": -item.quantity },
+          },
+        },
+      }));
+
+      await productModel.bulkWrite(bulkOps);
+      console.log("✅ Size quantities reduced successfully.");
+
+      // Step 3: Recalculate and update the overall product quantity for affected products
+      const uniqueProductIds = [
+        ...new Set(orderItems.map((i) => i.productId.toString())),
+      ];
+
+      const products = await productModel
+        .find({ _id: { $in: uniqueProductIds } })
+        .select("availableSizes.values._id availableSizes.values.quantity");
+
+      const updateTotalOps = products.map((product) => {
+        const totalQty = product.availableSizes.values.reduce(
+          (sum, val) => sum + (val.quantity || 0),
+          0
+        );
+        return {
+          updateOne: {
+            filter: { _id: product._id },
+            update: { $set: { quantity: totalQty } },
+          },
+        };
+      });
+
+      if (updateTotalOps.length > 0) {
+        await productModel.bulkWrite(updateTotalOps);
+        console.log("✅ Overall product quantities recalculated and updated.");
+      }
+    } catch (err) {
+      console.error("Error in reduceProductQuatityCount:", err);
+      throw err;
+    }
+  }
+
+  async increaseProductQuatityCount(orderId) {
+    try {
+      // Step 1: Fetch all order items
+      const orderItems = await OrderItem.aggregate([
+        {
+          $match: { orderId: new mongoose.Types.ObjectId(orderId) },
+        },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: "$product" },
+        {
+          $match: {
+            "product.onlineProduct": true,
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            productId: "$product._id",
+            sizeId: 1,
+            quantity: 1,
+          },
+        },
+      ]);
+
+      if (!orderItems.length) {
+        console.log("No products found for this order.");
+        return;
+      }
+
+      // Step 2: Update size quantities first
+      const bulkOps = orderItems.map((item) => ({
+        updateOne: {
+          filter: {
+            _id: item.productId,
+            "availableSizes.values._id": item.sizeId,
+          },
+          update: {
+            $inc: { "availableSizes.values.$.quantity": item.quantity },
+          },
+        },
+      }));
+
+      await productModel.bulkWrite(bulkOps);
+      console.log("✅ Size quantities reduced successfully.");
+
+      // Step 3: Recalculate and update the overall product quantity for affected products
+      const uniqueProductIds = [
+        ...new Set(orderItems.map((i) => i.productId.toString())),
+      ];
+
+      const products = await productModel
+        .find({ _id: { $in: uniqueProductIds } })
+        .select("availableSizes.values._id availableSizes.values.quantity");
+
+      const updateTotalOps = products.map((product) => {
+        const totalQty = product.availableSizes.values.reduce(
+          (sum, val) => sum + (val.quantity || 0),
+          0
+        );
+        return {
+          updateOne: {
+            filter: { _id: product._id },
+            update: { $set: { quantity: totalQty } },
+          },
+        };
+      });
+
+      if (updateTotalOps.length > 0) {
+        await productModel.bulkWrite(updateTotalOps);
+        console.log("✅ Overall product quantities recalculated and updated.");
+      }
+    } catch (err) {
+      console.error("Error in reduceProductQuatityCount:", err);
+      throw err;
     }
   }
 }

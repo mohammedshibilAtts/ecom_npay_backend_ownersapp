@@ -4,6 +4,7 @@ export const ORDER_TYPE={
     OFFLINE_ORDER:3
 }
 
+//! When you change Type name need to change in app also 
 export const ORDER_TYPE_NAME={
     1:"Online Order",
     2:"Store Pickup",

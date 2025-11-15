@@ -68,6 +68,10 @@ const OrderSchema = new Schema(
       },
     ],
     orderStatus: { type: Number, enum: [1, 2, 3, 4, 5, 6, 7, 8], default: 4 }, //1 Processing, 2 Placed  , 3 Delivered , 4 Cancelled , 5 payment pending, 6 shipped , 7 Ordered , 8  Ready for Pickup
+    trackerId: { type: String},
+    parcelService: { type: String},
+    cancelReason: { type: String},
+
   },
   { timestamps: true }
 );
