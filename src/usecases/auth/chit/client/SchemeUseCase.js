@@ -399,8 +399,8 @@ class SchemeUseCase {
       }
 
       const [gold, silver, classificationData] = await Promise.all([
-        this.purityRepository.find({ id_metal: goldMetal[0]._id,active:true}),
-        this.purityRepository.find({ id_metal: silverMetal[0]._id,active:true}),
+        this.purityRepository.find({ id_metal: goldMetal[0]?._id,active:true}),
+        this.purityRepository.find({ id_metal: silverMetal[0]?._id,active:true}),
         this.schemeRepository.findByOrder(1),
       ]);
 
