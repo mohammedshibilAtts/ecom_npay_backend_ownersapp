@@ -7,10 +7,12 @@ import productModel from "../../models/chit/productModel.js";
 import orderStatusModel from "../../models/ecom/orderStatusModel.js";
 import orderPaymentModel from "../../models/ecom/orderPaymentModel.js";
 import ecomPaymentOrderModel from "../../models/ecom/ecomPaymentOrderModel.js";
+import metalRateModel from "../../models/chit/metalRateModel.js";
 import {
   ORDER_STATUS,
   ORDER_STATUS_NO,
   ORDER_TYPE,
+  ORDER_TYPE_NAME,
 } from "../../../config/chit/const.js";
 
 class OrderRepository {
@@ -155,10 +157,11 @@ class OrderRepository {
                 if (!product) return item;
 
                 // Get latest metal rate
-                const metalRate = await MetalRate.findOne({
-                  material_type_id: product.id_metal?._id,
-                  purity_id: product.id_purity?._id,
-                })
+                const metalRate = await metalRateModel
+                  .findOne({
+                    material_type_id: product.id_metal?._id,
+                    purity_id: product.id_purity?._id,
+                  })
                   .sort({ createdAt: -1 })
                   .lean();
 
@@ -320,7 +323,7 @@ class OrderRepository {
 
             order.paymentMode = order.paymentDetails?.paymentMode || "Unknown";
           }
-
+          order.orderType = ORDER_TYPE_NAME[order.orderType];
           return order;
         })
       );
@@ -369,12 +372,12 @@ class OrderRepository {
             from: "products",
             localField: "productId",
             foreignField: "_id",
-            as: "product",
+            as: "productId",
           },
         },
         {
           $unwind: {
-            path: "$product",
+            path: "$productId",
             preserveNullAndEmptyArrays: true,
           },
         },
@@ -382,7 +385,7 @@ class OrderRepository {
         {
           $lookup: {
             from: "sizemasters",
-            localField: "product.availableSizes.sizeId",
+            localField: "productId.availableSizes.sizeId",
             foreignField: "_id",
             as: "SizeMaster",
           },
@@ -400,7 +403,7 @@ class OrderRepository {
               $arrayElemAt: [
                 {
                   $filter: {
-                    input: "$product.availableSizes.values",
+                    input: "$productId.availableSizes.values",
                     as: "size",
                     cond: { $eq: ["$$size._id", "$sizeId"] },
                   },
@@ -421,11 +424,12 @@ class OrderRepository {
             },
           },
         },
-        {$project:{
-          product:0,
-          SizeMaster:0,
-          productSize:0
-        }}
+        {
+          $project: {
+            SizeMaster: 0,
+            productSize: 0,
+          },
+        },
       ]);
       return {
         item: findOrderItem,
@@ -498,8 +502,6 @@ class OrderRepository {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
-
-      console.log(orders);
 
       const totalCount = await Order.countDocuments(filter);
 
@@ -654,6 +656,9 @@ class OrderRepository {
           orderStatus: findOrder.orderStatus,
           orderstatusData: findOrder.statusData,
           orderType: findOrder.orderType,
+          orderTypeName: ORDER_TYPE_NAME[findOrder.orderType],
+          trackerId: findOrder.trackerId,
+          parcelService: findOrder.parcelService,
         },
         productPathUrl: `${config.DISPLAY_IMG_URL}products/`,
         customerPathUrl: `${config.DISPLAY_IMG_URL}customer/`,
@@ -909,10 +914,8 @@ class OrderRepository {
             enquiries: [
               {
                 $match: {
-                  status: "Payment Pending",
-
-                  onlineProduct: false,
-
+                  orderStatus:ORDER_STATUS_NO.PROCESSING,
+                  orderType:ORDER_TYPE.OFFLINE_ORDER,
                   createdAt: { $gte: startDate, $lte: endDate },
                 },
               },

@@ -1,10 +1,11 @@
+//! Dont Change any key or value all these values linked with front-end const.js file and app also
 export const ORDER_TYPE={
     ONLINE_ORDER:1,
     STORE_PICKUP:2,
     OFFLINE_ORDER:3
 }
 
-//! When you change Type name need to change in app also 
+
 export const ORDER_TYPE_NAME={
     1:"Online Order",
     2:"Store Pickup",
