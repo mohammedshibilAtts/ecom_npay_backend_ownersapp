@@ -785,129 +785,6 @@ class SchemeAccountUseCase {
     return { success: true, message: message };
   }
 
-  // async getSchemeAccountById(id) {
-  //   try {
-  //     if (!isValidObjectId(id)) {
-  //       return { success: false, message: "Provide a valid object id" };
-  //     }
-
-  //     const account = await this.schemeAccountRepository.getSchemeAccountById(id);
-  //     if (!account) {
-  //       return { success: false, message: "No scheme account found" };
-  //     }
-
-  //     const arrobject = {
-  //       _id: account._id,
-  //       id_scheme_account: account._id,
-  //       account_name: account.account_name,
-  //       start_date: account.start_date,
-  //       maturity_date: account.maturity_date,
-  //       last_paid_date: account.last_paid_date,
-  //       scheme_acc_number: account.scheme_acc_number,
-  //       active: account.active,
-  //       id_customer: account.id_customer,
-  //       id_classification: account.id_classification,
-  //       branch_name: account.id_branch?.name,
-  //       amount: account.amount,
-  //       total_installments:account?.id_scheme?.total_installments,
-  //       gift_issues:account?.gift_issues
-  //     };
-
-  //     const scheme = account.id_scheme;
-  //     if ([0, 1, 2, 5, 6, 7, 8, 9, 10, 11, 13, 14].includes(scheme.scheme_type)) {
-  //       arrobject.scheme_name = `${scheme.scheme_name} (Rs. ${scheme.min_amount} - ${scheme.max_amount})`;
-  //     } else if ([12, 3, 4].includes(scheme.scheme_type)) {
-  //       arrobject.scheme_name = `${scheme.scheme_name} (Gm ${scheme?.min_weight} - ${scheme?.max_weight})`;
-  //     } else {
-  //       arrobject.scheme_name = `${scheme.scheme_name} (Rs. ${scheme.amount})`;
-  //     }
-
-  //     const [
-  //       schemetype,
-  //       metalrow,
-  //       purityrow,
-  //       lastpayment,
-  //       gift_issues,
-  //       calcpayment,
-  //       billrow
-  //     ] = await Promise.all([
-  //       this.getschemetype(scheme.scheme_type),
-  //       this.getmetal(scheme.id_metal),
-  //       this.getpurity(scheme.id_purity),
-  //       this.lastpaymentlist(account._id),
-  //       this.giftcalculation(account._id),
-  //       this.paymentcalculation(account._id),
-  //       this.getcloseaccount(account._id)
-  //     ]);
-
-  //     arrobject.scheme_type = scheme.scheme_type;
-  //     arrobject.id_scheme = scheme;
-  //     arrobject.scheme_typename = schemetype.scheme_typename;
-  //     arrobject.metal_name = metalrow.metal;
-  //     arrobject.purity_name = purityrow.purity_name;
-  //     arrobject.last_paid_date = lastpayment.last_paid_date;
-  //     arrobject.last_paid_installment = lastpayment.last_paid_installment;
-  //     arrobject.last_paid_amount = lastpayment.last_paid_amount;
-  //     arrobject.last_paid_weight = lastpayment.last_paid_weight;
-  //     arrobject.total_gifts_issued = gift_issues.received_gift;
-  //     arrobject.gift_type = scheme.gift_type;
-  //     arrobject.issue_gift = scheme.gift_percentage;
-  //     arrobject.received_gift = gift_issues.received_gift;
-  //     arrobject.excess_amount = gift_issues.excess_amount;
-  //     arrobject.balance_gift = parseInt(scheme.gift_percentage) - parseInt(gift_issues.received_gift);
-  //     arrobject.received_gift_amount = parseFloat(gift_issues.gift_amount) - parseFloat(gift_issues.excess_amount);
-  //     arrobject.scheme_amount = scheme.amount;
-  //     arrobject.gift_percentage = scheme.gift_percentage;
-  //     arrobject.allocate_gift_amount = 0;
-      
-  //     let allocate_gift_amount = 0;
-  //     let balance_gift_amount = 0;
-  //     if (scheme.gift_type === 1 && parseInt(scheme.gift_percentage) > 0) {
-  //       allocate_gift_amount = (scheme.amount * scheme.gift_percentage) / 100;
-  //       balance_gift_amount = allocate_gift_amount - (parseFloat(gift_issues.gift_amount) - parseFloat(gift_issues.excess_amount));
-  //     }
-  //     arrobject.allocate_gift_amount = allocate_gift_amount;
-  //     arrobject.balance_gift_amount = balance_gift_amount;
-
-  //     arrobject.bill_no = billrow.bill_no;
-  //     arrobject.bill_date = billrow.bill_date;
-  //     arrobject.return_amount = billrow.return_amount;
-  //     arrobject.word_convert = this.convertNumberToWord(billrow.return_amount);
-
-  //     arrobject.fine_amount = calcpayment.fine_amount || 0;
-  //     arrobject.total_paidinstallments = calcpayment.total_installments;
-  //     arrobject.total_paidamount = calcpayment.total_paidamount;
-  //     arrobject.total_weight = calcpayment.total_weight;
-  //     arrobject.status_name = this.getStatusName(account.status);
-  //     arrobject.created_through = this.addedby(account.created_through);
-
-  //     const paymentresult = await this.getallpayment(account._id);
-  //     arrobject.paymentdata = paymentresult;
-
-  //     // Create scheme summary similar to searchAccMobile
-  //     const schemeSummary = [{
-  //       scheme_acc_no: arrobject.scheme_acc_number,
-  //       scheme_acc_id: arrobject._id,
-  //       scheme_type: arrobject.scheme_type,
-  //       scheme_name: arrobject.scheme_name,
-  //       Allottedgifts: arrobject.id_scheme.no_of_gifts,
-  //       total_giftIssues: arrobject.total_gifts_issued
-  //     }];
-
-  //     return {
-  //       success: true,
-  //       message: "Scheme account data retrieved successfully",
-  //       data: arrobject,
-  //       schemeSummary: schemeSummary
-  //     };
-  //   } catch (error) {
-  //     console.error(error);
-  //     return {
-  //       success: false,
-  //       message: "Error while getting scheme account data",
-  //     };
-  //   }
-  // }
   async getSchemeAccountById(id) {
     try {
       if (!isValidObjectId(id)) {
@@ -1006,8 +883,8 @@ class SchemeAccountUseCase {
 
       arrobject.fine_amount = calcpayment.fine_amount || 0;
       // arrobject.total_paidinstallments = calcpayment.total_installments;
-      arrobject.total_paidamount = calcpayment.total_paidamount;
-      arrobject.total_weight = calcpayment.total_weight;
+      arrobject.total_paidamount = calcpayment.total_paidamount || account?.amount;
+      arrobject.total_weight = calcpayment.total_weight || account?.weight;
       arrobject.status_name = this.getStatusName(account.status);
       arrobject.created_through = this.addedby(account.created_through);
 
@@ -1617,8 +1494,8 @@ class SchemeAccountUseCase {
               parseFloat(gift_issues?.gift_amount || 0) -
               parseFloat(gift_issues?.excess_amount || 0),
             fine_amount: calcpayment?.fine_amount,
-            total_paidinstallments: calcpayment?.total_installments,
-            total_paidamount: calcpayment?.total_paidamount,
+            total_paidamount: calcpayment?.total_paidamount || account?.amount,
+            total_weight: calcpayment?.total_weight || account?.weight,
             total_weight: calcpayment?.total_weight,
             status_name: this.getStatusName(account.status),
             created_through: this.addedby(account.added_by),
