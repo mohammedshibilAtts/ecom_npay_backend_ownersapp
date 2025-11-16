@@ -3,6 +3,7 @@ import categoryModel from "../../models/chit/categoryModel.js";
 import mongoose from "mongoose";
 import moment from "moment";
 import { OrderItem } from "../../models/ecom/orderItemModel.js";
+import { ORDER_STATUS_NO, ORDER_TYPE } from "../../../config/chit/const.js";
 
 class ProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -3144,32 +3145,79 @@ async findProductForOrderNow(productId, userId) {
         $project: {
           _id: 0,
           orderId: "$Order._id",
-          onlineProduct: "$Order.onlineProduct",
+          onlineProduct: "$Order.orderType",
           orderStatus: "$Order.orderStatus",
         },
       },
     ]);
-
     if (!result.length) {
       // no previous order found for this product
       return { alreadyOrdered: false, orderId: null };
     }
-
     const hasActiveOrder = result.some(
-      (item) => item.onlineProduct === false && item.orderStatus === 5
+      (item) => item.onlineProduct === ORDER_TYPE.OFFLINE_ORDER && item.orderStatus === ORDER_STATUS_NO.PROCESSING
     );
-
     // If has active order → user already ordered → return true
     return {
       alreadyOrdered: hasActiveOrder,
       orderId: hasActiveOrder ? result.find(
-        (r) => r.onlineProduct === false && r.orderStatus === 5
+        (r) => r.onlineProduct === ORDER_TYPE.OFFLINE_ORDER && r.orderStatus === ORDER_STATUS_NO.PROCESSING
       )?.orderId : null,
     };
   } catch (error) {
     throw error;
   }
 }
+
+
+ async checkQuantityAvailability(productData) {
+  console.log(productData)
+  try {
+
+    if (!Array.isArray(productData) || productData.length === 0) {
+      throw new Error("Invalid product data");
+    }
+
+    // 1️⃣ Extract product IDs
+    const productIds = productData.map((item) => new mongoose.Types.ObjectId(item.productId));
+
+    // 2️⃣ Fetch products (only needed fields)
+    const products = await ProductModel.find(
+      { _id: { $in: productIds } },
+      { product_name: 1, availableSizes: 1 }
+    ).lean();
+
+    // 3️⃣ Map + check stock
+    const results = productData.map(({ productId, sizeId ,quantity}) => {
+      const product = products.find((p) => p._id.toString() === productId);
+     
+      if (!product) {
+        return { productId: productId, sizeId, isStockIn: false, reason: "Product not found" };
+      }
+
+      // ✅ Use availableSizes directly (no `.values`)
+      const matchedSize = product.availableSizes?.values?.find(
+        (s) => s?._id?.toString() === sizeId
+      );
+
+      return {
+        productName: product.product_name,
+        sizeId,
+        isStockIn: matchedSize ? matchedSize.quantity >= quantity : false,
+      };
+    });
+
+    // 4️⃣ Only return products where stock is false
+    const outOfStockResults = results.filter((r) => !r.isStockIn);
+
+
+    return outOfStockResults;
+  } catch (error) {
+    console.error("❌ Error in checkQuantityAvailability:", error);
+    throw new Error(error.message || "Error checking quantity availability");
+  }
+}
+
 
 }
 

@@ -446,6 +446,7 @@ class OrderRepository {
           savedAmount: findOrder.savedAmount,
           trackingNo: findOrder?.trackerId,
           parcelService: findOrder?.parcelService,
+          orderTypeNo:findOrder?.orderType,
         },
         pathUrl: `${config.DISPLAY_IMG_URL}products/`,
       };
@@ -498,7 +499,7 @@ class OrderRepository {
       // }
 
       const orders = await Order.find(filter)
-        .populate("userId", "firstname lastname")
+        .populate("userId", "firstname lastname mobile")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);

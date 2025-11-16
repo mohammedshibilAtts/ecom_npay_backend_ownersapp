@@ -21,7 +21,16 @@ class CartUseCase {
       if (findUser.is_deleted) {
         throw new Error("User account has been deleted.");
       }
-    
+      
+      const checkQuantityAvailability = await this.productRepository.checkQuantityAvailability([{productId:productId,sizeId:sizeId,quantity:1}])
+      
+      if(checkQuantityAvailability&&checkQuantityAvailability.length>=1){
+        return{
+          success:false,
+          message:"Product out of stock"
+        }
+      }
+
       const findCart = await this.cartRepository.findByUserId(userData._id);
       let cartId = findCart && findCart._id ? findCart._id : null;
       cartData.userId = userData._id;
