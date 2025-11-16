@@ -51,8 +51,6 @@ router.patch('/:id/active',(req,res)=>controller.changeStatus(req,res))
 router.delete('/:id',(req,res)=>controller.deleteProduct(req,res))
 
 //aushop routes
-
-
 router.patch('/best-seller/:id',(req,res)=>controller.toggleBestSeller(req,res))
 
 //product stock report
