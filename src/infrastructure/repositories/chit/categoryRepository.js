@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import CategoryModel from "../../models/chit/categoryModel.js";
 import ProductModel from "../../models/chit/productModel.js";
+import config from "../../../config/chit/env.js";
 
 class CategoryRepository {
   async addCategory(categoryData) {
@@ -23,68 +24,6 @@ class CategoryRepository {
       );
     }
   }
-
-//   async findById(id) {
-//   try {
-//     const categories = await CategoryModel.aggregate([
-//       { $match: { _id: new mongoose.Types.ObjectId(id), isDeleted: false } },
-//       {
-//         $lookup: {
-//           from: "branches",
-//           localField: "id_branch",
-//           foreignField: "_id",
-//           as: "id_branch",
-//         },
-//       },
-//       { $unwind: { path: "$id_branch", preserveNullAndEmptyArrays: true } },
-//       {
-//         $lookup: {
-//           from: "metals",
-//           localField: "id_metal",
-//           foreignField: "_id",
-//           as: "id_metal",
-//         },
-//       },
-//       { $unwind: { path: "$id_metal", preserveNullAndEmptyArrays: true } },
-//       {
-//         $lookup: {
-//           from: "s3bucketsettings",
-//           localField: "id_branch._id",
-//           foreignField: "id_branch",
-//           as: "s3Details",
-//         },
-//       },
-//       { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
-
-//       {
-//         $project: {
-//           category_name: 1,
-//           description: 1,
-//           // bannerImage: 1,
-//           active: 1,
-//           isDeleted: 1,
-//           id_branch: "$id_branch._id",
-//           id_metal: "$id_metal._id",
-//           image: 1,
-//           createdAt: 1,
-//           pathurl: {
-//             $concat: [
-//               "$s3Details.s3display_url",
-//               "aupay/webadmin/assets/category/",
-//             ],
-//           },
-//         },
-//       },
-//     ]);
-
-//     return categories || null;
-//   } catch (err) {
-//     throw new Error(
-//       "Database error occurred while finding category by id: " + err.message
-//     );
-//   }
-// }
-
 
   async findByName(category_name, id) {
     try {
@@ -197,22 +136,6 @@ class CategoryRepository {
     }
   }
 
-    // async getCategory(filter, skip, limit) {
-    //   try{
-    //     console.log(filter);
-    //     return await CategoryModel.find(filter)
-    //     .skip(skip)
-    //     .limit(limit)
-    //     .populate('id_branch')
-    //     .populate('id_metal','metal_name')
-    //     .sort({_id:-1})
-
-    //     .exec();
-    //   }catch(err){
-    //     throw new Error("Database error occured while get Category");
-    //   }
-    // }
-
   async getCategory(filter, skip, limit) {
     try {
       const categories = await CategoryModel.aggregate([
@@ -263,7 +186,7 @@ class CategoryRepository {
             pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
-                "aupay/webadmin/assets/category/",
+                `${config?.AWS_DISPLAY_URL}category/`,
               ],
             },
         },
@@ -288,13 +211,7 @@ class CategoryRepository {
       }
     }
 
-    // async getAllCategories(branch){
-    //   try{
-    //     return await CategoryModel.find({active:true,id_branch:branch}).select('category_name _id')
-    //   }catch(err){
-    //     throw new Error("Database error occured while get Category");
-    //   }
-    // }
+
 async getAllCategories(branch) {
   try {
     const categories = await CategoryModel.aggregate([
@@ -336,7 +253,7 @@ async getAllCategories(branch) {
           pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
-                "aupay/webadmin/assets/category/",
+                `${config?.AWS_DISPLAY_URL}category/`,
               ],
             },
         },
