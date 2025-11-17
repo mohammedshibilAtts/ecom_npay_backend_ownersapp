@@ -1,4 +1,5 @@
 import mongoose, { isValidObjectId } from "mongoose";
+import config from "../../../../config/chit/env.js";
 
 class CategoryUseCase {
   constructor(categoryRepository,branchRepository,s3Repo,s3Service) {
@@ -200,11 +201,24 @@ class CategoryUseCase {
       );
 
       try {
-        updateFields.image = await this.s3Service.uploadToS3(
-          files.image[0],
-          "category",            
-          s3Configs            
-        );
+
+         // Handle main image upload
+        let imageUrlFinal = null;
+        if (files && files.image) {
+          imageUrlFinal = await this.handleImageUpload(files.image, null, token);
+          if (imageUrlFinal) {
+            updateFields.image = imageUrlFinal;
+          }
+        }
+
+        // Handle category banner upload
+        let categoryBannerUrlFinal = null;
+        if (files && files.categoryBanner) {
+          categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null, token);
+          if (categoryBannerUrlFinal) {
+            updateFields.categoryBanner = categoryBannerUrlFinal;
+          }
+        }
       } catch (error) {
         console.error("Error uploading category image:", error);
         return {
@@ -304,8 +318,8 @@ class CategoryUseCase {
       const existingCategory = await this.categoryRepository.findById(id);
       if (!existingCategory) {
         return { success: false, message: "Category not found" };
-      }
-
+      } 
+      existingCategory.pathUrl = "1234567"
       return {
         success: true,
         message: "Category retrieved successfully",
