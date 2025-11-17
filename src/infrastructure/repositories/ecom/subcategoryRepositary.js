@@ -114,19 +114,6 @@ class SubCategoryRepository {
     }
   }
 
-  // async getSubCategory(filter, skip, limit) {
-  //   try {
-  //     return await subCategoryModel.find(filter)
-  //       .skip(skip)
-  //       .limit(limit)
-  //       .populate("categoryId", "category_name")
-  //       .sort({ _id: -1 })
-  //       .exec();
-  //   } catch (err) {
-  //     throw new Error("Database error occurred while getting subcategories");
-  //   }
-  // }
-
    async getSubCategory(filter, skip, limit) {
       try {
         const categories = await subCategoryModel.aggregate([
@@ -167,7 +154,7 @@ class SubCategoryRepository {
               pathurl: {
                 $concat: [
                   "$s3Details.s3display_url",
-                  "aupay/webadmin/assets/subcategory/",
+                  `${config?.AWS_DISPLAY_URL}subcategory/`,
                 ],
               },
           },
