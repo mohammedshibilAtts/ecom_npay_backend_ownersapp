@@ -442,52 +442,26 @@ class CustomerUseCase {
     }
   }
 
-//   async searchCustomerByMobile(search,customer) {
-//     try {
-//       const searchTerm = search;
-
-//       let Data = "";
-
-//       if (search.length == 10) {
-//         Data = await this.customerRepository.searchCustomerByMobile(searchTerm);
-//       } else {
-//         const code = `Cus-${search}`;
-//         Data = await this.customerRepository.finByReferralCode(code);
-//       }
-
-      
-//       if (!Data || Data.length === 0) {
-//         Data = await this.employeeRepo.findOne({mobile:searchTerm})
-//         // return { success: true, message: "No customers found" };
-//       }
-
-//       const customerData = await this.customerRepository.findOne({mobile:searchTerm})
-//       const employeeData = await this.employeeRepo.findOne({mobile:searchTerm})
-
-//       if(customerData){
-//         const code = `Cus-${search}`;
-//         if(customerData.mobile ==  search){
-//           return {stauts:false,message:"Self referring not allowed"}
-//         }else if(customerData.referral_code == code){
-//           return {stauts:false,message:"Self referring not allowed"}
-//         }
-//       }
-// console.log(Data)
-//       return {
-//         success: true,
-//         message: "Data fetched successfully",
-//         data: Data,
-//       };
-//     } catch (error) {
-//       console.error(error);
-//       return { success: false, message: "Failed to fetch data" };
-//     }
-//   }
-    
-   async searchCustomerByMobile(search, customer) {
+  async searchCustomerByMobile(search, customer) {
     try {
       const searchTerm = search?.trim();
       let data = null;
+
+      const currentCustomer = await this.customerRepository.searchCustomerByMobile(customer);
+      
+      if(currentCustomer.mobile == search){
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+
+      if(currentCustomer.referral_code == `Cus-${search}`){
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
   
       if (/^\d{10}$/.test(searchTerm)) {
         data = await this.customerRepository.searchCustomerByMobile(searchTerm);
@@ -510,9 +484,9 @@ class CustomerUseCase {
       const referrer = await this.customerRepository.findOne({ mobile: searchTerm });
       if (referrer) {
         const referralCode = `Cus-${referrer.referral_code?.split('-')[1] || ''}`;
-  
+
         if (
-          toString(referrer.mobile) === searchTerm ||
+          referrer.mobile.toString() === searchTerm ||
           referralCode === `Cus-${searchTerm}`
         ) {
           return {
