@@ -623,6 +623,8 @@ class ProductRepository {
             grossWt: 1,
             sizeUnit: "$Size.unit",
             onlineProduct: { $ifNull: ["$onlineProduct", true] },
+            stoneDiamondDetails:1,
+            active:1
           },
         },
         { $limit: 1 },
@@ -679,11 +681,13 @@ class ProductRepository {
 
   async changeStatus(id, status) {
     try {
+      console.log(status)
       const updateStatus = await ProductModel.updateOne(
         { _id: id },
         { active: !status }
       );
       if (updateStatus.modifiedCount == 1) {
+        console.log(updateStatus)
         return updateStatus;
       }
       return null;

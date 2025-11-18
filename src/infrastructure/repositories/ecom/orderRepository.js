@@ -447,6 +447,7 @@ class OrderRepository {
           trackingNo: findOrder?.trackerId,
           parcelService: findOrder?.parcelService,
           orderTypeNo: findOrder?.orderType,
+          totalGstAmount: findOrder?.totalGstAmount,
         },
         pathUrl: `${config.DISPLAY_IMG_URL}products/`,
       };
@@ -663,6 +664,7 @@ class OrderRepository {
           parcelService: findOrder.parcelService,
           deliveryRecipientName: findOrder?.deliveryAddress?.name,
           deliveryRecipientPhone: findOrder?.deliveryAddress?.mobileNo,
+          totalGstAmount: findOrder?.totalGstAmount,
         },
         productPathUrl: `${config.DISPLAY_IMG_URL}products/`,
         customerPathUrl: `${config.DISPLAY_IMG_URL}customer/`,
@@ -1239,116 +1241,160 @@ class OrderRepository {
   //   }
   // }
 
-  async getTopSellingProducttable(
-    page = 1,
-    limit = 10,
-    filter = {},
-    search = ""
-  ) {
-    try {
-      const skip = (page - 1) * limit;
+async getTopSellingProducttable(
+  page = 1,
+  limit = 10,
+  filter = {},
+  search = ""
+) {
+  try {
+    const skip = (page - 1) * limit;
+    console.log(filter)
+    let basePipeline = [
+      { $match:{ createdAt: filter.createdAt } },
 
-      let pipeline = [
-        { $match: filter },
-        {
-          $lookup: {
-            from: "orderitems",
-            localField: "_id",
-            foreignField: "orderId",
-            as: "orderItem",
-          },
+      {
+        $lookup: {
+          from: "orderitems",
+          localField: "_id",
+          foreignField: "orderId",
+          as: "orderItem",
         },
-        { $unwind: "$orderItem" },
-        {
-          $group: {
-            _id: "$orderItem.productId",
-            totalSold: { $sum: "$orderItem.quantity" },
-            totalAmount: { $sum: "$orderItem.discountAmount" },
-          },
-        },
-        { $sort: { totalSold: -1 } },
-        { $skip: skip },
-        { $limit: limit },
-        {
-          $lookup: {
-            from: "products",
-            localField: "_id",
-            foreignField: "_id",
-            as: "product",
-          },
-        },
-        { $unwind: "$product" },
-        {
-          $lookup: {
-            from: "metals",
-            localField: "product.id_metal",
-            foreignField: "_id",
-            as: "metal",
-          },
-        },
-        { $unwind: "$metal" },
-        {
-          $lookup: {
-            from: "categories",
-            localField: "product.id_category",
-            foreignField: "_id",
-            as: "category",
-          },
-        },
-        { $unwind: "$category" },
-        {
-          $lookup: {
-            from: "purities",
-            localField: "product.id_purity",
-            foreignField: "_id",
-            as: "purity",
-          },
-        },
-        { $unwind: "$purity" },
-        {
-          $project: {
-            _id: 0,
-            productId: "$_id",
-            name: "$product.product_name",
-            totalSold: 1,
-            metalName: "$metal.metal_name",
-            purityName: "$purity.purity_name",
-            categoryName: "$category.category_name",
-            totalAmount: 1,
-          },
-        },
-      ];
+      },
+      { $unwind: "$orderItem" },
 
-      if (search && search.trim() !== "") {
-        const searchRegex = new RegExp(search.trim(), "i");
-        pipeline.push({
-          $match: {
-            $or: [
-              { name: { $regex: searchRegex } },
-              { categoryName: { $regex: searchRegex } },
-              { metalName: { $regex: searchRegex } },
-            ],
-          },
-        });
-      }
+      {
+        $group: {
+          _id: "$orderItem.productId",
+          totalSold: { $sum: "$orderItem.quantity" },
+          totalAmount: { $sum: "$orderItem.discountAmount" },
+        },
+      },
 
-      const result = await Order.aggregate(pipeline);
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" }
+    ];
 
-      const totalDocuments = result.length;
-      const totalPages = Math.ceil(totalDocuments / limit);
-
-      return {
-        result,
-        totalDocuments,
-        totalPages,
-        currentPage: page,
-        limit,
-      };
-    } catch (err) {
-      console.error("Error in getTopSellingProducttable:", err);
-      throw err;
+    // 🔥 CATEGORY FILTER
+    if (filter.id_category) {
+      basePipeline.push({
+        $match: {
+          "product.id_category": new mongoose.Types.ObjectId(filter.id_category)
+        }
+      });
     }
+
+    // JOIN metadata
+    basePipeline.push(
+      {
+        $lookup: {
+          from: "metals",
+          localField: "product.id_metal",
+          foreignField: "_id",
+          as: "metal",
+        },
+      },
+      { $unwind: "$metal" },
+
+      {
+        $lookup: {
+          from: "categories",
+          localField: "product.id_category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
+
+      {
+        $lookup: {
+          from: "purities",
+          localField: "product.id_purity",
+          foreignField: "_id",
+          as: "purity",
+        },
+      },
+      { $unwind: "$purity" },
+
+      {
+        $project: {
+          _id: 0,
+          productId: "$_id",
+          name: "$product.product_name",
+          totalSold: 1,
+          metalName: "$metal.metal_name",
+          purityName: "$purity.purity_name",
+          categoryName: "$category.category_name",
+          totalAmount: 1,
+        },
+      }
+    );
+
+    // 🔍 SEARCH FILTER
+    if (search && search.trim() !== "") {
+      const searchRegex = new RegExp(search.trim(), "i");
+
+      basePipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: searchRegex } },
+            { categoryName: { $regex: searchRegex } },
+            { metalName: { $regex: searchRegex } },
+          ],
+        },
+      });
+    }
+
+    // 🎯 APPLY FACET FOR PAGINATION
+    const pipeline = [
+      ...basePipeline,
+
+      {
+        $facet: {
+          metadata: [{ $count: "totalDocuments" }],
+          data: [
+            { $sort: { totalSold: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+          ],
+        },
+      },
+
+      {
+        $addFields: {
+          totalDocuments: { $arrayElemAt: ["$metadata.totalDocuments", 0] },
+        },
+      },
+    ];
+
+    const response = await Order.aggregate(pipeline);
+
+    const result = response[0].data || [];
+    const totalDocuments = response[0].totalDocuments || 0;
+    const totalPages = Math.ceil(totalDocuments / limit);
+
+    return {
+      result,
+      totalDocuments,
+      totalPages,
+      currentPage: page,
+      limit,
+    };
+
+  } catch (err) {
+    console.error("Error in getTopSellingProducttable:", err);
+    throw err;
   }
+}
+
+
 
   async findProductForOrderNow(productId, userId) {
     try {
