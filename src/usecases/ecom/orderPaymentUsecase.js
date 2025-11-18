@@ -513,7 +513,7 @@ class OrderPaymentUsecase {
       paymentBulk.push({
         updateOne: {
           filter: {
-            id_transaction: updatedPaymentOrder.orderId,
+            _id: updatedPaymentOrder.product_payment_ids,
             payment_status: { $ne: 1 }
           },
           update: {
@@ -526,6 +526,10 @@ class OrderPaymentUsecase {
           },
         },
       });
+
+      await Promise.all([
+        this.paymentRepository.bulkWrite(paymentBulk),
+      ]);
 
       // await this.OrderTransactionDetailsRepository.updateTransactionDetails(
       //   { transactionId: orderId },

@@ -5,7 +5,6 @@ import config from "../../../../config/chit/env.js";
 import axios from "axios";
 import calculateDigiGoldBonus from "../../../../services/digigoldCalculation.js";
 import crypto, { randomInt } from "crypto";
-import schemeAccountModel from "../../../../infrastructure/models/chit/schemeAccountModel.js";
 import isNotificationEnabled from "../../../../utils/notificationEnableChecket.js";
 import SaveNotificationUsecase from "./saveNotificationUsecase.js";
 import SaveNotificationRepo from "../../../../infrastructure/repositories/chit/saveNotificationRepo.js";
