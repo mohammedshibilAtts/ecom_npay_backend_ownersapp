@@ -132,11 +132,7 @@ class OrderController {
   }
 
   async getAllOrders(req, res) {
-     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search=req.query.search;
-    const fromDate=req.query.from_date;
-    const toDate=req.query.to_date;
+   
     
     try {
       const result = await this.orderUseCase.getAllOrders(req.query);

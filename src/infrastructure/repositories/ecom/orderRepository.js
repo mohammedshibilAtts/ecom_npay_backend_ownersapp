@@ -446,7 +446,7 @@ class OrderRepository {
           savedAmount: findOrder.savedAmount,
           trackingNo: findOrder?.trackerId,
           parcelService: findOrder?.parcelService,
-          orderTypeNo:findOrder?.orderType,
+          orderTypeNo: findOrder?.orderType,
         },
         pathUrl: `${config.DISPLAY_IMG_URL}products/`,
       };
@@ -634,7 +634,7 @@ class OrderRepository {
           },
         },
       ]);
-
+      console.log("34567890-", findOrder);
       return {
         item: findOrderItem,
         overAll: {
@@ -660,6 +660,8 @@ class OrderRepository {
           orderTypeName: ORDER_TYPE_NAME[findOrder.orderType],
           trackerId: findOrder.trackerId,
           parcelService: findOrder.parcelService,
+          deliveryRecipientName: findOrder?.deliveryAddress?.name,
+          deliveryRecipientPhone: findOrder?.deliveryAddress?.mobileNo,
         },
         productPathUrl: `${config.DISPLAY_IMG_URL}products/`,
         customerPathUrl: `${config.DISPLAY_IMG_URL}customer/`,
@@ -915,8 +917,8 @@ class OrderRepository {
             enquiries: [
               {
                 $match: {
-                  orderStatus:ORDER_STATUS_NO.PROCESSING,
-                  orderType:ORDER_TYPE.OFFLINE_ORDER,
+                  orderStatus: ORDER_STATUS_NO.PROCESSING,
+                  orderType: ORDER_TYPE.OFFLINE_ORDER,
                   createdAt: { $gte: startDate, $lte: endDate },
                 },
               },

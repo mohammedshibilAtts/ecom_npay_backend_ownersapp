@@ -743,6 +743,7 @@ class CartRepository {
             categoryId: "$Product.id_category",
             subCategoryId: "$Product.subcategoryId",
             collectionId: "$Product.collection",
+            gstRate:"$gstRate",
             productSize: {
               $concat: [
                 { $toString: "$productSize.sizeValue" },
@@ -763,6 +764,7 @@ class CartRepository {
                   totalPrice: { $sum: "$price" },
                   totalDiscount: { $sum: "$discount" },
                   shippingCharge: { $sum: "$shippingCharge" },
+                  gstRate: { $sum: "$gstRate" },
                 },
               },
               { $project: { _id: 0 } },
@@ -877,6 +879,15 @@ class CartRepository {
       return findProduct;
     } catch (error) {
       console.error("Error in findProductByBranch:", error);
+      return null;
+    }
+  }
+
+  async findCartItemCount (cartId){
+    try{
+      return await CartItem.find({cartId,is_deleted:false}).countDocuments()
+    }catch(error){
+     console.error("Error in findCartItemCount:", error);
       return null;
     }
   }

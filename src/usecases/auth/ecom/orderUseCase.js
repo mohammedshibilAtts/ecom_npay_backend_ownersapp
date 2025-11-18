@@ -315,12 +315,12 @@ class OrderUseCase {
       }
             
       const checkQuantityAvailability = await this.productRepository.checkQuantityAvailability(cartItems.items)
-      
+        console.log(checkQuantityAvailability)
       if(checkQuantityAvailability&&checkQuantityAvailability.length>=1){
-        return{
-          success:false,
-          message:"Product out of stock"
-        }
+        // return{
+        //   success:false,
+        //   message:"Product out of stock"
+        // }
       }
        let estimatedDeliveryDays
      if(!isStorePickup){
@@ -362,6 +362,7 @@ class OrderUseCase {
         totalDiscount: cartItems.overAllAmount.totalDiscount,
         shippingFee: shppingCharge,
         totalAmount: cartItems.overAllAmount.totalDiscount + shppingCharge,
+        totalGstAmount: cartItems.overAllAmount.gstRate,
         // couponCode: "NEWUSER100",
         // payment: "68899df2c34cf80f45b7ed1c",
         savedAmount:

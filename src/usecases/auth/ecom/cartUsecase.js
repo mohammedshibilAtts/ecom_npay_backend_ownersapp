@@ -14,21 +14,24 @@ class CartUseCase {
         throw new Error("User ID not found");
       }
       const findUser = await this.customerRepository.findInfo(userData._id);
-      if (findUser.active===false) {
+      if (findUser.active === false) {
         throw new Error("User account is inactive. Please contact support.");
       }
 
       if (findUser.is_deleted) {
         throw new Error("User account has been deleted.");
       }
-      
-      const checkQuantityAvailability = await this.productRepository.checkQuantityAvailability([{productId:productId,sizeId:sizeId,quantity:1}])
-      
-      if(checkQuantityAvailability&&checkQuantityAvailability.length>=1){
-        return{
-          success:false,
-          message:"Product out of stock"
-        }
+
+      const checkQuantityAvailability =
+        await this.productRepository.checkQuantityAvailability([
+          { productId: productId, sizeId: sizeId, quantity: 1 },
+        ]);
+
+      if (checkQuantityAvailability && checkQuantityAvailability.length >= 1) {
+        // return {
+        //   success: false,
+        //   message: "Product out of stock",
+        // };
       }
 
       const findCart = await this.cartRepository.findByUserId(userData._id);
@@ -50,7 +53,13 @@ class CartUseCase {
       if (!findProduct) {
         return { success: false, message: "Product Not found" };
       }
-
+      const findCartCount = await this.cartRepository.findCartItemCount(cartId);
+      if (findCartCount >= 30) {
+        return {
+          success: false,
+          message: "Cart limit reached. Remove an item to continue.",
+        };
+      }
       const {
         id_category,
         id_purity,
@@ -148,13 +157,13 @@ class CartUseCase {
       }
 
       let message;
-      let success
+      let success;
       if (findProduct && findProduct.length >= 1) {
         message = `${findProduct.length} product(s) are not available in this branch`;
-        success=false
+        success = false;
       } else {
         message = "All products are available in this branch";
-        success=true
+        success = true;
       }
       return {
         success: true,
@@ -162,7 +171,7 @@ class CartUseCase {
         data: {
           products: findProduct,
           message: message,
-          success
+          success,
         },
       };
     } catch (error) {
@@ -223,8 +232,6 @@ class CartUseCase {
   //     throw new Error(`Failed to add item to cart: ${error.message}`);
   //   }
   // }
-
-  
 
   // async updateItemQuantity(identifier, productId, quantity) {
   //   try {
