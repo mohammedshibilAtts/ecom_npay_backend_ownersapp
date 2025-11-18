@@ -934,7 +934,7 @@ class OrderUseCase {
     }
   }
 
-  async getTopSellingProducttable(fromDate, toDate, page, limit, search) {
+  async getTopSellingProducttable(fromDate, toDate, page, limit, search,id_category) {
     try {
       const { startDate, endDate } = await this.getDateRange(fromDate, toDate);
       const filter = {
@@ -944,6 +944,9 @@ class OrderUseCase {
           $lte: new Date(endDate),
         },
       };
+      if(id_category){
+        filter.id_category=id_category
+      }
 
       const result = await this.orderRepository.getTopSellingProducttable(
         page,

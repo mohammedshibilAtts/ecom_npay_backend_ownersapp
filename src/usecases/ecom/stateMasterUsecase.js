@@ -30,6 +30,10 @@ export default class StateMasterUseCase {
   // }
   async getAllStates(filters = {}) {
   try {
+   
+    if (filters.active !== null && filters.active !== undefined && filters.active !== "") {
+      filters.deliveryEnabled = filters.active;
+    }
     const result = await this.stateRepo.findAll(filters);
     return { 
       success: true, 

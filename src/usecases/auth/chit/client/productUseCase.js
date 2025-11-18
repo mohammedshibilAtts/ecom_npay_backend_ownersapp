@@ -482,7 +482,7 @@ class ProductUseCase {
       if (!existingProduct) {
         return { success: false, message: "Product not found" };
       }
-      console.log("3456", productData);
+
       const objectIdValidationErrors = [
         this.validateObjectId(productData.id_branch, "Branch"),
         this.validateObjectId(productData.id_category, "Category"),
@@ -626,6 +626,47 @@ class ProductUseCase {
         productData.product_image = allImages;
       }
 
+          // Process stone and diamond data
+      const stoneDiamondData = [];
+
+      if (productData.stone && productData.stones) {
+        productData.stones.forEach((stone) => {
+          stoneDiamondData.push({
+            _id:stone._id,
+            type: "stone",
+            itemId: stone.itemId || stone.stoneId,
+            weight: Number(stone.weight || stone.stoneWeight || 0),
+            cost: Number(stone.cost || stone.stoneCost || 0),
+            price: Number(stone.price || stone.stonePrice || 0),
+          });
+        });
+      }
+
+      if (productData.diamond && productData.diamonds) {
+        productData.diamonds.forEach((diamond) => {
+          stoneDiamondData.push({
+            _id:diamond._id,
+            type: "diamond",
+            itemId: diamond.itemId || diamond.diamondId,
+            weight: Number(diamond.weight || diamond.diamondWeight || 0),
+            cost: Number(diamond.cost || diamond.diamondCost || 0),
+            price: Number(diamond.price || diamond.diamondPrice || 0),
+          });
+        });
+      }
+
+      let savedDetails = [];
+      if (stoneDiamondData.length > 0) {
+        savedDetails = await this.stoneDetailsRepo.updateStoneDetails(id,stoneDiamondData);
+      }
+
+      // Only set stoneDetails if we have valid details
+      if (savedDetails.length > 0) {
+        productData.stoneDetails = savedDetails.map((s) => s._id);
+      } else {
+        productData.stoneDetails = [];
+      }
+
       const updateProduct = await this.productRepository.editProduct(
         productData,
         id
@@ -680,7 +721,6 @@ class ProductUseCase {
       if (!existingProduct) {
         return { success: false, message: "Product not found" };
       }
-
       const updatedProduct = await this.productRepository.changeStatus(
         id,
         existingProduct.active
@@ -790,6 +830,9 @@ class ProductUseCase {
       const skip = (pageNum - 1) * pageSize;
       const filter = { is_deleted: false };
 
+      if(active==null){
+         filter.active = true;
+      }
       if (active !== null && active !== undefined && active !== "") {
         filter.active = active;
       }

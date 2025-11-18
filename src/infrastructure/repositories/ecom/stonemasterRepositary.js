@@ -12,7 +12,7 @@ export default class StonemasterRepositary {
 
   async Getstonemaster() {
     try {
-      return await StonemasterModel.find({ active: true });
+      return await StonemasterModel.find({ active: true,is_deleted:false });
     } catch (error) {
       throw new Error(`Error fetching addresses: ${error.message}`);
     }
@@ -40,7 +40,7 @@ export default class StonemasterRepositary {
     try {
       const updatedData = await StonemasterModel.updateOne(
         { _id: id },
-        { $set: { active:false} }
+        { $set: { is_deleted:true} }
       );
 
       if (updatedData.matchedCount === 0) {
@@ -55,9 +55,7 @@ export default class StonemasterRepositary {
 
   async Getstonemasterbyid(id) {
     try {
-      return await StonemasterModel.findOne({ _id: id, active: true }).sort({
-        createdAt: -1,
-      });
+      return await StonemasterModel.findOne({ _id: id,is_deleted:false })
     } catch (error) {
       throw new Error(`Error fetching Stone master: ${error.message}`);
     }
@@ -65,6 +63,7 @@ export default class StonemasterRepositary {
 
   async getstonemastertable(filter, skip, limit) {
     try {
+      filter.is_deleted=false
       return await StonemasterModel.find(filter)
         .skip(skip)
         .limit(limit)
@@ -89,7 +88,7 @@ export default class StonemasterRepositary {
 
   async getDiamond() {
     try {
-      return await StonemasterModel.find({ is_diamond: true }).select("stonename");
+      return await StonemasterModel.find({ is_diamond: true });
     } catch (error) {
       console.error(error);
     }
@@ -97,7 +96,7 @@ export default class StonemasterRepositary {
 
   async getStone() {
     try {
-      const stones = await StonemasterModel.find({ is_diamond: false }).select("stonename")
+      const stones = await StonemasterModel.find({ is_diamond: false })
       return stones || [];
     } catch (error) {
       console.error("Error fetching stones:", error);

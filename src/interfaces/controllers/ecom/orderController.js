@@ -390,10 +390,10 @@ class OrderController {
 
     async getTopSellingProductTable(req, res) {
     try {
-      const {fromDate,toDate,search,page,limit}=req.body
+      const {fromDate,toDate,search,page,limit,id_category}=req.body
 
   
-      const result = await this.orderUseCase.getTopSellingProducttable(fromDate,toDate,page,limit,search);
+      const result = await this.orderUseCase.getTopSellingProducttable(fromDate,toDate,page,limit,search,id_category);
       if (!result.success) {
         return res.status(400).json({
           success: false,
