@@ -517,7 +517,7 @@ class OrderRepository {
     }
   }
 
-  async updatePaymentCount(orderId) {
+  async updatePaymentCount(orderId,paymentId=null) {
     try {
       const statusData = {
         name: ORDER_STATUS["2"],
@@ -533,8 +533,9 @@ class OrderRepository {
             status: ORDER_STATUS["2"],
             orderStatus: ORDER_STATUS_NO.PLACED,
             lastStatusUpdatedDate: new Date(),
+            ...(paymentId !== null && { paymentId }),
           },
-          $push: { statusData: statusData }, // <-- record status history
+          $push: { statusData: statusData },
         },
         { new: true }
       );
