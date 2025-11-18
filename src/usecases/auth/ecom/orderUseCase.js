@@ -313,6 +313,15 @@ class OrderUseCase {
           data: cartItems,
         };
       }
+            
+      const checkQuantityAvailability = await this.productRepository.checkQuantityAvailability(cartItems.items)
+        console.log(checkQuantityAvailability)
+      if(checkQuantityAvailability&&checkQuantityAvailability.length>=1){
+        // return{
+        //   success:false,
+        //   message:"Product out of stock"
+        // }
+      }
        let estimatedDeliveryDays
      if(!isStorePickup){
        const findPincodeData = await this.pincodeUseCase.getPincodesByFilters({
@@ -353,6 +362,7 @@ class OrderUseCase {
         totalDiscount: cartItems.overAllAmount.totalDiscount,
         shippingFee: shppingCharge,
         totalAmount: cartItems.overAllAmount.totalDiscount + shppingCharge,
+        totalGstAmount: cartItems.overAllAmount.gstRate,
         // couponCode: "NEWUSER100",
         // payment: "68899df2c34cf80f45b7ed1c",
         savedAmount:
@@ -480,10 +490,13 @@ class OrderUseCase {
     }
   }
 
-  async getAllOrders({ page, limit, search, fromDate, toDate,orderStatus,orderType }) {
+  async getAllOrders({ page, limit, search, from_date, to_date,orderStatus,orderType }) {
     page = page || 1;
     limit = limit || 10;
     let filter = {};
+
+    const fromDate =from_date
+    const toDate = to_date
     
     try {
       if(orderStatus){
@@ -492,16 +505,22 @@ class OrderUseCase {
       if(orderType){
          filter.orderType=orderType
       }
+
       if (fromDate && toDate) {
         if (new Date(toDate) < new Date(fromDate)) {
           throw new Error("End date cannot be before start date");
         }
 
-        const startDate = moment
-          .tz(fromDate, "Asia/Kolkata")
-          .startOf("day")
-          .toDate();
-        const endDate = moment.tz(toDate, "Asia/Kolkata").endOf("day").toDate();
+             const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
+      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+
+        filter.createdAt = {
+          $gte: startDate,
+          $lte: endDate,
+        };
+      }else{
+           const startDate = moment.tz(new Date(), 'Asia/Kolkata').startOf('day').toDate();
+          const endDate = moment.tz(new Date(), 'Asia/Kolkata').endOf('day').toDate();
 
         filter.createdAt = {
           $gte: startDate,

@@ -317,18 +317,8 @@ class ProductUseCase {
         });
       }
 
-      // DATA TRANSFORMATION - CRITICAL FIXES
-      // Convert mode from string to number (1 for 'amount', 2 for 'percentage')
-      if (productData.makingCharges && productData.makingCharges.mode) {
-        productData.makingCharges.mode =
-          productData.makingCharges.mode === "amount" ? 1 : 2;
-      }
-
-      if (productData.wastageCharges && productData.wastageCharges.mode) {
-        productData.wastageCharges.mode =
-          productData.wastageCharges.mode === "amount" ? 1 : 2;
-      }
-
+     
+      
       // Convert string numbers to actual numbers in charges
       if (productData.makingCharges) {
         const mc = productData.makingCharges;
@@ -492,7 +482,7 @@ class ProductUseCase {
       if (!existingProduct) {
         return { success: false, message: "Product not found" };
       }
-
+      console.log("3456", productData);
       const objectIdValidationErrors = [
         this.validateObjectId(productData.id_branch, "Branch"),
         this.validateObjectId(productData.id_category, "Category"),
@@ -714,9 +704,9 @@ class ProductUseCase {
     }
   }
 
-  async findById(id, token=null) {
+  async findById(id, token = null) {
     try {
-      console.log("Token ",token)
+      console.log("Token ", token);
       const idValidation = this.validateObjectId(id, "Product");
       if (idValidation) return idValidation;
 
@@ -727,10 +717,10 @@ class ProductUseCase {
 
       let existingProduct;
       if (customerId) {
-        console.log("customer")
+        console.log("customer");
         existingProduct = await this.productRepository.findById(id, customerId);
       } else {
-        console.log("emp")
+        console.log("emp");
         existingProduct = await this.productRepository.findById(id);
       }
 
@@ -806,6 +796,9 @@ class ProductUseCase {
 
       if (query.category) {
         filter.id_category = new mongoose.Types.ObjectId(query.category);
+      }
+      if(query.onlineProduct){
+        filter.onlineProduct =query.onlineProduct==1?true:false
       }
 
       if (from_date && to_date) {
@@ -1235,7 +1228,15 @@ class ProductUseCase {
     }
   }
 
-  async getProductStockReport(page, limit, search, from_date, to_date,category) {
+  async getProductStockReport(
+    page,
+    limit,
+    search,
+    from_date,
+    to_date,
+    category,
+    subcategory
+  ) {
     try {
       const pageNumber = parseInt(page) || 1;
       const limitNumber = parseInt(limit) || 10;
@@ -1279,9 +1280,11 @@ class ProductUseCase {
           { sku: { $regex: searchRegex } },
         ];
       }
-
       if (category && category.trim() !== "") {
-        filter.id_category = category.trim(); 
+        filter.id_category = new mongoose.Types.ObjectId(category.trim());
+      }
+      if (subcategory && subcategory.trim() !== "") {
+        filter.subcategoryId = new mongoose.Types.ObjectId(subcategory.trim());
       }
 
       const result = await this.productRepository.getProductStockReport(
@@ -1289,21 +1292,19 @@ class ProductUseCase {
         limitNumber,
         filter
       );
-
-      if (result.products.length > 0) {
+      console.log(result);
+      if (result.data.length >= 1) {
         const pathUrl = `${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}products/`;
 
         return {
           success: true,
           message: "Products fetched successfully",
           data: {
-            products: result.products,
+            products: result.data,
             pagination: {
               currentPage: result.currentPage,
               totalPages: result.totalPages,
               totalProducts: result.totalCount,
-              hasNext: result.hasNext,
-              hasPrev: result.hasPrev,
               limit: limitNumber,
             },
           },
@@ -1332,12 +1333,10 @@ class ProductUseCase {
     }
   }
 
-    async getProductLowStockReport(page, limit,lowstock) {
-
+  async getProductLowStockReport(page, limit, lowstock) {
     try {
       const pageNumber = parseInt(page) || 1;
       const limitNumber = parseInt(limit) || 10;
-    
 
       if (pageNumber < 1 || limitNumber < 1) {
         return {
@@ -1352,24 +1351,22 @@ class ProductUseCase {
       const lowstocknum = parseInt(lowstock);
 
       if (lowstocknum && lowstocknum !== "") {
-        filter.total_stock = { $lte: parseInt(lowstock) };
+        filter.quantity = { $lte: parseInt(lowstock) };
       }
       const result = await this.productRepository.getProductLowStockReport(
         pageNumber,
         limitNumber,
         filter
       );
-
       
-
-      if (result.products.length > 0) {
+      if (result.data.length > 0) {
         const pathUrl = `${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}products/`;
 
         return {
           success: true,
           message: "Products fetched successfully",
           data: {
-            products: result.products,
+            products: result.data,
             pagination: {
               currentPage: result.currentPage,
               totalPages: result.totalPages,

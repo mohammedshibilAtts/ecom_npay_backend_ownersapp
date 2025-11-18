@@ -17,6 +17,7 @@ const OrderSchema = new Schema(
     totalAmount: { type: Number, default: 0 },
     shippingFee: { type: Number, default: 0 },
     savedAmount: { type: Number, default: 0 },
+    totalGstAmount: { type: Number, default: 0 },
     // grandTotal: { type: Number, required: true },
 
     couponCode: { type: String, index: true },

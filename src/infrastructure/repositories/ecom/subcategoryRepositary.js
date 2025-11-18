@@ -1,3 +1,4 @@
+import config from "../../../config/chit/env.js";
 import ProductModel from "../../models/chit/productModel.js";
 import subCategoryModel from "../../models/ecom/subCategoryModel.js";
 
@@ -154,7 +155,7 @@ class SubCategoryRepository {
               pathurl: {
                 $concat: [
                   "$s3Details.s3display_url",
-                  `${config?.AWS_DISPLAY_URL}subcategory/`,
+                  `${config?.AWS_LOCAL_PATH}subcategory/`,
                 ],
               },
           },

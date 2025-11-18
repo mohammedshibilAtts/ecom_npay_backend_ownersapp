@@ -186,7 +186,7 @@ class CategoryRepository {
             pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
-                `${config?.AWS_DISPLAY_URL}category/`,
+                `${config?.AWS_LOCAL_PATH}category/`,
               ],
             },
         },
@@ -253,7 +253,7 @@ async getAllCategories(branch) {
           pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
-                `${config?.AWS_DISPLAY_URL}category/`,
+                `${config?.AWS_LOCAL_PATH}category/`,
               ],
             },
         },
@@ -267,7 +267,7 @@ async getAllCategories(branch) {
 }
 
 
-    async getAllCategoriesWithoutBranch() {
+  async getAllCategoriesWithoutBranch() {
   try {
     return await CategoryModel.find({
       is_deleted:false,

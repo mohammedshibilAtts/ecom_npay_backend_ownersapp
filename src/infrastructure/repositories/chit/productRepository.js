@@ -3,6 +3,7 @@ import categoryModel from "../../models/chit/categoryModel.js";
 import mongoose from "mongoose";
 import moment from "moment";
 import { OrderItem } from "../../models/ecom/orderItemModel.js";
+import { ORDER_STATUS_NO, ORDER_TYPE } from "../../../config/chit/const.js";
 import config from "../../../config/chit/env.js";
 
 class ProductRepository {
@@ -54,7 +55,6 @@ class ProductRepository {
       throw new Error("Database error occurred while find product code");
     }
   }
-
 
   async findById(id, customerId) {
     try {
@@ -588,7 +588,7 @@ class ProductRepository {
             pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
-                `${config?.AWS_DISPLAY_URL}products/`,
+                `${config?.AWS_LOCAL_PATH}products/`,
               ],
             },
             isWishlisted: 1,
@@ -628,12 +628,15 @@ class ProductRepository {
         { $limit: 1 },
       ]);
 
-      const productData = userData[0]
-      if(productData.onlineProduct==false){
-      productData.orderStatus=await this.findProductForOrderNow(id,customerId)
+      const productData = userData[0];
+      if (productData.onlineProduct == false) {
+        productData.orderStatus = await this.findProductForOrderNow(
+          id,
+          customerId
+        );
       }
 
-      console.log(productData)
+      console.log(productData);
       return productData ? productData : null;
     } catch (err) {
       console.error(err);
@@ -1147,7 +1150,7 @@ class ProductRepository {
         {
           $project: {
             product_name: 1,
-            weight: 1,
+            // weight: 1,
             createdAt: 1,
             product_image: 1,
             active: 1,
@@ -1156,14 +1159,15 @@ class ProductRepository {
             metalName: "$id_metal.metal_name",
             purityName: "$id_purity.purity_name",
             isWishlisted: 1,
-            weight: "$quantity",
+            quantity: "$quantity",
             totalAmount: 1,
             discountedAmount: 1,
             discountDifference: 1,
+            onlineProduct:1,
             pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
-               `${config?.AWS_DISPLAY_URL}products/`,
+                `${config?.AWS_LOCAL_PATH}products/`,
               ],
             },
           },
@@ -1965,7 +1969,7 @@ class ProductRepository {
       const categories = await categoryModel
         .find(
           { _id: { $in: categoryIds } },
-          { _id: 1, category_name: 1, image: 1, pathUrl: 1,categoryBanner:1 }
+          { _id: 1, category_name: 1, image: 1, pathUrl: 1, categoryBanner: 1 }
         )
         .lean();
 
@@ -1976,59 +1980,225 @@ class ProductRepository {
     }
   }
 
+  // async getProductStockReport(page, limit, filter = {}) {
+  //   try {
+  //     const skip = (page - 1) * limit;
+
+  //     const query = {
+  //       active: true,
+  //       is_deleted: false,
+  //       ...filter,
+  //     };
+  //     // Get total count first
+  //     const totalCount = await ProductModel.countDocuments(query);
+
+  //     // Get products with pagination and populate category
+  //     const products = await ProductModel.find(query)
+  //       .populate("id_category", "category_name")
+  //       .select("product_name sku code id_category quantity availableSizes")
+  //       .skip(skip)
+  //       .limit(limit)
+  //       .lean();
+
+  //     // Format the response
+  //     const formattedProducts = products.map((product) => {
+  //       let totalStock = product.quantity || 0;
+  //       let sizeDetails = [];
+
+  //       if (product.availableSizes && product.availableSizes.values) {
+  //         // totalStock = product.availableSizes.values.reduce((sum, size) => sum + (size.quantity || 0), 0);
+  //         sizeDetails = product.availableSizes.values.map((size) => ({
+  //           sizeValue: size.sizeValue,
+  //           quantity: size.quantity,
+  //         }));
+  //       }
+
+  //       return {
+  //         _id: product._id,
+  //         product_name: product.product_name,
+  //         sku: product.sku,
+  //         category_name: product.id_category?.category_name || "N/A",
+  //         size: sizeDetails,
+  //         stock: sizeDetails,
+  //         total_stock: totalStock,
+  //       };
+  //     });
+
+  //     const totalPages = Math.ceil(totalCount / limit);
+
+  //     return {
+  //       products: formattedProducts,
+  //       currentPage: page,
+  //       totalPages,
+  //       totalCount,
+  //       hasNext: page < totalPages,
+  //       hasPrev: page > 1,
+  //     };
+  //   } catch (error) {
+  //     console.error("Error in getProductStockReport:", error);
+  //     throw error;
+  //   }
+  // }
+
   async getProductStockReport(page, limit, filter = {}) {
     try {
       const skip = (page - 1) * limit;
-
+      console.log(filter);
       const query = {
         active: true,
         is_deleted: false,
+        onlineProduct: true,
         ...filter,
       };
-      // Get total count first
-      const totalCount = await ProductModel.countDocuments(query);
 
-      // Get products with pagination and populate category
-      const products = await ProductModel.find(query)
-        .populate("id_category", "category_name")
-        .select("product_name sku code id_category quantity availableSizes")
-        .skip(skip)
-        .limit(limit)
-        .lean();
+       const totalCountAggregation = await ProductModel.aggregate([
+        { $match: query },
+        { $unwind: "$availableSizes.values" },
+        {
+          $group: {
+            _id: "$_id", // group back by productId
+          },
+        },
+        { $count: "totalCount" },
+      ]);
 
-      // Format the response
-      const formattedProducts = products.map((product) => {
-        let totalStock = product.quantity || 0;
-        let sizeDetails = [];
-
-        if (product.availableSizes && product.availableSizes.values) {
-          // totalStock = product.availableSizes.values.reduce((sum, size) => sum + (size.quantity || 0), 0);
-          sizeDetails = product.availableSizes.values.map((size) => ({
-            sizeValue: size.sizeValue,
-            quantity: size.quantity,
-          }));
-        }
-
-        return {
-          _id: product._id,
-          product_name: product.product_name,
-          sku: product.sku,
-          category_name: product.id_category?.category_name || "N/A",
-          size: sizeDetails,
-          stock: sizeDetails,
-          total_stock: totalStock,
-        };
-      });
-
+      const totalCount = totalCountAggregation[0]?.totalCount || 0;
       const totalPages = Math.ceil(totalCount / limit);
+      const hasNext = page < totalPages;
+      const hasPrev = page > 1;
+      const products = await ProductModel.aggregate([
+        { $match: query },
 
+        // ✅ Expand availableSizes.values array
+        { $unwind: "$availableSizes.values" },
+
+        // ✅ Lookup from SizeMaster to get size unit
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "availableSizes.sizeId",
+            foreignField: "_id",
+            as: "sizeInfo",
+          },
+        },
+        { $unwind: { path: "$sizeInfo", preserveNullAndEmptyArrays: true } },
+
+        // ✅ Lookup from Category to get category name
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "categoryInfo",
+          },
+        },
+        {
+          $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true },
+        },
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "subcategoriesInfo",
+          },
+        },
+        {
+          $unwind: { path: "$subcategoriesInfo", preserveNullAndEmptyArrays: true },
+        },
+
+        // ✅ Project necessary fields (including total product quantity)
+        {
+          $project: {
+            productId: "$_id",
+            product_name: 1,
+            sku: 1,
+            quantity: 1,
+            categoryName: "$categoryInfo.category_name",
+            subCategoryName: "$subcategoriesInfo.name",
+            sizeId: "$availableSizes.sizeId",
+            sizeValue: "$availableSizes.values.sizeValue",
+            sizeQuantity: "$availableSizes.values.quantity",
+            unit: "$sizeInfo.unit",
+          },
+        },
+
+        // ✅ Group all sizes per product (store formatted array first)
+        {
+          $group: {
+            _id: "$productId",
+            product_name: { $first: "$product_name" },
+            sku: { $first: "$sku" },
+            categoryName: { $first: "$categoryName" },
+            subCategoryName: { $first: "$subCategoryName" },
+            totalQuantity: { $first: "$quantity" },
+            sizesArray: {
+              $push: {
+                $concat: [
+                  { $toString: "$sizeValue" },
+                  " ",
+                  "$unit",
+                  " (",
+                  { $toString: "$sizeQuantity" },
+                  ")",
+                ],
+              },
+            },
+          },
+        },
+
+        // ✅ Convert array into a single comma-separated string
+        {
+          $addFields: {
+            sizes: {
+              $reduce: {
+                input: "$sizesArray",
+                initialValue: "",
+                in: {
+                  $concat: [
+                    {
+                      $cond: [
+                        { $eq: ["$$value", ""] },
+                        "",
+                        { $concat: ["$$value", ", "] },
+                      ],
+                    },
+                    "$$this",
+                  ],
+                },
+              },
+            },
+          },
+        },
+
+        // ✅ Final projection
+        {
+          $project: {
+            _id: 0,
+            productId: "$_id",
+            product_name: 1,
+            sku: 1,
+            categoryName: 1,
+            subCategoryName: 1,
+            totalQuantity: 1,
+            sizes: 1,
+          },
+        },
+
+        // ✅ Sort & paginate
+        { $sort: { product_name: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]);
       return {
-        products: formattedProducts,
-        currentPage: page,
-        totalPages,
+        success: true,
         totalCount,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
+        totalPages,
+        currentPage: page,
+        hasNext,
+        hasPrev,
+        count: products.length,
+        data: products,
       };
     } catch (error) {
       console.error("Error in getProductStockReport:", error);
@@ -2039,83 +2209,156 @@ class ProductRepository {
   async getProductLowStockReport(page, limit, filter = {}) {
     try {
       const skip = (page - 1) * limit;
-
-      const baseQuery = {
+      console.log(filter);
+      const query = {
         active: true,
         is_deleted: false,
+        onlineProduct: true,
+        ...filter,
       };
 
-      let totalStockFilter = null;
-      let otherFilters = {};
+      const totalCountAggregation = await ProductModel.aggregate([
+        { $match: query },
+        { $unwind: "$availableSizes.values" },
+        {
+          $group: {
+            _id: "$_id", // group back by productId
+          },
+        },
+        { $count: "totalCount" },
+      ]);
 
-      Object.keys(filter).forEach((key) => {
-        if (key === "total_stock") {
-          totalStockFilter = filter[key];
-        } else {
-          otherFilters[key] = filter[key];
-        }
-      });
-
-      const finalQuery = { ...baseQuery, ...otherFilters };
-
-      let products = await ProductModel.find(finalQuery)
-        .populate("id_category", "category_name")
-        .select("product_name sku code id_category quantity availableSizes")
-        .lean();
-
-      products = products.map((product) => {
-        let totalStock = product.quantity || 0;
-        let sizeDetails = [];
-
-        if (product.availableSizes && product.availableSizes.values) {
-          totalStock += product.availableSizes.values.reduce(
-            (sum, size) => sum + (size.quantity || 0),
-            0
-          );
-          sizeDetails = product.availableSizes.values.map((size) => ({
-            sizeValue: size.sizeValue,
-            quantity: size.quantity,
-          }));
-        }
-
-        return {
-          _id: product._id,
-          product_name: product.product_name,
-          sku: product.sku,
-          category_name: product.id_category?.category_name || "N/A",
-          size: sizeDetails,
-          stock: sizeDetails,
-          total_stock: totalStock,
-        };
-      });
-
-      if (totalStockFilter && totalStockFilter.$lte) {
-        products = products.filter(
-          (product) => product.total_stock <= totalStockFilter.$lte
-        );
-      }
-
-      products = products.sort((a, b) => b.total_stock - a.total_stock);
-
-      const totalCount = products.length;
-
-      const paginatedProducts = products.slice(skip, skip + limit);
-
+      const totalCount = totalCountAggregation[0]?.totalCount || 0;
       const totalPages = Math.ceil(totalCount / limit);
+      const hasNext = page < totalPages;
+      const hasPrev = page > 1;
+      const products = await ProductModel.aggregate([
+        { $match: query },
 
+        // ✅ Expand availableSizes.values array
+        { $unwind: "$availableSizes.values" },
+
+        // ✅ Lookup from SizeMaster to get size unit
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "availableSizes.sizeId",
+            foreignField: "_id",
+            as: "sizeInfo",
+          },
+        },
+        { $unwind: { path: "$sizeInfo", preserveNullAndEmptyArrays: true } },
+
+        // ✅ Lookup from Category to get category name
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "categoryInfo",
+          },
+        },
+        {
+          $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true },
+        },
+
+        // ✅ Project necessary fields (including total product quantity)
+        {
+          $project: {
+            productId: "$_id",
+            product_name: 1,
+            sku: 1,
+            quantity: 1,
+            categoryName: "$categoryInfo.category_name",
+            sizeId: "$availableSizes.sizeId",
+            sizeValue: "$availableSizes.values.sizeValue",
+            sizeQuantity: "$availableSizes.values.quantity",
+            unit: "$sizeInfo.unit",
+          },
+        },
+
+        // ✅ Group all sizes per product (store formatted array first)
+        {
+          $group: {
+            _id: "$productId",
+            product_name: { $first: "$product_name" },
+            sku: { $first: "$sku" },
+            categoryName: { $first: "$categoryName" },
+            totalQuantity: { $first: "$quantity" },
+            sizesArray: {
+              $push: {
+                $concat: [
+                  { $toString: "$sizeValue" },
+                  " ",
+                  "$unit",
+                  " (",
+                  { $toString: "$sizeQuantity" },
+                  ")",
+                ],
+              },
+            },
+          },
+        },
+
+        // ✅ Convert array into a single comma-separated string
+        {
+          $addFields: {
+            sizes: {
+              $reduce: {
+                input: "$sizesArray",
+                initialValue: "",
+                in: {
+                  $concat: [
+                    {
+                      $cond: [
+                        { $eq: ["$$value", ""] },
+                        "",
+                        { $concat: ["$$value", ", "] },
+                      ],
+                    },
+                    "$$this",
+                  ],
+                },
+              },
+            },
+          },
+        },
+
+        // ✅ Final projection
+        {
+          $project: {
+            _id: 0,
+            productId: "$_id",
+            product_name: 1,
+            sku: 1,
+            categoryName: 1,
+            totalQuantity: 1,
+            sizes: 1,
+          },
+        },
+
+        // ✅ Sort & paginate
+        { $sort: { totalQuantity: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]);
+      console.log(products);
       return {
-        products: paginatedProducts,
-        currentPage: page,
-        totalPages,
+        success: true,
         totalCount,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
+        totalPages,
+        currentPage: page,
+        hasNext,
+        hasPrev,
+        count: products.length,
+        data: products,
       };
     } catch (error) {
-      console.error("Error in getProductStockReport:", error);
+      console.error("Error in getProductLowStockReport:", error);
       throw error;
     }
   }
+
   async toggleBestSeller(id, currentstatus) {
     try {
       const updateStatus = await ProductModel.updateOne(
@@ -2511,7 +2754,7 @@ class ProductRepository {
             pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
-                `${config?.AWS_DISPLAY_URL}products/`,
+                `${config?.AWS_LOCAL_PATH}products/`,
               ],
             },
           },
@@ -2559,59 +2802,119 @@ class ProductRepository {
     }
   }
 
-async findProductForOrderNow(productId, userId) {
-  try {
-    const result = await OrderItem.aggregate([
-      {
-        $match: {
-          productId: new mongoose.Types.ObjectId(productId),
+  async findProductForOrderNow(productId, userId) {
+    try {
+      const result = await OrderItem.aggregate([
+        {
+          $match: {
+            productId: new mongoose.Types.ObjectId(productId),
+          },
         },
-      },
-      {
-        $lookup: {
-          from: "orders",
-          localField: "orderId",
-          foreignField: "_id",
-          as: "Order",
+        {
+          $lookup: {
+            from: "orders",
+            localField: "orderId",
+            foreignField: "_id",
+            as: "Order",
+          },
         },
-      },
-      { $unwind: "$Order" },
-      {
-        $match: {
-          "Order.userId": new mongoose.Types.ObjectId(userId),
+        { $unwind: "$Order" },
+        {
+          $match: {
+            "Order.userId": new mongoose.Types.ObjectId(userId),
+          },
         },
-      },
-      {
-        $project: {
-          _id: 0,
-          orderId: "$Order._id",
-          onlineProduct: "$Order.onlineProduct",
-          orderStatus: "$Order.orderStatus",
+        {
+          $project: {
+            _id: 0,
+            orderId: "$Order._id",
+            onlineProduct: "$Order.orderType",
+            orderStatus: "$Order.orderStatus",
+          },
         },
-      },
-    ]);
-
-    if (!result.length) {
-      // no previous order found for this product
-      return { alreadyOrdered: false, orderId: null };
+      ]);
+      if (!result.length) {
+        // no previous order found for this product
+        return { alreadyOrdered: false, orderId: null };
+      }
+      const hasActiveOrder = result.some(
+        (item) =>
+          item.onlineProduct === ORDER_TYPE.OFFLINE_ORDER &&
+          item.orderStatus === ORDER_STATUS_NO.PROCESSING
+      );
+      // If has active order → user already ordered → return true
+      return {
+        alreadyOrdered: hasActiveOrder,
+        orderId: hasActiveOrder
+          ? result.find(
+              (r) =>
+                r.onlineProduct === ORDER_TYPE.OFFLINE_ORDER &&
+                r.orderStatus === ORDER_STATUS_NO.PROCESSING
+            )?.orderId
+          : null,
+      };
+    } catch (error) {
+      throw error;
     }
-
-    const hasActiveOrder = result.some(
-      (item) => item.onlineProduct === false && item.orderStatus === 5
-    );
-
-    // If has active order → user already ordered → return true
-    return {
-      alreadyOrdered: hasActiveOrder,
-      orderId: hasActiveOrder ? result.find(
-        (r) => r.onlineProduct === false && r.orderStatus === 5
-      )?.orderId : null,
-    };
-  } catch (error) {
-    throw error;
   }
-}
 
+  async checkQuantityAvailability(productData) {
+    console.log(productData);
+    try {
+      if (!Array.isArray(productData) || productData.length === 0) {
+        throw new Error("Invalid product data");
+      }
+
+      // 1️⃣ Extract product IDs
+      const productIds = productData.map(
+        (item) => new mongoose.Types.ObjectId(item.productId)
+      );
+      console.log("1234567890-", productIds);
+
+      // 2️⃣ Fetch products (only needed fields)
+      const products = await ProductModel.find(
+        { _id: { $in: productIds } },
+        { product_name: 1, availableSizes: 1 }
+      ).lean();
+
+      // 3️⃣ Map + check stock
+      const results = productData.map(
+        ({ productId, sizeId, quantity, qty }) => {
+          const product = products.find((p) => p._id.toString() === productId);
+          if (!product) {
+            return {
+              productId: productId,
+              sizeId,
+              isStockIn: false,
+              reason: "Product not found",
+            };
+          }
+
+          // ✅ Use availableSizes directly (no `.values`)
+          const matchedSize = product.availableSizes?.values?.find(
+            (s) => s?._id?.toString() === sizeId
+          );
+          const quantityCount = Number(quantity ?? qty) || 0; // ✅ Always numeric
+          console.log("quantityCount", quantityCount);
+          return {
+            productName: product.product_name,
+            sizeId,
+            isStockIn: matchedSize
+              ? matchedSize.quantity >= quantityCount
+              : false,
+          };
+        }
+      );
+
+      // 4️⃣ Only return products where stock is false
+      const outOfStockResults = results.filter((r) => !r.isStockIn);
+
+      return outOfStockResults;
+    } catch (error) {
+      console.error("❌ Error in checkQuantityAvailability:", error);
+      throw new Error(error.message || "Error checking quantity availability");
+    }
+  }
 }
 
 export default ProductRepository;

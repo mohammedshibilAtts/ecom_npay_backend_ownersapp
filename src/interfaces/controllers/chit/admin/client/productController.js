@@ -395,9 +395,9 @@ class ProductController {
 
   async getProductStockReport(req, res) {
     try {
-      const { page, limit,search,from_date,to_date,category, } = req.query;
+      const { page, limit,search,from_date,to_date,category,subcategory } = req.query;
 
-      const response = await this.productUsecase.getProductStockReport(page, limit,search,from_date,to_date,category);
+      const response = await this.productUsecase.getProductStockReport(page, limit,search,from_date,to_date,category,subcategory);
 
       if (response.success) {
         return res.status(200).json(response);
@@ -416,8 +416,6 @@ class ProductController {
    async getProductLowStockReport(req, res) {
     try {
       const { page, limit,lowstock} = req.query;
-
-      console.log()
 
       const response = await this.productUsecase.getProductLowStockReport(page, limit,lowstock);
 

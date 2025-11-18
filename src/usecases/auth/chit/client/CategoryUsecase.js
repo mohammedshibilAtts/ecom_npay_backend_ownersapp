@@ -200,11 +200,25 @@ class CategoryUseCase {
       );
 
       try {
-        updateFields.image = await this.s3Service.uploadToS3(
-          files.image[0],
-          "category",            
-          s3Configs            
-        );
+
+         // Handle main image upload
+      let imageUrlFinal = null;
+      if (files && files.image) {
+        imageUrlFinal = await this.handleImageUpload(files.image, null);
+        if (imageUrlFinal) {
+          updateFields.image = imageUrlFinal;
+        }
+      }
+
+      // Handle category banner upload
+      let categoryBannerUrlFinal = null;
+      if (files && files.categoryBanner) {
+        categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null);
+        console.log("....................................",categoryBannerUrlFinal)
+        if (categoryBannerUrlFinal) {
+          updateFields.categoryBanner = categoryBannerUrlFinal;
+        }
+      }
       } catch (error) {
         console.error("Error uploading category image:", error);
         return {
