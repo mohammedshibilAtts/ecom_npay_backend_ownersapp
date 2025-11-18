@@ -21,9 +21,6 @@ const OrderSchema = new Schema(
     // grandTotal: { type: Number, required: true },
 
     couponCode: { type: String, index: true },
-
-    payment: { type: Types.ObjectId, ref: "Payment" },
-
     status: {
       type: String,
       enum: [
@@ -72,7 +69,7 @@ const OrderSchema = new Schema(
     trackerId: { type: String},
     parcelService: { type: String},
     cancelReason: { type: String},
-
+    paymentId: { type: Types.ObjectId, ref: "OrderPaymen" },
   },
   { timestamps: true }
 );
