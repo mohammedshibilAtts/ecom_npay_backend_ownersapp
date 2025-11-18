@@ -23,12 +23,10 @@ const PaymentOrderSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  product_payment_ids: [
-    {
+  product_payment_ids:{
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Payment',
-    }
-  ],
+      ref: 'OrderPaymen',
+    },
   payment_amount: {
     type: Number,
     required: true,
