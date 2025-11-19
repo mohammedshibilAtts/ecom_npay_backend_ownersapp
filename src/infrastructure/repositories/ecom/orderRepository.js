@@ -344,7 +344,7 @@ class OrderRepository {
             { path: "id_state" },
             { path: "id_country" },
           ],
-        })
+        }).populate('paymentId')
         .lean();
       let address = "";
       if (findOrder.deliveryAddress) {
@@ -447,6 +447,7 @@ class OrderRepository {
           parcelService: findOrder?.parcelService,
           orderTypeNo: findOrder?.orderType,
           totalGstAmount: findOrder?.totalGstAmount,
+          paymentMode: findOrder?.paymentId?.paymentModeName,
         },
         pathUrl: `${config.DISPLAY_IMG_URL}products/`,
       };
