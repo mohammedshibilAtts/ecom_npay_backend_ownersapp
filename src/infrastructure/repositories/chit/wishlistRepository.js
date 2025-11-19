@@ -79,14 +79,15 @@ class WishlistRepository{
         {
           $lookup: {
             from: "metalrates",
-            let: { metalId: "$product.id_metal", purityId: "$product.id_purity" },
+            let: { metalId: "$product.id_metal", purityId: "$product.id_purity", id_branch: "$Product.id_branch", },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
                       { $eq: ["$material_type_id", "$$metalId"] },
-                      { $eq: ["$purity_id", "$$purityId"] },
+                      { $eq: ["$purity_id", "$$purityId"] },  
+                      // { $eq: ["$id_branch", "$$id_branch"] },  
                     ],
                   },
                 },

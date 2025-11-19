@@ -367,7 +367,7 @@ class OrderPaymentUsecase {
         return { success: false, message: "Failed to save payment" };
       }
 
-      await this.orderRepo.updatePaymentId(savedPayment?._id)
+      // await this.orderRepo.updatePaymentId(savedPayment?._id)
 
       for (const item of items) {
         const amount = item.price * item.quantity - (item.discountAmount || 0);
@@ -506,7 +506,6 @@ class OrderPaymentUsecase {
       if (!updatedPaymentOrder) {
         return;
       }
-
       const paymentMode = this.formatPaymentGroup(data?.data?.payment?.payment_group);
 
       const paymentBulk = [];
@@ -536,10 +535,10 @@ class OrderPaymentUsecase {
       //   { paymentStatus: 1 }
       // );
 
-      await this.transactionRepository.updateTransactions(
-        { transactionid: orderId },
-        { payment_status: 1 }
-      );
+      // await this.transactionRepository.updateTransactions(
+      //   { transactionid: orderId },
+      //   { payment_status: 1 }
+      // );
 
       const orderObjId = updatedPaymentOrder?.orderObjId;
       if (orderObjId) {

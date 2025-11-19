@@ -152,7 +152,7 @@ class ProductRepository {
         {
           $lookup: {
             from: "metalrates",
-            let: { metalId: "$id_metal", purityId: "$id_purity" },
+            let: { metalId: "$id_metal", purityId: "$id_purity",id_branch: "$id_branch" },
             pipeline: [
               {
                 $match: {
@@ -160,6 +160,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$material_type_id", "$$metalId"] },
                       { $eq: ["$purity_id", "$$purityId"] },
+                      { $eq: ["$id_branch", "$$id_branch"] },
                     ],
                   },
                 },
@@ -631,14 +632,13 @@ class ProductRepository {
       ]);
 
       const productData = userData[0];
-      if (productData.onlineProduct == false) {
+      if (productData?.onlineProduct == false) {
         productData.orderStatus = await this.findProductForOrderNow(
           id,
           customerId
         );
       }
 
-      console.log(productData);
       return productData ? productData : null;
     } catch (err) {
       console.error(err);
@@ -2044,171 +2044,328 @@ class ProductRepository {
   //   }
   // }
 
+  // async getProductStockReport(page, limit, filter = {}) {
+  //   try {
+  //     const skip = (page - 1) * limit;
+  //     console.log(filter);
+  //     const query = {
+  //       active: true,
+  //       is_deleted: false,
+  //       onlineProduct: true,
+  //       ...filter,
+  //     };
+
+  //      const totalCountAggregation = await ProductModel.aggregate([
+  //       { $match: query },
+  //       { $unwind: "$availableSizes.values" },
+  //       {
+  //         $group: {
+  //           _id: "$_id", // group back by productId
+  //         },
+  //       },
+  //       { $count: "totalCount" },
+  //     ]);
+
+  //     const totalCount = totalCountAggregation[0]?.totalCount || 0;
+  //     const totalPages = Math.ceil(totalCount / limit);
+  //     const hasNext = page < totalPages;
+  //     const hasPrev = page > 1;
+  //     const products = await ProductModel.aggregate([
+  //       { $match: query },
+
+  //       // ✅ Expand availableSizes.values array
+  //       { $unwind: "$availableSizes.values" },
+
+  //       // ✅ Lookup from SizeMaster to get size unit
+  //       {
+  //         $lookup: {
+  //           from: "sizemasters",
+  //           localField: "availableSizes.sizeId",
+  //           foreignField: "_id",
+  //           as: "sizeInfo",
+  //         },
+  //       },
+  //       { $unwind: { path: "$sizeInfo", preserveNullAndEmptyArrays: true } },
+
+  //       // ✅ Lookup from Category to get category name
+  //       {
+  //         $lookup: {
+  //           from: "categories",
+  //           localField: "id_category",
+  //           foreignField: "_id",
+  //           as: "categoryInfo",
+  //         },
+  //       },
+  //       {
+  //         $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "subcategories",
+  //           localField: "subcategoryId",
+  //           foreignField: "_id",
+  //           as: "subcategoriesInfo",
+  //         },
+  //       },
+  //       {
+  //         $unwind: { path: "$subcategoriesInfo", preserveNullAndEmptyArrays: true },
+  //       },
+
+  //       // ✅ Project necessary fields (including total product quantity)
+  //       {
+  //         $project: {
+  //           productId: "$_id",
+  //           product_name: 1,
+  //           sku: 1,
+  //           quantity: 1,
+  //           createdAt: 1,  
+  //           categoryName: "$categoryInfo.category_name",
+  //           subCategoryName: "$subcategoriesInfo.name",
+  //           sizeId: "$availableSizes.sizeId",
+  //           sizeValue: "$availableSizes.values.sizeValue",
+  //           sizeQuantity: "$availableSizes.values.quantity",
+  //           unit: "$sizeInfo.unit",
+  //         },
+  //       },
+
+  //       // ✅ Group all sizes per product (store formatted array first)
+  //       {
+  //         $group: {
+  //           _id: "$productId",
+  //           product_name: { $first: "$product_name" },
+  //           sku: { $first: "$sku" },
+  //           createdAt: { $first: "$createdAt" },
+  //           categoryName: { $first: "$categoryName" },
+  //           subCategoryName: { $first: "$subCategoryName" },
+  //           totalQuantity: { $first: "$quantity" },
+  //           sizesArray: {
+  //             $push: {
+  //               $concat: [
+  //                 { $toString: "$sizeValue" },
+  //                 " ",
+  //                 "$unit",
+  //                 " (",
+  //                 { $toString: "$sizeQuantity" },
+  //                 ")",
+  //               ],
+  //             },
+  //           },
+  //         },
+  //       },
+
+  //       // ✅ Convert array into a single comma-separated string
+  //       {
+  //         $addFields: {
+  //           sizes: {
+  //             $reduce: {
+  //               input: "$sizesArray",
+  //               initialValue: "",
+  //               in: {
+  //                 $concat: [
+  //                   {
+  //                     $cond: [
+  //                       { $eq: ["$$value", ""] },
+  //                       "",
+  //                       { $concat: ["$$value", ", "] },
+  //                     ],
+  //                   },
+  //                   "$$this",
+  //                 ],
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+
+  //       // ✅ Final projection
+  //       {
+  //         $project: {
+  //           _id: 0,
+  //           productId: "$_id",
+  //           product_name: 1,
+  //           sku: 1,
+  //           categoryName: 1,
+  //           subCategoryName: 1,
+  //           totalQuantity: 1,
+  //           sizes: 1,
+  //         },
+  //       },
+
+  //       // ✅ Sort & paginate
+  //       { $sort: { createdAt: -1 } },
+  //       { $skip: skip },
+  //       { $limit: limit },
+  //     ]);
+  //     return {
+  //       success: true,
+  //       totalCount,
+  //       totalPages,
+  //       currentPage: page,
+  //       hasNext,
+  //       hasPrev,
+  //       count: products.length,
+  //       data: products,
+  //     };
+  //   } catch (error) {
+  //     console.error("Error in getProductStockReport:", error);
+  //     throw error;
+  //   }
+  // }
   async getProductStockReport(page, limit, filter = {}) {
-    try {
-      const skip = (page - 1) * limit;
-      console.log(filter);
-      const query = {
-        active: true,
-        is_deleted: false,
-        onlineProduct: true,
-        ...filter,
-      };
+  try {
+    const skip = (page - 1) * limit;
 
-       const totalCountAggregation = await ProductModel.aggregate([
-        { $match: query },
-        { $unwind: "$availableSizes.values" },
-        {
-          $group: {
-            _id: "$_id", // group back by productId
-          },
-        },
-        { $count: "totalCount" },
-      ]);
+    const query = {
+      active: true,
+      is_deleted: false,
+      onlineProduct: true,
+      ...filter,
+    };
 
-      const totalCount = totalCountAggregation[0]?.totalCount || 0;
-      const totalPages = Math.ceil(totalCount / limit);
-      const hasNext = page < totalPages;
-      const hasPrev = page > 1;
-      const products = await ProductModel.aggregate([
-        { $match: query },
+    // ---------------- COUNT ----------------
+    const totalCountAgg = await ProductModel.aggregate([
+      { $match: query },
+      { $unwind: "$availableSizes.values" },
+      {
+        $group: { _id: "$_id" }
+      },
+      { $count: "totalCount" }
+    ]);
 
-        // ✅ Expand availableSizes.values array
-        { $unwind: "$availableSizes.values" },
+    const totalCount = totalCountAgg[0]?.totalCount || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
 
-        // ✅ Lookup from SizeMaster to get size unit
-        {
-          $lookup: {
-            from: "sizemasters",
-            localField: "availableSizes.sizeId",
-            foreignField: "_id",
-            as: "sizeInfo",
-          },
-        },
-        { $unwind: { path: "$sizeInfo", preserveNullAndEmptyArrays: true } },
+    // ---------------- DATA PIPELINE ----------------
+    const products = await ProductModel.aggregate([
+      { $match: query },
 
-        // ✅ Lookup from Category to get category name
-        {
-          $lookup: {
-            from: "categories",
-            localField: "id_category",
-            foreignField: "_id",
-            as: "categoryInfo",
-          },
-        },
-        {
-          $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true },
-        },
-        {
-          $lookup: {
-            from: "subcategories",
-            localField: "subcategoryId",
-            foreignField: "_id",
-            as: "subcategoriesInfo",
-          },
-        },
-        {
-          $unwind: { path: "$subcategoriesInfo", preserveNullAndEmptyArrays: true },
-        },
+      { $unwind: "$availableSizes.values" },
 
-        // ✅ Project necessary fields (including total product quantity)
-        {
-          $project: {
-            productId: "$_id",
-            product_name: 1,
-            sku: 1,
-            quantity: 1,
-            categoryName: "$categoryInfo.category_name",
-            subCategoryName: "$subcategoriesInfo.name",
-            sizeId: "$availableSizes.sizeId",
-            sizeValue: "$availableSizes.values.sizeValue",
-            sizeQuantity: "$availableSizes.values.quantity",
-            unit: "$sizeInfo.unit",
-          },
-        },
+      {
+        $lookup: {
+          from: "sizemasters",
+          localField: "availableSizes.sizeId",
+          foreignField: "_id",
+          as: "sizeInfo"
+        }
+      },
+      { $unwind: { path: "$sizeInfo", preserveNullAndEmptyArrays: true } },
 
-        // ✅ Group all sizes per product (store formatted array first)
-        {
-          $group: {
-            _id: "$productId",
-            product_name: { $first: "$product_name" },
-            sku: { $first: "$sku" },
-            categoryName: { $first: "$categoryName" },
-            subCategoryName: { $first: "$subCategoryName" },
-            totalQuantity: { $first: "$quantity" },
-            sizesArray: {
-              $push: {
+      {
+        $lookup: {
+          from: "categories",
+          localField: "id_category",
+          foreignField: "_id",
+          as: "categoryInfo"
+        }
+      },
+      { $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true } },
+
+      {
+        $lookup: {
+          from: "subcategories",
+          localField: "subcategoryId",
+          foreignField: "_id",
+          as: "subcategoriesInfo"
+        }
+      },
+      { $unwind: { path: "$subcategoriesInfo", preserveNullAndEmptyArrays: true } },
+
+      // IMPORTANT: include createdAt BEFORE grouping
+      {
+        $project: {
+          productId: "$_id",
+          product_name: 1,
+          sku: 1,
+          quantity: 1,
+          createdAt: 1,
+          categoryName: "$categoryInfo.category_name",
+          subCategoryName: "$subcategoriesInfo.name",
+          sizeValue: "$availableSizes.values.sizeValue",
+          sizeQuantity: "$availableSizes.values.quantity",
+          unit: "$sizeInfo.unit"
+        }
+      },
+
+      {
+        $group: {
+          _id: "$productId",
+          product_name: { $first: "$product_name" },
+          sku: { $first: "$sku" },
+          createdAt: { $first: "$createdAt" }, // preserve createdAt
+          categoryName: { $first: "$categoryName" },
+          subCategoryName: { $first: "$subCategoryName" },
+          totalQuantity: { $first: "$quantity" },
+          sizesArray: {
+            $push: {
+              $concat: [
+                { $toString: "$sizeValue" },
+                " ",
+                "$unit",
+                " (",
+                { $toString: "$sizeQuantity" },
+                ")"
+              ]
+            }
+          }
+        }
+      },
+
+      {
+        $addFields: {
+          sizes: {
+            $reduce: {
+              input: "$sizesArray",
+              initialValue: "",
+              in: {
                 $concat: [
-                  { $toString: "$sizeValue" },
-                  " ",
-                  "$unit",
-                  " (",
-                  { $toString: "$sizeQuantity" },
-                  ")",
-                ],
-              },
-            },
-          },
-        },
+                  { $cond: [{ $eq: ["$$value", ""] }, "", { $concat: ["$$value", ", "] }] },
+                  "$$this"
+                ]
+              }
+            }
+          }
+        }
+      },
 
-        // ✅ Convert array into a single comma-separated string
-        {
-          $addFields: {
-            sizes: {
-              $reduce: {
-                input: "$sizesArray",
-                initialValue: "",
-                in: {
-                  $concat: [
-                    {
-                      $cond: [
-                        { $eq: ["$$value", ""] },
-                        "",
-                        { $concat: ["$$value", ", "] },
-                      ],
-                    },
-                    "$$this",
-                  ],
-                },
-              },
-            },
-          },
-        },
+      {
+        $project: {
+          _id: 0,
+          productId: "$_id",
+          product_name: 1,
+          sku: 1,
+          categoryName: 1,
+          subCategoryName: 1,
+          totalQuantity: 1,
+          sizes: 1,
+          createdAt: 1    // MUST be kept here!
+        }
+      },
 
-        // ✅ Final projection
-        {
-          $project: {
-            _id: 0,
-            productId: "$_id",
-            product_name: 1,
-            sku: 1,
-            categoryName: 1,
-            subCategoryName: 1,
-            totalQuantity: 1,
-            sizes: 1,
-          },
-        },
+      // Final stable sorting
+      { $sort: { createdAt: -1, product_name: 1 } },
 
-        // ✅ Sort & paginate
-        { $sort: { product_name: 1 } },
-        { $skip: skip },
-        { $limit: limit },
-      ]);
-      return {
-        success: true,
-        totalCount,
-        totalPages,
-        currentPage: page,
-        hasNext,
-        hasPrev,
-        count: products.length,
-        data: products,
-      };
-    } catch (error) {
-      console.error("Error in getProductStockReport:", error);
-      throw error;
-    }
+      { $skip: skip },
+      { $limit: limit }
+    ]);
+
+    return {
+      success: true,
+      totalCount,
+      totalPages,
+      currentPage: page,
+      hasNext,
+      hasPrev,
+      count: products.length,
+      data: products
+    };
+  } catch (error) {
+    console.error("Error in getProductStockReport:", error);
+    throw error;
   }
+}
 
   async getProductLowStockReport(page, limit, filter = {}) {
     try {

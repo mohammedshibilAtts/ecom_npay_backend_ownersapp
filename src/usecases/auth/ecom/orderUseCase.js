@@ -191,7 +191,6 @@ class OrderUseCase {
           productId,
           userData._id
         );
-        console.log(findProductForOrderNow)
       if (findProductForOrderNow.alreadyOrdered) {
         return {
           success: false,
@@ -315,7 +314,6 @@ class OrderUseCase {
       }
             
       const checkQuantityAvailability = await this.productRepository.checkQuantityAvailability(cartItems.items)
-        console.log(checkQuantityAvailability)
       if(checkQuantityAvailability&&checkQuantityAvailability.length>=1){
         // return{
         //   success:false,
@@ -569,6 +567,7 @@ class OrderUseCase {
         console.error("SECRET_KEY is missing in environment variables.");
         return { status: false, message: "Secret key is not configured" };
       }
+
 
       const signature = data.headers["x-webhook-signature"];
       const payload = data.rawBody;

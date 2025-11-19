@@ -428,6 +428,7 @@ class CartRepository {
             let: {
               metalId: "$Product.id_metal",
               purityId: "$Product.id_purity",
+              id_branch: "$Product.id_branch",
             },
             pipeline: [
               {
@@ -436,6 +437,7 @@ class CartRepository {
                     $and: [
                       { $eq: ["$material_type_id", "$$metalId"] },
                       { $eq: ["$purity_id", "$$purityId"] },
+                      { $eq: ["$id_branch", "$$id_branch"] },
                     ],
                   },
                 },
