@@ -18,7 +18,6 @@ import {
 class OrderRepository {
   async createOrder(orderData, orderItems) {
     try {
-      console.log(orderData);
       const createdOrder = await Order.create(orderData);
       if (!createdOrder) {
         return null;
@@ -636,7 +635,6 @@ class OrderRepository {
           },
         },
       ]);
-      console.log("34567890-", findOrder);
       return {
         item: findOrderItem,
         overAll: {
@@ -953,7 +951,6 @@ class OrderRepository {
         },
       ]);
 
-      console.log(result);
 
       return result;
     } catch (err) {
@@ -1062,13 +1059,13 @@ class OrderRepository {
   // }
 
   async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
-    try {
+    try{ 
       page = Number(page);
       limit = Number(limit);
       const skip = (page - 1) * limit;
 
       const pipeline = [
-        { $match: filter },
+        { $match: {...filter,status:1,payment_amount: { $gt: 0 }} },
         {
           $lookup: {
             from: "customers",
@@ -1249,7 +1246,6 @@ async getTopSellingProducttable(
 ) {
   try {
     const skip = (page - 1) * limit;
-    console.log(filter)
     let basePipeline = [
       { $match:{ createdAt: filter.createdAt } },
 
@@ -1282,7 +1278,7 @@ async getTopSellingProducttable(
       { $unwind: "$product" }
     ];
 
-    // 🔥 CATEGORY FILTER
+    //  CATEGORY FILTER
     if (filter.id_category) {
       basePipeline.push({
         $match: {

@@ -1,3 +1,4 @@
+import stoneDetialsModel from "../../models/ecom/stoneDetialsModel.js";
 import StonemasterModel from "../../models/ecom/StonemasterModel.js";
 
 export default class StonemasterRepositary {
@@ -29,7 +30,7 @@ export default class StonemasterRepositary {
       if (updatedData.matchedCount === 0) {
         return null;
       }
-
+      await this.changeProductStoneRate(id,Number(data?.percraterate))
       return updatedData;
     } catch (error) {
       console.error(error);
@@ -115,4 +116,26 @@ export default class StonemasterRepositary {
     );
     return result.modifiedCount === 1 ? result : null;
   }
+
+  async changeProductStoneRate(stoneId, caratRate) {
+  try {
+    const updated = await stoneDetialsModel.updateMany(
+      { itemId: stoneId },                
+      [
+        {
+          $set: {
+            cost: caratRate,
+            price: { $multiply: ["$weight", caratRate] }
+          }
+        }
+      ]
+    );
+    
+    return updated;
+  } catch (error) {
+    console.error("Error updating stone rates:", error);
+    return null;
+  }
+}
+
 }
