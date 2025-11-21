@@ -520,7 +520,7 @@ class OrderPaymentUsecase {
               payment_status: 1, 
               updatedAt: new Date(),
               payment_mode: "67682cf7666e32053d05e051",
-              paymentModeName: paymentMode 
+              paymentModeName: paymentMode.toUpperCase()??paymentMode
             },
           },
         },
