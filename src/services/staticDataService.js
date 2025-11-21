@@ -138,11 +138,11 @@ export const giftIssueTypeData = () => {
 };
 export const offersTypeData = () => {
   return [
-    { id: "0", name: "Offers" },
+    // { id: "0", name: "Offers" },
     { id: "1", name: "Banner" },
     { id: "2", name: "Popup" },
-    { id: "3", name: "Marqueee" },
-    { id: "4", name: "Video" },
+    // { id: "3", name: "Marqueee" },
+    // { id: "4", name: "Video" },
   ];
 };
 export const displaySellTypeData = () => {

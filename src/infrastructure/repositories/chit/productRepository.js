@@ -5,6 +5,7 @@ import moment from "moment";
 import { OrderItem } from "../../models/ecom/orderItemModel.js";
 import { ORDER_STATUS_NO, ORDER_TYPE } from "../../../config/chit/const.js";
 import config from "../../../config/chit/env.js";
+import productModel from "../../models/chit/productModel.js";
 
 class ProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -91,6 +92,14 @@ class ProductRepository {
             localField: "id_purity",
             foreignField: "_id",
             as: "purityDetails",
+          },
+        },
+        {
+          $lookup: {
+            from: "metals",
+            localField: "id_metal",
+            foreignField: "_id",
+            as: "metalsDetails",
           },
         },
         {
@@ -288,8 +297,7 @@ class ProductRepository {
         {
           $addFields: {
             finalMakingCharge: {
-              $round: [
-                {
+             
                   $switch: {
                     branches: [
                       {
@@ -310,13 +318,10 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+               
             },
             finalWastageCharge: {
-              $round: [
-                {
+             
                   $switch: {
                     branches: [
                       {
@@ -337,9 +342,7 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+               
             },
           },
         },
@@ -553,26 +556,20 @@ class ProductRepository {
         {
           $addFields: {
             discountedAmount: {
-              $round: [
-                {
+              
                   $add: [
                     { $ifNull: ["$discountedSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
-                },
-                2,
-              ],
+               
             },
             totalAmount: {
-              $round: [
-                {
+              
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
-                },
-                2,
-              ],
+                
             },
           },
         },
@@ -596,6 +593,7 @@ class ProductRepository {
             totalAmount: 1,
             discountedAmount: 1,
             purityName: { $arrayElemAt: ["$purityDetails.purity_name", 0] },
+            metalName: { $arrayElemAt: ["$metalsDetails.metal_name", 0] },
             netWeight: "$netWeight",
             grossWeight: "$grossWt",
             sku: 1,
@@ -645,6 +643,452 @@ class ProductRepository {
       throw new Error("Database error occurred while finding Product by id");
     }
   }
+
+//   async findById(id, customerId) {
+//   try {
+//     const isValidCustomerId =
+//       customerId && mongoose.Types.ObjectId.isValid(customerId);
+
+//     const userData = await ProductModel.aggregate([
+//       {
+//         $match: {
+//           _id: new mongoose.Types.ObjectId(id),
+//           is_deleted: false,
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "s3bucketsettings",
+//           localField: "id_branch",
+//           foreignField: "id_branch",
+//           as: "s3Details",
+//         },
+//       },
+//       { $unwind: "$s3Details" },
+//       {
+//         $lookup: {
+//           from: "categories",
+//           localField: "id_category",
+//           foreignField: "_id",
+//           as: "category",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "purities",
+//           localField: "id_purity",
+//           foreignField: "_id",
+//           as: "purityDetails",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "branches",
+//           localField: "id_branch",
+//           foreignField: "_id",
+//           as: "branches",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "sizemasters",
+//           localField: "availableSizes.sizeId",
+//           foreignField: "_id",
+//           as: "Size",
+//         },
+//       },
+//       { $unwind: { path: "$Size", preserveNullAndEmptyArrays: true } },
+//       { $unwind: "$branches" },
+
+//       ...(isValidCustomerId
+//         ? [
+//             {
+//               $lookup: {
+//                 from: "wishlists",
+//                 let: { productId: "$_id" },
+//                 pipeline: [
+//                   {
+//                     $match: {
+//                       $expr: {
+//                         $and: [
+//                           { $eq: ["$itemId", "$$productId"] },
+//                           {
+//                             $eq: [
+//                               "$id_customer",
+//                               new mongoose.Types.ObjectId(customerId),
+//                             ],
+//                           },
+//                         ],
+//                       },
+//                     },
+//                   },
+//                 ],
+//                 as: "wishlistMatch",
+//               },
+//             },
+//             {
+//               $addFields: {
+//                 isWishlisted: { $gt: [{ $size: "$wishlistMatch" }, 0] },
+//               },
+//             },
+//           ]
+//         : [
+//             {
+//               $addFields: { isWishlisted: false },
+//             },
+//           ]),
+
+//       {
+//         $lookup: {
+//           from: "metalrates",
+//           let: { metalId: "$id_metal", purityId: "$id_purity", id_branch: "$id_branch" },
+//           pipeline: [
+//             {
+//               $match: {
+//                 $expr: {
+//                   $and: [
+//                     { $eq: ["$material_type_id", "$$metalId"] },
+//                     { $eq: ["$purity_id", "$$purityId"] },
+//                     { $eq: ["$id_branch", "$$id_branch"] },
+//                   ],
+//                 },
+//               },
+//             },
+//             { $sort: { createdAt: -1 } },
+//             { $limit: 1 },
+//           ],
+//           as: "metalPriceInfo",
+//         },
+//       },
+
+//       {
+//         $lookup: {
+//           from: "stonedetails",
+//           localField: "stoneDetails",
+//           foreignField: "_id",
+//           as: "stoneDiamondDetails",
+//         },
+//       },
+//       {
+//         $unwind: {
+//           path: "$stoneDiamondDetails",
+//           preserveNullAndEmptyArrays: true,
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "stone_masters",
+//           localField: "stoneDiamondDetails.itemId",
+//           foreignField: "_id",
+//           as: "stoneDiamondDetails.stoneInfo",
+//         },
+//       },
+//       {
+//         $unwind: {
+//           path: "$stoneDiamondDetails.stoneInfo",
+//           preserveNullAndEmptyArrays: true,
+//         },
+//       },
+
+//       {
+//         $group: {
+//           _id: "$_id",
+//           root: { $first: "$$ROOT" },
+//           stoneDiamondDetails: { $push: "$stoneDiamondDetails" },
+//         },
+//       },
+//       {
+//         $replaceRoot: {
+//           newRoot: {
+//             $mergeObjects: ["$root", { stoneDiamondDetails: "$stoneDiamondDetails" }],
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           latestMetalPrice: {
+//             $ifNull: [{ $arrayElemAt: ["$metalPriceInfo.rate", 0] }, 0],
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           baseMetalValue: {
+//             $multiply: [
+//               { $ifNull: ["$netWeight", 0] },
+//               { $ifNull: ["$latestMetalPrice", 0] },
+//             ],
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           rawMakingCharge: {
+//             $switch: {
+//               branches: [
+//                 {
+//                   case: { $eq: ["$makingCharges.mode", 1] },
+//                   then: { $ifNull: ["$makingCharges.actualValue", 0] },
+//                 },
+//                 {
+//                   case: { $eq: ["$makingCharges.mode", 2] },
+//                   then: {
+//                     $multiply: [
+//                       { $ifNull: ["$grossWt", 0] },
+//                       { $ifNull: ["$makingCharges.actualValue", 0] },
+//                     ],
+//                   },
+//                 },
+//               ],
+//               default: 0,
+//             },
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           rawWastageCharge: {
+//             $switch: {
+//               branches: [
+//                 {
+//                   case: { $eq: ["$wastageCharges.mode", 1] },
+//                   then: { $ifNull: ["$wastageCharges.actualValue", 0] },
+//                 },
+//                 {
+//                   case: { $eq: ["$wastageCharges.mode", 2] },
+//                   then: {
+//                     $multiply: [
+//                       { $ifNull: ["$grossWt", 0] },
+//                       { $ifNull: ["$wastageCharges.actualValue", 0] },
+//                     ],
+//                   },
+//                 },
+//               ],
+//               default: 0,
+//             },
+//           },
+//         },
+//       },
+
+//       // ❌ REMOVED $round FROM FINAL MAKING & WASTAGE CHARGE
+//       {
+//         $addFields: {
+//           finalMakingCharge: {
+//             $switch: {
+//               branches: [
+//                 {
+//                   case: { $eq: ["$makingCharges.mode", 1] },
+//                   then: { $ifNull: ["$makingCharges.discountedValue", 0] },
+//                 },
+//                 {
+//                   case: { $eq: ["$makingCharges.mode", 2] },
+//                   then: {
+//                     $multiply: [
+//                       { $ifNull: ["$grossWt", 0] },
+//                       { $ifNull: ["$makingCharges.discountedValue", 0] },
+//                     ],
+//                   },
+//                 },
+//               ],
+//               default: 0,
+//             },
+//           },
+
+//           finalWastageCharge: {
+//             $switch: {
+//               branches: [
+//                 {
+//                   case: { $eq: ["$wastageCharges.mode", 1] },
+//                   then: { $ifNull: ["$wastageCharges.discountedValue", 0] },
+//                 },
+//                 {
+//                   case: { $eq: ["$wastageCharges.mode", 2] },
+//                   then: {
+//                     $multiply: [
+//                       { $ifNull: ["$grossWt", 0] },
+//                       { $ifNull: ["$wastageCharges.discountedValue", 0] },
+//                     ],
+//                   },
+//                 },
+//               ],
+//               default: 0,
+//             },
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           diamondValue: {
+//             $sum: {
+//               $map: {
+//                 input: {
+//                   $filter: {
+//                     input: "$stoneDiamondDetails",
+//                     as: "sd",
+//                     cond: { $eq: ["$$sd.type", "diamond"] },
+//                   },
+//                 },
+//                 as: "diamond",
+//                 in: { $ifNull: ["$$diamond.price", 0] },
+//               },
+//             },
+//           },
+//           stoneValue: {
+//             $sum: {
+//               $map: {
+//                 input: {
+//                   $filter: {
+//                     input: "$stoneDiamondDetails",
+//                     as: "sd",
+//                     cond: { $eq: ["$$sd.type", "stone"] },
+//                   },
+//                 },
+//                 as: "stone",
+//                 in: { $ifNull: ["$$stone.price", 0] },
+//               },
+//             },
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           // diamond totals
+//           totalDiamondWeight: {
+//             $sum: "$stoneDiamondDetails.weight",
+//           },
+//           totalDiamondCost: {
+//             $sum: "$stoneDiamondDetails.cost",
+//           },
+//           totalDiamondPrice: {
+//             $sum: "$stoneDiamondDetails.price",
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           discountedSubtotal: {
+//             $add: [
+//               { $ifNull: ["$baseMetalValue", 0] },
+//               { $ifNull: ["$finalWastageCharge", 0] },
+//               { $ifNull: ["$finalMakingCharge", 0] },
+//               { $ifNull: ["$diamondValue", 0] },
+//               { $ifNull: ["$stoneValue", 0] },
+//             ],
+//           },
+//           actualSubtotal: {
+//             $add: [
+//               { $ifNull: ["$baseMetalValue", 0] },
+//               { $ifNull: ["$rawWastageCharge", 0] },
+//               { $ifNull: ["$rawMakingCharge", 0] },
+//               { $ifNull: ["$diamondValue", 0] },
+//               { $ifNull: ["$stoneValue", 0] },
+//             ],
+//           },
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           gstRate: {
+//             $cond: {
+//               if: {
+//                 $and: [
+//                   { $gt: ["$gst", 0] },
+//                   { $gt: ["$discountedSubtotal", 0] },
+//                 ],
+//               },
+//               then: {
+//                 $divide: [
+//                   { $multiply: ["$discountedSubtotal", "$gst"] },
+//                   100,
+//                 ],
+//               },
+//               else: 0,
+//             },
+//           },
+//         },
+//       },
+
+//       // ❌ REMOVED $round FROM TOTALS
+//       {
+//         $addFields: {
+//           discountedAmount: {
+//             $add: [
+//               { $ifNull: ["$discountedSubtotal", 0] },
+//               { $ifNull: ["$gstRate", 0] },
+//             ],
+//           },
+//           totalAmount: {
+//             $add: [
+//               { $ifNull: ["$actualSubtotal", 0] },
+//               { $ifNull: ["$gstRate", 0] },
+//             ],
+//           },
+//         },
+//       },
+
+//       {
+//         $project: {
+//           product_name: 1,
+//           description: 1,
+//           product_image: 1,
+//           id_category: 1,
+//           showprice: 1,
+//           id_branch: 1,
+//           subcategoryId: 1,
+//           categoryName: "$category.category_name",
+//           pathurl: {
+//             $concat: [
+//               "$s3Details.s3display_url",
+//               `${config?.AWS_LOCAL_PATH}products/`,
+//             ],
+//           },
+//           isWishlisted: 1,
+//           totalAmount: 1,
+//           discountedAmount: 1,
+//           purityName: { $arrayElemAt: ["$purityDetails.purity_name", 0] },
+//           netWeight: "$netWeight",
+//           grossWeight: "$grossWt",
+//           sku: 1,
+//           availableSizes: 1,
+//           makingCharges: 1,
+//           wastageCharges: 1,
+//           latestMetalPrice: "$latestMetalPrice",
+//           stoneDiamondDetails: 1,
+//           baseMetalValue: 1,
+//           finalWastageCharge: 1,
+//           finalMakingCharge: 1,
+//           active: 1,
+//         },
+//       },
+
+//       { $limit: 1 },
+//     ]);
+
+//     const productData = userData[0];
+
+//     if (productData?.onlineProduct == false) {
+//       productData.orderStatus = await this.findProductForOrderNow(
+//         id,
+//         customerId
+//       );
+//     }
+
+//     return productData || null;
+
+//   } catch (err) {
+//     console.error(err);
+//     throw new Error("Database error occurred while finding Product by id");
+//   }
+// }
+
 
   async editProduct(productData, id) {
     try {
@@ -865,8 +1309,7 @@ class ProductRepository {
         {
           $addFields: {
             finalMakingCharge: {
-              $round: [
-                {
+              
                   $switch: {
                     branches: [
                       {
@@ -887,13 +1330,10 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+               
             },
             finalWastageCharge: {
-              $round: [
-                {
+            
                   $switch: {
                     branches: [
                       {
@@ -914,9 +1354,7 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+               
             },
           },
         },
@@ -1000,45 +1438,35 @@ class ProductRepository {
         {
           $addFields: {
             discountedAmount: {
-              $round: [
-                {
+             
                   $add: [
                     { $ifNull: ["$discountedSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
                 },
-                2,
-              ],
-            },
+               
             totalAmount: {
-              $round: [
-                {
+              
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
-                },
-                2,
-              ],
+               
             },
           },
         },
         {
           $addFields: {
             discountDifference: {
-              $round: [
-                {
+              
                   $subtract: [
                     { $ifNull: ["$totalAmount", 0] },
                     { $ifNull: ["$discountedAmount", 0] },
                   ],
-                },
-                2,
-              ],
+               
             },
             discountPercentage: {
-              $round: [
-                {
+              
                   $multiply: [
                     {
                       $divide: [
@@ -1053,9 +1481,7 @@ class ProductRepository {
                     },
                     100,
                   ],
-                },
-                2,
-              ],
+               
             },
           },
         },
@@ -1256,7 +1682,7 @@ class ProductRepository {
         {
           $lookup: {
             from: "metalrates",
-            let: { metalId: "$id_metal", purityId: "$id_purity" },
+            let: { metalId: "$id_metal", purityId: "$id_purity", branchId: "$id_branch",},
             pipeline: [
               {
                 $match: {
@@ -1264,6 +1690,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$material_type_id", "$$metalId"] },
                       { $eq: ["$purity_id", "$$purityId"] },
+                      { $eq: ["$id_branch", "$$branchId"] },
                     ],
                   },
                 },
@@ -1331,8 +1758,6 @@ class ProductRepository {
         {
           $addFields: {
             finalMakingCharge: {
-              $round: [
-                {
                   $switch: {
                     branches: [
                       {
@@ -1353,9 +1778,7 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+              
             },
           },
         },
@@ -1387,8 +1810,7 @@ class ProductRepository {
         {
           $addFields: {
             finalWastageCharge: {
-              $round: [
-                {
+
                   $switch: {
                     branches: [
                       {
@@ -1409,9 +1831,7 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+               
             },
           },
         },
@@ -1496,26 +1916,21 @@ class ProductRepository {
         {
           $addFields: {
             discountedAmount: {
-              $round: [
-                {
+            
                   $add: [
                     { $ifNull: ["$discountedSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
                 },
-                2,
-              ],
-            },
+                
+             
             totalAmount: {
-              $round: [
-                {
+              
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
-                },
-                2,
-              ],
+              
             },
           },
         },
@@ -1612,7 +2027,7 @@ class ProductRepository {
         {
           $lookup: {
             from: "metalrates",
-            let: { metalId: "$id_metal", purityId: "$id_purity" },
+            let: { metalId: "$id_metal", purityId: "$id_purity",branchId: "$id_branch" },
             pipeline: [
               {
                 $match: {
@@ -1620,6 +2035,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$material_type_id", "$$metalId"] },
                       { $eq: ["$purity_id", "$$purityId"] },
+                      { $eq: ["$id_branch", "$$branchId"] },
                     ],
                   },
                 },
@@ -1685,8 +2101,7 @@ class ProductRepository {
         {
           $addFields: {
             finalMakingCharge: {
-              $round: [
-                {
+             
                   $switch: {
                     branches: [
                       {
@@ -1707,9 +2122,7 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+                
             },
           },
         },
@@ -1740,8 +2153,7 @@ class ProductRepository {
         {
           $addFields: {
             finalWastageCharge: {
-              $round: [
-                {
+             
                   $switch: {
                     branches: [
                       {
@@ -1762,9 +2174,7 @@ class ProductRepository {
                     ],
                     default: 0,
                   },
-                },
-                2,
-              ],
+               
             },
           },
         },
@@ -1848,45 +2258,35 @@ class ProductRepository {
         {
           $addFields: {
             discountedAmount: {
-              $round: [
-                {
+              
                   $add: [
                     { $ifNull: ["$discountedSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
-                },
-                2,
-              ],
+               
             },
             totalAmount: {
-              $round: [
-                {
+              
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
-                },
-                2,
-              ],
+               
             },
           },
         },
         {
           $addFields: {
             discountDifference: {
-              $round: [
-                {
+            
                   $subtract: [
                     { $ifNull: ["$totalAmount", 0] },
                     { $ifNull: ["$discountedAmount", 0] },
                   ],
-                },
-                2,
-              ],
+                
             },
             discountPercentage: {
-              $round: [
-                {
+              
                   $multiply: [
                     {
                       $divide: [
@@ -1901,9 +2301,7 @@ class ProductRepository {
                     },
                     100,
                   ],
-                },
-                2,
-              ],
+               
             },
           },
         },
@@ -1972,7 +2370,7 @@ class ProductRepository {
 
       const categories = await categoryModel
         .find(
-          { _id: { $in: categoryIds } },
+          { _id: { $in: categoryIds },active:true },
           { _id: 1, category_name: 1, image: 1, pathUrl: 1, categoryBanner: 1 }
         )
         .lean();
@@ -3074,6 +3472,14 @@ class ProductRepository {
     } catch (error) {
       console.error("❌ Error in checkQuantityAvailability:", error);
       throw new Error(error.message || "Error checking quantity availability");
+    }
+  }
+
+  async findByField(field){
+    try{
+      return productModel.findOne(field).lean()
+    }catch(error){
+      throw new Error(error.message || "Error Find By Field"); 
     }
   }
 }

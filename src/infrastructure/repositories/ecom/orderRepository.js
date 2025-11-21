@@ -434,7 +434,8 @@ class OrderRepository {
         item: findOrderItem,
         overAll: {
           placedAt: findOrder.createdAt,
-          arrivedAt: findOrder.estimatedDeliveryDate,
+          estimatedDeliveryDate:findOrder.estimatedDeliveryDate,
+          arrivedAt:findOrder?.statusData[findOrder.statusData.length-1]?.date,
           orderId: findOrder.orderId,
           address,
           subTotal: findOrder.subtotal,
@@ -562,7 +563,7 @@ class OrderRepository {
             { path: "id_state" },
             { path: "id_country" },
           ],
-        })
+        }).populate('paymentId')
         .populate({
           path: "userId",
           select: "firstname lastname email mobile cus_img",
@@ -633,6 +634,7 @@ class OrderRepository {
             qty: "$quantity",
             img: { $arrayElemAt: ["$product.product_image", 0] },
             price: "$discountAmount",
+            grossWt: "$product",
           },
         },
       ]);
@@ -664,6 +666,7 @@ class OrderRepository {
           deliveryRecipientName: findOrder?.deliveryAddress?.name,
           deliveryRecipientPhone: findOrder?.deliveryAddress?.mobileNo,
           totalGstAmount: findOrder?.totalGstAmount,
+          paymentMode: findOrder?.paymentId?.paymentModeName,
         },
         productPathUrl: `${config.DISPLAY_IMG_URL}products/`,
         customerPathUrl: `${config.DISPLAY_IMG_URL}customer/`,
@@ -1059,92 +1062,228 @@ class OrderRepository {
   //   }
   // }
 
-  async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
-    try{ 
-      page = Number(page);
-      limit = Number(limit);
-      const skip = (page - 1) * limit;
+  // async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
+  //   try{ 
+  //     page = Number(page);
+  //     limit = Number(limit);
+  //     const skip = (page - 1) * limit;
 
-      const pipeline = [
-        { $match: {...filter,status:1,payment_amount: { $gt: 0 }} },
-        {
-          $lookup: {
-            from: "customers",
-            localField: "id_customer",
-            foreignField: "_id",
-            as: "customer",
-          },
+  //     const pipeline = [
+  //       { $match: {...filter,status:1,payment_amount: { $gt: 0 }} },
+  //       {
+  //         $lookup: {
+  //           from: "customers",
+  //           localField: "id_customer",
+  //           foreignField: "_id",
+  //           as: "customer",
+  //         },
+  //       },
+  //       { $unwind: "$customer" },
+  //     ];
+
+  //     if (search && search.trim() !== "") {
+  //       const searchRegex = new RegExp(search.trim(), "i");
+  //       pipeline.push({
+  //         $match: {
+  //           $or: [
+  //             { orderId: { $regex: searchRegex } },
+  //             { "customer.firstname": { $regex: searchRegex } },
+  //             { "customer.lastname": { $regex: searchRegex } },
+  //             // { "customer.mobile": { $regex: searchRegex } },
+  //             {
+  //               $expr: {
+  //                 $regexMatch: {
+  //                   input: { $toString: "$customer.mobile" },
+  //                   regex: searchRegex,
+  //                 },
+  //               },
+  //             },
+  //           ],
+  //         },
+  //       });
+  //     }
+  //     const countPipeline = [...pipeline, { $count: "totalCount" }];
+  //     const countResult = await ecomPaymentOrderModel.aggregate(countPipeline);
+  //     const totalCount = countResult[0]?.totalCount || 0;
+
+  //     pipeline.push({ $sort: { createdAt: -1 } });
+  //     pipeline.push({ $skip: skip });
+  //     pipeline.push({ $limit: limit });
+
+  //     pipeline.push({
+  //       $project: {
+  //         _id: 1,
+  //         orderId: 1,
+  //         cf_payment_id: 1,
+  //         cf_order_id: 1,
+  //         payment_session_id: 1,
+  //         payment_amount: 1,
+  //         status: 1,
+  //         active: 1,
+  //         is_deleted: 1,
+  //         orderObjId: 1,
+  //         createdAt: 1,
+  //         updatedAt: 1,
+  //         id_customer: {
+  //           _id: "$customer._id",
+  //           firstname: "$customer.firstname",
+  //           lastname: "$customer.lastname",
+  //           mobile: "$customer.mobile",
+  //         },
+  //         product_payment_ids: 1,
+  //       },
+  //     });
+
+  //     const result = await ecomPaymentOrderModel.aggregate(pipeline);
+
+  //     return {
+  //       result,
+  //       totalCount,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //       currentPage: page,
+  //       limit,
+  //     };
+  //   } catch (error) {
+  //     console.error(error);
+  //     return null;
+  //   }
+  // }
+
+async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
+  try {
+    page = Number(page);
+    limit = Number(limit);
+    const skip = (page - 1) * limit;
+
+    const pipeline = [
+      // ---------------------------- 
+      // MATCH ORDERS
+      // ---------------------------- 
+      {
+        $match: {
+          ...filter,
+          paymentId: { $exists: true, $ne: null },
         },
-        { $unwind: "$customer" },
-      ];
+      },
+      
+      // ---------------------------- 
+      // JOIN PAYMENT INFO
+      // ---------------------------- 
+      {
+        $lookup: {
+          from: "orderpaymens",
+          localField: "paymentId",
+          foreignField: "_id",
+          as: "payment",
+        },
+      },
+      { $unwind: "$payment" },
+      
+      // ---------------------------- 
+      // ONLY SUCCESSFUL PAYMENTS
+      // ---------------------------- 
+      {
+        $match: {
+          "payment.payment_status": 1, // ✅ Fixed field name
+          "payment.payment_amount": { $gt: 0 },
+        },
+      },
+      
+      // ---------------------------- 
+      // JOIN CUSTOMER INFO
+      // ---------------------------- 
+      {
+        $lookup: {
+          from: "customers",
+          localField: "userId",
+          foreignField: "_id",
+          as: "customer",
+        },
+      },
+      { $unwind: "$customer" },
+    ];
 
-      if (search && search.trim() !== "") {
-        const searchRegex = new RegExp(search.trim(), "i");
-        pipeline.push({
-          $match: {
-            $or: [
-              { orderId: { $regex: searchRegex } },
-              { "customer.firstname": { $regex: searchRegex } },
-              { "customer.lastname": { $regex: searchRegex } },
-              // { "customer.mobile": { $regex: searchRegex } },
-              {
-                $expr: {
-                  $regexMatch: {
-                    input: { $toString: "$customer.mobile" },
-                    regex: searchRegex,
-                  },
+    // ---------------------------- 
+    // SEARCH CONDITIONS
+    // ---------------------------- 
+    if (search && search.trim() !== "") {
+      const regex = new RegExp(search.trim(), "i");
+      pipeline.push({
+        $match: {
+          $or: [
+            { orderId: { $regex: regex } },
+            { "customer.firstname": { $regex: regex } },
+            { "customer.lastname": { $regex: regex } },
+            {
+              $expr: {
+                $regexMatch: {
+                  input: { $toString: "$customer.mobile" },
+                  regex,
                 },
               },
-            ],
-          },
-        });
-      }
-      const countPipeline = [...pipeline, { $count: "totalCount" }];
-      const countResult = await ecomPaymentOrderModel.aggregate(countPipeline);
-      const totalCount = countResult[0]?.totalCount || 0;
-
-      pipeline.push({ $sort: { createdAt: -1 } });
-      pipeline.push({ $skip: skip });
-      pipeline.push({ $limit: limit });
-
-      pipeline.push({
-        $project: {
-          _id: 1,
-          orderId: 1,
-          cf_payment_id: 1,
-          cf_order_id: 1,
-          payment_session_id: 1,
-          payment_amount: 1,
-          status: 1,
-          active: 1,
-          is_deleted: 1,
-          orderObjId: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          id_customer: {
-            _id: "$customer._id",
-            firstname: "$customer.firstname",
-            lastname: "$customer.lastname",
-            mobile: "$customer.mobile",
-          },
-          product_payment_ids: 1,
+            },
+          ],
         },
       });
-
-      const result = await ecomPaymentOrderModel.aggregate(pipeline);
-
-      return {
-        result,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        currentPage: page,
-        limit,
-      };
-    } catch (error) {
-      console.error(error);
-      return null;
     }
+
+    // ---------------------------- 
+    // COUNT TOTAL
+    // ---------------------------- 
+    const countPipeline = [...pipeline, { $count: "totalCount" }];
+    const countResult = await Order.aggregate(countPipeline);
+    const totalCount = countResult?.[0]?.totalCount || 0;
+
+    // ---------------------------- 
+    // PAGINATION
+    // ---------------------------- 
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    // ---------------------------- 
+    // FINAL PROJECTION
+    // ---------------------------- 
+    pipeline.push({
+      $project: {
+        _id: 1,
+        orderId: 1,
+        createdAt: 1,
+        totalAmount: 1,
+        payment_amount: "$payment.payment_amount",
+        cf_payment_id: "$payment.cf_payment_id",
+        cf_order_id: "$payment.cf_order_id",
+        payment_session_id: "$payment.payment_session_id",
+        payment_status: "$payment.payment_status",
+        paymentModeName: "$payment.paymentModeName",
+        id_transaction: "$payment.id_transaction",
+        id_customer: {
+          _id: "$customer._id",
+          firstname: "$customer.firstname",
+          lastname: "$customer.lastname",
+          mobile: "$customer.mobile",
+        },
+      },
+    });
+
+    // ---------------------------- 
+    // RUN FINAL PIPELINE
+    // ---------------------------- 
+    const result = await Order.aggregate(pipeline);
+
+    return {
+      result,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page,
+      limit,
+    };
+  } catch (error) {
+    console.error(error);
+    return null;
   }
+}
+
 
   // async getTopSellingProducttable(page=1,limit=10,filter) {
   //   try {

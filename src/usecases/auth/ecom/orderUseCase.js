@@ -244,7 +244,7 @@ class OrderUseCase {
         productName: findProduct.product_name,
         sku: findProduct.sku, // not in response
         image: findProduct.product_image[0],
-        grossWeight: findProduct.grossWt,
+        grossWeight: findProduct.grossWeight,
         price: findProduct.totalAmount,
         quantity: 1,
         discountAmount: findProduct.discountedAmount,

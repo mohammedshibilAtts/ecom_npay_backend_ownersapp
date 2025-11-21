@@ -7,6 +7,7 @@ class SizemasterRepository {
   }
 
   async getAll(filter = {}, sort = { createdAt: -1 }) {
+    filter.active=true
   const [items, total] = await Promise.all([
     sizeMasterModel.find(filter).sort(sort),
     sizeMasterModel.countDocuments(filter),
