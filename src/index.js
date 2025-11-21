@@ -16,6 +16,8 @@ import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import notificationRoutes from './notification-routes.js'
 import './config/chit/cronSetup.js'
+import './cron/digigoldAutoCron.js'
+import './cron/overdueAutoCron.js'
 import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
 import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
 
@@ -94,6 +96,7 @@ app.use('/api/shop',shopRoutes)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, 'public')));
+app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")));
 
 // Handle undefined routes
 app.all('*', (req, res, next) => {

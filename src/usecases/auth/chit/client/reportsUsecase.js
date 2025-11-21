@@ -927,7 +927,7 @@ class ReportUseCase {
         const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 10));
         const skip = (pageNum - 1) * pageSize;
 
-        const filter = { is_deleted: false };
+        const filter = { is_deleted: false,payment_status:1 };
         
         let startDate, endDate;
         
@@ -1112,9 +1112,7 @@ class ReportUseCase {
 
       let startDate= "";
       let endDate= "";
-      let startOfToday="";
-      let endOfToday="";
-      
+
       if (from_date && to_date) {
         if (new Date(to_date) < new Date(from_date)) {
           throw new Error("End date cannot be before start date");
@@ -1122,15 +1120,7 @@ class ReportUseCase {
          startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
          endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
       }
-      //  else {
-      //    startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      //    endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
-  
-      //   // query.createdAt = {
-      //   //   $gte: startOfToday,
-      //   //   $lte: endOfToday,
-      //   // };
-      // }
+
   
       const documentSkip = (pageNum - 1) * pageSize;
       const documentLimit = pageSize;
@@ -1281,28 +1271,6 @@ class ReportUseCase {
 
     const filter = { is_deleted: false };
 
-    // if (from_date && to_date) {
-    //   const startDate = new Date(from_date);
-    //   const endDate = new Date(to_date);
-
-    //   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    //     throw new Error("Invalid date format.");
-    //   }
-
-    //   filter.createdAt = {
-    //     $gte: startDate,
-    //     $lte: endDate,
-    //   };
-    // } else {
-    //   const today = new Date();
-    //   const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    //   const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-
-    //   filter.createdAt = {
-    //     $gte: startOfDay,
-    //     $lte: endOfDay,
-    //   };
-    // }
     if (from_date && to_date) {
       if (new Date(to_date) < new Date(from_date)) {
         throw new Error("End date cannot be before start date");
@@ -1355,10 +1323,11 @@ class ReportUseCase {
 
       filter.id_scheme = new mongoose.Types.ObjectId(id_scheme);
     }
-console.log("first")
+
     const data = await this.reportRepo.getAmountPayble(filter, skip, limit);
     return data;
   }
+  
   async getWeightPayble(query) {
     const { page, limit, from_date, to_date, id_branch, id_purity, id_scheme } =
       query;
@@ -1369,28 +1338,6 @@ console.log("first")
 
     const filter = { is_deleted: false };
 
-    // if (from_date && to_date) {
-    //   const startDate = new Date(from_date);
-    //   const endDate = new Date(to_date);
-
-    //   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    //     throw new Error("Invalid date format.");
-    //   }
-
-    //   filter.createdAt = {
-    //     $gte: startDate,
-    //     $lte: endDate,
-    //   };
-    // } else {
-    //   const today = new Date();
-    //   const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    //   const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-
-    //   filter.createdAt = {
-    //     $gte: startOfDay,
-    //     $lte: endOfDay,
-    //   };
-    // }
     if (from_date && to_date) {
       if (new Date(to_date) < new Date(from_date)) {
         throw new Error("End date cannot be before start date");
@@ -1405,7 +1352,6 @@ console.log("first")
         $lte: endDate,
       };
     } else {
-      // Default to today's date in local timezone
       const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
       const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
 
@@ -1461,10 +1407,6 @@ console.log("first")
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
       const searchTerm = search || "";
-
-      // const searchCriteria = searchTerm
-      //   ? { $or: [{ gift_name: { $regex: searchTerm, $options: "i" } }] }
-      //   : {};
 
       const searchCriteria = {};
 

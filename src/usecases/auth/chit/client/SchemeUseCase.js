@@ -1,4 +1,5 @@
 import { isValidObjectId } from "mongoose";
+import config from "../../../../config/chit/env.js";
 
 class SchemeUseCase {
   constructor(
@@ -230,7 +231,7 @@ class SchemeUseCase {
     }
 
     const s3Configs = await this.s3Helper(result.id_branch);
-    result.pathUrl = `${s3Configs.s3display_url}keerthijewellery/webadmin/assets/classification/`;
+    result.pathUrl = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/`;
 
     return {
       success: true,
@@ -368,7 +369,7 @@ class SchemeUseCase {
 
   async getSchemeByclassificationId(id) {
     const s3Configs = await this.s3Helper()
-    const pathurl= `${s3Configs.s3display_url}keerthijewellery/webadmin/assets/classification/`
+    const pathurl= `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/`
 
     let result = await this.schemeRepository.getSchemeByclassificationId(id);
 
@@ -491,6 +492,27 @@ class SchemeUseCase {
       return {
         success: false,
         message: "Error while getting scheme account data",
+      };
+    }
+  }
+
+  async changeOrder(schemData) {
+    try {
+      const result = await this.schemeRepository.updateSchemeOrder(schemData);
+
+      if (!result) {
+        return { success: false, message: "Failed to update Scheme order" };
+      }
+      
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        success: false,
+        message: "Error while Update scheme Order",
       };
     }
   }

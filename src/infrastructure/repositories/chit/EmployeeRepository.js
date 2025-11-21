@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 class EmployeeRepository {
   async findOne(query) {
     try {
+      console.log(query)
       const findData = await employeeModel
         .findOne(query)
         .populate({
@@ -206,7 +207,7 @@ class EmployeeRepository {
           path: "id_branch",
           select: "branch_name _id mobile",
         })
-        .select("firstname lastname emp_code mobile active _id Id_branch date_of_join");
+        .select("firstname lastname employeeId mobile active _id Id_branch date_of_join");
 
       if (!data || data.length === 0) return null;
 

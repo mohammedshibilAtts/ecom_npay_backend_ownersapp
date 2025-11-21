@@ -45,10 +45,41 @@ class ClosAccRepository{
         }
     }
 
+    async findByBillNmber(number){
+        try {
+            const newData = await closeAccModel.findOne({ bill_no:number,active:1})
+
+            if(!newData){
+                return false;
+            }
+
+            return newData;
+        } catch (error) {
+            console.error(error)
+        }
+    }
+
     //helper function schameAccount
     async getCloseaccount(id){
         try {
             const newData = await closeAccModel.findOne({ id_scheme_account:id,active:1})
+            .sort({ closebill_id: -1 })
+            .limit(1)
+            .exec();
+
+            if(!newData){
+                return false;
+            }
+
+            return newData;
+        } catch (error) {
+            console.error(error)
+        }
+    }
+
+    async getCloseaccountrevert(id){
+        try {
+            const newData = await closeAccModel.findOne({ id_scheme_account:id})
             .sort({ closebill_id: -1 })
             .limit(1)
             .exec();
