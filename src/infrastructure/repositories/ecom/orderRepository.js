@@ -361,75 +361,108 @@ class OrderRepository {
           .join(", ");
       }
       const findOrderItem = await OrderItem.aggregate([
-        {
-          $match: {
-            orderId: new mongoose.Types.ObjectId(orderId),
-          },
-        },
-        {
-          $lookup: {
-            from: "products",
-            localField: "productId",
-            foreignField: "_id",
-            as: "productId",
-          },
-        },
-        {
-          $unwind: {
-            path: "$productId",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
+  {
+    $match: {
+      orderId: new mongoose.Types.ObjectId(orderId),
+    },
+  },
 
-        {
-          $lookup: {
-            from: "sizemasters",
-            localField: "productId.availableSizes.sizeId",
-            foreignField: "_id",
-            as: "SizeMaster",
-          },
-        },
-        {
-          $unwind: {
-            path: "$SizeMaster",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
+  // Lookup purity
+  {
+    $lookup: {
+      from: "purities",
+      localField: "id_purity",
+      foreignField: "_id",
+      as: "Purity",
+    },
+  },
+  {
+    $unwind: {
+      path: "$Purity",
+      preserveNullAndEmptyArrays: true,
+    },
+  },
 
-        {
-          $addFields: {
-            productSize: {
-              $arrayElemAt: [
-                {
-                  $filter: {
-                    input: "$productId.availableSizes.values",
-                    as: "size",
-                    cond: { $eq: ["$$size._id", "$sizeId"] },
-                  },
-                },
-                0,
-              ],
+  // Lookup product
+  {
+    $lookup: {
+      from: "products",
+      localField: "productId",
+      foreignField: "_id",
+      as: "productId",
+    },
+  },
+  {
+    $unwind: {
+      path: "$productId",
+      preserveNullAndEmptyArrays: true,
+    },
+  },
+
+  // Lookup sizeMaster
+  {
+    $lookup: {
+      from: "sizemasters",
+      localField: "productId.availableSizes.sizeId",
+      foreignField: "_id",
+      as: "SizeMaster",
+    },
+  },
+  {
+    $unwind: {
+      path: "$SizeMaster",
+      preserveNullAndEmptyArrays: true,
+    },
+  },
+
+  // Find matching size object
+  {
+    $addFields: {
+      productSize: {
+        $arrayElemAt: [
+          {
+            $filter: {
+              input: "$productId.availableSizes.values",
+              as: "size",
+              cond: { $eq: ["$$size._id", "$sizeId"] },
             },
           },
-        },
+          0,
+        ],
+      },
+    },
+  },
 
-        {
-          $addFields: {
-            size: {
-              $concat: [
-                { $toString: "$productSize.sizeValue" },
-                { $ifNull: ["$SizeMaster.unit", ""] },
-              ],
-            },
-          },
-        },
-        {
-          $project: {
-            SizeMaster: 0,
-            productSize: 0,
-          },
-        },
-      ]);
+  // Create final size text (ex: "22mm")
+  {
+    $addFields: {
+      size: {
+        $concat: [
+          { $toString: "$productSize.sizeValue" },
+          { $ifNull: ["$SizeMaster.unit", ""] },
+        ],
+      },
+    },
+  },
+
+  // ⭐ ADD purityName here (IMPORTANT!)
+  {
+    $addFields: {
+      purityName: "$Purity.purity_name",
+    },
+  },
+
+  // Final Project
+  {
+    $project: {
+      SizeMaster: 0,
+      productSize: 0,
+      Purity: 0,          // optional
+      "productId.availableSizes": 0, // optional
+    },
+  },
+]);
+
       return {
         item: findOrderItem,
         overAll: {
@@ -634,7 +667,7 @@ class OrderRepository {
             qty: "$quantity",
             img: { $arrayElemAt: ["$product.product_image", 0] },
             price: "$discountAmount",
-            grossWt: "$product",
+            grossWt: "$product.grossWt",
           },
         },
       ]);

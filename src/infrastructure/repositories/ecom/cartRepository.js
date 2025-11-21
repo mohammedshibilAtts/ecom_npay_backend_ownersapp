@@ -726,6 +726,76 @@ class CartRepository {
             },
           },
         },
+        {
+          $addFields: {
+            totalDiamondWeight: {
+              $sum: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: "$stoneDiamondDetails",
+                      as: "item",
+                      cond: { $eq: ["$$item.type", "diamond"] },
+                    },
+                  },
+                  as: "d",
+                  in: { $ifNull: ["$$d.weight", 0] },
+                },
+              },
+            },
+
+            totalStoneWeight: {
+              $sum: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: "$stoneDiamondDetails",
+                      as: "item",
+                      cond: { $eq: ["$$item.type", "stone"] },
+                    },
+                  },
+                  as: "s",
+                  in: { $ifNull: ["$$s.weight", 0] },
+                },
+              },
+            },
+          },
+        },
+          {
+          $addFields: {
+            totalDiamondPrice: {
+              $sum: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: "$stoneDiamondDetails",
+                      as: "item",
+                      cond: { $eq: ["$$item.type", "diamond"] },
+                    },
+                  },
+                  as: "d",
+                  in: { $ifNull: ["$$d.price", 0] },
+                },
+              },
+            },
+
+            totalStonePrice: {
+              $sum: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: "$stoneDiamondDetails",
+                      as: "item",
+                      cond: { $eq: ["$$item.type", "stone"] },
+                    },
+                  },
+                  as: "s",
+                  in: { $ifNull: ["$$s.price", 0] },
+                },
+              },
+            },
+          },
+        },
 
         // Final projection
         {
@@ -746,14 +816,22 @@ class CartRepository {
             categoryId: "$Product.id_category",
             subCategoryId: "$Product.subcategoryId",
             collectionId: "$Product.collection",
-            gstRate:"$gstRate",
+            gstRate: "$gstRate",
             productSize: {
               $concat: [
                 { $toString: "$productSize.sizeValue" },
                 { $ifNull: ["$SizeMaster.unit", ""] },
               ],
             },
-            sizeQuantity:{ $ifNull: ["$productSize.quantity", 0] }, 
+            totalDiamondWeight: "$totalDiamondWeight",
+            totalStoneWeight: "$totalStoneWeight",
+            metalRate: { $ifNull: ["$latestMetalPrice", 0] },
+            sizeQuantity: { $ifNull: ["$productSize.quantity", 0] },
+            id_metal: "$Product.id_metal",
+            id_purity: "$Product.id_purity",
+            makingCharges: "$Product.makingCharges",
+            wastageCharges: "$Product.wastageCharges",
+            sku: "$Product.sku",
           },
         },
 
@@ -887,11 +965,14 @@ class CartRepository {
     }
   }
 
-  async findCartItemCount (cartId){
-    try{
-      return await CartItem.find({cartId,is_deleted:false}).countDocuments()
-    }catch(error){
-     console.error("Error in findCartItemCount:", error);
+  async findCartItemCount(cartId) {
+    try {
+      return await CartItem.find({
+        cartId,
+        is_deleted: false,
+      }).countDocuments();
+    } catch (error) {
+      console.error("Error in findCartItemCount:", error);
       return null;
     }
   }

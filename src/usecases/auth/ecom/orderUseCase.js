@@ -8,7 +8,12 @@ import moment from "moment-timezone";
 import smsService from "../../../config/chit/smsService.js";
 import SaveNotificationRepo from "../../../infrastructure/repositories/chit/saveNotificationRepo.js";
 import SaveNotificationUsecase from "../chit/client/saveNotificationUsecase.js";
-import {  ORDER_STATUS, ORDER_STATUS_NO, ORDER_TYPE, ORDER_TYPE_NAME } from "../../../config/chit/const.js";
+import {
+  ORDER_STATUS,
+  ORDER_STATUS_NO,
+  ORDER_TYPE,
+  ORDER_TYPE_NAME,
+} from "../../../config/chit/const.js";
 
 class OrderUseCase {
   constructor(
@@ -155,7 +160,6 @@ class OrderUseCase {
     }
   }
 
-
   async orderNow(userData, addressId, productId) {
     try {
       if (!userData._id) {
@@ -233,11 +237,11 @@ class OrderUseCase {
         // couponCode: "NEWUSER100",
         // payment: "68899df2c34cf80f45b7ed1c",
         savedAmount: findProduct.totalAmount - findProduct.discountedAmount,
-        status:ORDER_STATUS[1],
+        status: ORDER_STATUS[1],
         deliveryAddress: addressId,
         active: true,
         orderStatus: ORDER_STATUS_NO.PROCESSING,
-        orderType:ORDER_TYPE.OFFLINE_ORDER
+        orderType: ORDER_TYPE.OFFLINE_ORDER,
       };
       const orderItems = {
         productId: findProduct._id, // from API
@@ -256,6 +260,14 @@ class OrderUseCase {
         shippedAt: new Date(),
         returnStatus: "none",
         refundAmount: 0,
+        metalRate: findProduct?.latestMetalPrice,
+        netWt: findProduct?.netWeight,
+         id_purity:findProduct.id_purity,
+        id_metal:findProduct.id_metal,
+        makingCharges: findProduct.makingCharges??null,
+        wastageCharges: findProduct.wastageCharges??null,
+        sku:findProduct.sku,
+        gstAmount:findCart?.gst
       };
       const createOrder = await this.orderRepository.createOrder(orderData, [
         orderItems,
@@ -279,7 +291,13 @@ class OrderUseCase {
     }
   }
 
-  async placeOrder(userData, addressId, token, redeemedSchemeAccounts,isStorePickup) {
+  async placeOrder(
+    userData,
+    addressId,
+    token,
+    redeemedSchemeAccounts,
+    isStorePickup
+  ) {
     try {
       if (!userData._id) {
         throw new Error("User ID not found");
@@ -312,29 +330,30 @@ class OrderUseCase {
           data: cartItems,
         };
       }
-            
-      const checkQuantityAvailability = await this.productRepository.checkQuantityAvailability(cartItems.items)
-      if(checkQuantityAvailability&&checkQuantityAvailability.length>=1){
+      
+      const checkQuantityAvailability =
+        await this.productRepository.checkQuantityAvailability(cartItems.items);
+      if (checkQuantityAvailability && checkQuantityAvailability.length >= 1) {
         // return{
         //   success:false,
         //   message:"Product out of stock"
         // }
       }
-       let estimatedDeliveryDays
-     if(!isStorePickup){
-       const findPincodeData = await this.pincodeUseCase.getPincodesByFilters({
-        pincode: findAddress.pincode,
-      });
-      const pincodeData = findPincodeData[0];
-      if (!pincodeData || !pincodeData.isDeliveryAvailable) {
-        return {
-          success: false,
-          message: "Delivery is not available for this pincode",
-        };
+      let estimatedDeliveryDays;
+      if (!isStorePickup) {
+        const findPincodeData = await this.pincodeUseCase.getPincodesByFilters({
+          pincode: findAddress.pincode,
+        });
+        const pincodeData = findPincodeData[0];
+        if (!pincodeData || !pincodeData.isDeliveryAvailable) {
+          return {
+            success: false,
+            message: "Delivery is not available for this pincode",
+          };
+        }
+        estimatedDeliveryDays = pincodeData?.estimatedDeliveryDays;
       }
-      estimatedDeliveryDays = pincodeData?.estimatedDeliveryDays;
-     }
-     
+
       const isPaid = true;
       if (!isPaid) {
         return {
@@ -370,7 +389,9 @@ class OrderUseCase {
         deliveryAddress: addressId,
         estimatedDeliveryDays,
         active: false,
-        orderType:isStorePickup?ORDER_TYPE.STORE_PICKUP:ORDER_TYPE.ONLINE_ORDER
+        orderType: isStorePickup
+          ? ORDER_TYPE.STORE_PICKUP
+          : ORDER_TYPE.ONLINE_ORDER,
       };
       const orderItems = cartItems.items.map((item) => ({
         productId: item.productId, // from API
@@ -391,7 +412,21 @@ class OrderUseCase {
         estimatedDeliveryDays,
         returnStatus: "none",
         refundAmount: 0,
+        metalRate: item.metalRate,
+        netWt: item.netWt,
+        id_purity:item.id_purity,
+        id_metal:item.id_metal,
+        makingCharges: item.makingCharges??null,
+        wastageCharges: item.wastageCharges??null,
+        sku:item.sku,
+        gstAmount:item?.gstRate,
+        totalDiamondWeight:item.totalDiamondWeight,
+        totalStoneWeight:item.totalStoneWeight,
+        totalDiamondPrice:item.totalDiamondPrice,
+        totalStonePrice:item.totalStonePrice,
+        
       }));
+      console.log(cartItems)
       const createOrder = await this.orderRepository.createOrder(
         orderData,
         orderItems
@@ -476,7 +511,7 @@ class OrderUseCase {
           message: "Failed to get orders",
         };
       }
-      findOrderItems.overAll.orderType=ORDER_TYPE_NAME[findOrder.orderType]
+      findOrderItems.overAll.orderType = ORDER_TYPE_NAME[findOrder.orderType];
       return {
         success: true,
         message: "order retrieved successfully.",
@@ -488,20 +523,28 @@ class OrderUseCase {
     }
   }
 
-  async getAllOrders({ page, limit, search, from_date, to_date,orderStatus,orderType }) {
+  async getAllOrders({
+    page,
+    limit,
+    search,
+    from_date,
+    to_date,
+    orderStatus,
+    orderType,
+  }) {
     page = page || 1;
     limit = limit || 10;
     let filter = {};
 
-    const fromDate =from_date
-    const toDate = to_date
-    
+    const fromDate = from_date;
+    const toDate = to_date;
+
     try {
-      if(orderStatus){
-        filter.orderStatus=orderStatus
-      } 
-      if(orderType){
-         filter.orderType=orderType
+      if (orderStatus) {
+        filter.orderStatus = orderStatus;
+      }
+      if (orderType) {
+        filter.orderType = orderType;
       }
 
       if (fromDate && toDate) {
@@ -509,16 +552,28 @@ class OrderUseCase {
           throw new Error("End date cannot be before start date");
         }
 
-             const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+        const startDate = moment
+          .tz(from_date, "Asia/Kolkata")
+          .startOf("day")
+          .toDate();
+        const endDate = moment
+          .tz(to_date, "Asia/Kolkata")
+          .endOf("day")
+          .toDate();
 
         filter.createdAt = {
           $gte: startDate,
           $lte: endDate,
         };
-      }else{
-           const startDate = moment.tz(new Date(), 'Asia/Kolkata').startOf('day').toDate();
-          const endDate = moment.tz(new Date(), 'Asia/Kolkata').endOf('day').toDate();
+      } else {
+        const startDate = moment
+          .tz(new Date(), "Asia/Kolkata")
+          .startOf("day")
+          .toDate();
+        const endDate = moment
+          .tz(new Date(), "Asia/Kolkata")
+          .endOf("day")
+          .toDate();
 
         filter.createdAt = {
           $gte: startDate,
@@ -567,7 +622,6 @@ class OrderUseCase {
         console.error("SECRET_KEY is missing in environment variables.");
         return { status: false, message: "Secret key is not configured" };
       }
-
 
       const signature = data.headers["x-webhook-signature"];
       const payload = data.rawBody;
@@ -654,7 +708,7 @@ class OrderUseCase {
           message: "Order not found",
         };
       }
-    const result = await this.orderRepository.findOrderDetailReport(orderId);
+      const result = await this.orderRepository.findOrderDetailReport(orderId);
       if (!result) {
         return {
           success: false,
@@ -805,7 +859,7 @@ class OrderUseCase {
   //     return { success: false, message: "Error while getting order Status" };
   //   }
   // }
-  async changeOrderStatus(statusId, orderId, remarks,orderStatusData) {
+  async changeOrderStatus(statusId, orderId, remarks, orderStatusData) {
     try {
       const orderData = await this.orderRepository.findById({ _id: orderId });
       const statusData = await this.orderRepository.findStatusById(statusId);
@@ -933,7 +987,14 @@ class OrderUseCase {
     }
   }
 
-  async getTopSellingProducttable(fromDate, toDate, page, limit, search,id_category) {
+  async getTopSellingProducttable(
+    fromDate,
+    toDate,
+    page,
+    limit,
+    search,
+    id_category
+  ) {
     try {
       const { startDate, endDate } = await this.getDateRange(fromDate, toDate);
       const filter = {
@@ -943,8 +1004,8 @@ class OrderUseCase {
           $lte: new Date(endDate),
         },
       };
-      if(id_category){
-        filter.id_category=id_category
+      if (id_category) {
+        filter.id_category = id_category;
       }
 
       const result = await this.orderRepository.getTopSellingProducttable(

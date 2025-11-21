@@ -14,7 +14,7 @@ const orderItemSchema = new mongoose.Schema({
   size: { type: String, required: true },
   qty: { type: Number, required: true },
   proimage: { type: String, required: true },
-  metal_rate: { type: Number, required: true },
+  metalRate: { type: Number, required: true },
   status: { type: Number, enum: [1, 2, 3, 4], required: true, default: 1 },
   active: { type: Boolean, default: true },
   created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
