@@ -89,7 +89,7 @@ export default class StonemasterRepositary {
 
   async getDiamond() {
     try {
-      return await StonemasterModel.find({ is_diamond: true });
+      return await StonemasterModel.find({ is_diamond: true,active:true });
     } catch (error) {
       console.error(error);
     }
@@ -97,7 +97,7 @@ export default class StonemasterRepositary {
 
   async getStone() {
     try {
-      const stones = await StonemasterModel.find({ is_diamond: false })
+      const stones = await StonemasterModel.find({ is_diamond: false,active:true })
       return stones || [];
     } catch (error) {
       console.error("Error fetching stones:", error);

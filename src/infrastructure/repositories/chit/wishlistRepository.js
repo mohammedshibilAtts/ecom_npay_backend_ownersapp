@@ -116,12 +116,12 @@ class WishlistRepository{
             as: "stoneInfo",
           },
         },
-        {
-          $unwind: {
-            path: "$stoneInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
+        // {
+        //   $unwind: {
+        //     path: "$stoneInfo",
+        //     preserveNullAndEmptyArrays: true,
+        //   },
+        // },
   
         // Metal price
         {

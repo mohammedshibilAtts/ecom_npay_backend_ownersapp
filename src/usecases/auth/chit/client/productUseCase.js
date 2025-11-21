@@ -216,7 +216,14 @@ class ProductUseCase {
       if (objectIdValidationErrors.length) {
         return { success: false, message: objectIdValidationErrors[0].message };
       }
-
+      const checkProductCode = await this.productRepository.findByField({code:productData.code})
+      const checkProductSku = await this.productRepository.findByField({sku:productData.sku})
+      if(checkProductCode&&Object.entries(checkProductCode).length>=0){
+        return { success: false, message: "Product Code already exisit" };
+      }
+      if(checkProductSku&&Object.entries(checkProductSku).length>=0){
+        return { success: false, message: "Product SKU already exisit" };
+      }
       const [checkBranchId, checkCategoryId, checkPurityId, checkMetalId] =
         await Promise.all([
           this.branchRepository.findById(productData.id_branch),
@@ -481,6 +488,15 @@ class ProductUseCase {
       const existingProduct = await this.productRepository.findById(id);
       if (!existingProduct) {
         return { success: false, message: "Product not found" };
+      }
+
+       const checkProductCode = await this.productRepository.findByField({_id:{$ne:id},code:productData.code})
+      const checkProductSku = await this.productRepository.findByField({_id:{$ne:id},sku:productData.sku})
+      if(checkProductCode&&Object.entries(checkProductCode).length>=0){
+        return { success: false, message: "Product Code already exisit" };
+      }
+      if(checkProductSku&&Object.entries(checkProductSku).length>=0){
+        return { success: false, message: "Product SKU already exisit" };
       }
 
       const objectIdValidationErrors = [

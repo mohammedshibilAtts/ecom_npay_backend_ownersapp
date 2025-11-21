@@ -1,3 +1,5 @@
+import { checkQuantitySize } from "../../../utils/quantityCheckHelper.js";
+
 // src/usecases/cartUseCase.js
 class CartUseCase {
   constructor(cartRepository, customerRepository, productRepository) {
@@ -120,10 +122,11 @@ class CartUseCase {
           data: cartItems,
         };
       }
+      const findAvailableStocks = checkQuantitySize(cartItems.items)
       return {
         success: true,
         message: "Cart details retrieved successfully.",
-        data: cartItems,
+        data: {items:findAvailableStocks,overAllAmount:cartItems.overAllAmount},
       };
     } catch (error) {
       throw new Error(`Failed to get cart: ${error.message}`);

@@ -484,7 +484,7 @@ class OrderPaymentUsecase {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   
-    return `${formatted}-online`;
+    return `${formatted}`;
   }
   
   async completePayment(data) {

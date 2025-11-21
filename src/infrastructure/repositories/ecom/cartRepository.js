@@ -734,6 +734,7 @@ class CartRepository {
             productId: "$Product._id",
             itemId: "$_id",
             productName: "$Product.product_name",
+            onlineProduct: "$Product.onlineProduct",
             qty: "$quantity",
             grossWt: "$Product.grossWt",
             netWt: "$Product.netWeight",
@@ -752,6 +753,7 @@ class CartRepository {
                 { $ifNull: ["$SizeMaster.unit", ""] },
               ],
             },
+            sizeQuantity:{ $ifNull: ["$productSize.quantity", 0] }, 
           },
         },
 
