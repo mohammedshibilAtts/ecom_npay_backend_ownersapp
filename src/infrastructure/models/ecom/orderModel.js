@@ -20,6 +20,11 @@ const OrderSchema = new Schema(
     totalGstAmount: { type: Number, default: 0 },
     // grandTotal: { type: Number, required: true },
 
+    totalStoneWeight: { type: Number, default: 0 },
+    totalDiamondWeight: { type: Number, default: 0 },
+    totalStonePrice: { type: Number, default: 0 },
+    totalDiamondPrice: { type: Number, default: 0 },
+
     couponCode: { type: String, index: true },
     status: {
       type: String,
@@ -66,9 +71,9 @@ const OrderSchema = new Schema(
       },
     ],
     orderStatus: { type: Number, enum: [1, 2, 3, 4, 5, 6, 7, 8], default: 4 }, //1 Processing, 2 Placed  , 3 Delivered , 4 Cancelled , 5 payment pending, 6 shipped , 7 Ordered , 8  Ready for Pickup
-    trackerId: { type: String},
-    parcelService: { type: String},
-    cancelReason: { type: String},
+    trackerId: { type: String },
+    parcelService: { type: String },
+    cancelReason: { type: String },
     paymentId: { type: Types.ObjectId, ref: "OrderPaymen" },
   },
   { timestamps: true }
