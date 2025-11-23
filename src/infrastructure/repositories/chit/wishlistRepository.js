@@ -79,7 +79,7 @@ class WishlistRepository{
         {
           $lookup: {
             from: "metalrates",
-            let: { metalId: "$product.id_metal", purityId: "$product.id_purity", id_branch: "$Product.id_branch", },
+            let: { metalId: "$product.id_metal", purityId: "$product.id_purity", id_branch: "$product.id_branch", },
             pipeline: [
               {
                 $match: {
@@ -87,7 +87,7 @@ class WishlistRepository{
                     $and: [
                       { $eq: ["$material_type_id", "$$metalId"] },
                       { $eq: ["$purity_id", "$$purityId"] },  
-                      // { $eq: ["$id_branch", "$$id_branch"] },  
+                      { $eq: ["$id_branch", "$$id_branch"] },  
                     ],
                   },
                 },
@@ -312,28 +312,7 @@ class WishlistRepository{
           },
         },
   
-         {
-          $addFields: {
-            discountedSubtotal: {
-              $add: [
-                { $ifNull: ["$baseMetalValue", 0] },
-                { $ifNull: ["$finalWastageCharge", 0] },
-                { $ifNull: ["$finalMakingCharge", 0] },
-                { $ifNull: ["$diamondValue", 0] },
-                { $ifNull: ["$stoneValue", 0] },
-              ],
-            },
-            actualSubtotal: {
-              $add: [
-                { $ifNull: ["$baseMetalValue", 0] },
-                { $ifNull: ["$rawWastageCharge", 0] },
-                { $ifNull: ["$rawMakingCharge", 0] },
-                { $ifNull: ["$diamondValue", 0] },
-                { $ifNull: ["$stoneValue", 0] },
-              ],
-            },
-          },
-        },
+      
 
         {
           $addFields: {
@@ -348,6 +327,27 @@ class WishlistRepository{
                 then: {
                   $divide: [
                     { $multiply: ["$discountedSubtotal", "$product.gst"] },
+                    100,
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
+        },
+         {
+          $addFields: {
+            actualGstRate: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $gt: ["$product.gst", 0] },
+                    { $gt: ["$actualSubtotal", 0] },
+                  ],
+                },
+                then: {
+                  $divide: [
+                    { $multiply: ["$actualSubtotal", "$product.gst"] },
                     100,
                   ],
                 },
@@ -374,7 +374,7 @@ class WishlistRepository{
                 {
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
+                    { $ifNull: ["$actualGstRate", 0] },
                   ],
                 },
                 2,

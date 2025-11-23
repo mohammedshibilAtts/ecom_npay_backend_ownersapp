@@ -548,74 +548,58 @@ class CartRepository {
         {
           $addFields: {
             finalMakingCharge: {
-              $round: [
-                {
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$Product.makingCharges.mode", 1] },
-                        then: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ["$Product.makingCharges.mode", 1] },
+                    then: {
+                      $ifNull: ["$Product.makingCharges.discountedValue", 0],
+                    },
+                  },
+                  {
+                    case: { $eq: ["$Product.makingCharges.mode", 2] },
+                    then: {
+                      $multiply: [
+                        { $ifNull: ["$Product.grossWt", 0] },
+                        {
                           $ifNull: [
                             "$Product.makingCharges.discountedValue",
                             0,
                           ],
                         },
-                      },
-                      {
-                        case: { $eq: ["$Product.makingCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$Product.grossWt", 0] },
-                            {
-                              $ifNull: [
-                                "$Product.makingCharges.discountedValue",
-                                0,
-                              ],
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
+                      ],
+                    },
                   },
-                },
-                2,
-              ],
+                ],
+                default: 0,
+              },
             },
             finalWastageCharge: {
-              $round: [
-                {
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$Product.wastageCharges.mode", 1] },
-                        then: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ["$Product.wastageCharges.mode", 1] },
+                    then: {
+                      $ifNull: ["$Product.wastageCharges.discountedValue", 0],
+                    },
+                  },
+                  {
+                    case: { $eq: ["$Product.wastageCharges.mode", 2] },
+                    then: {
+                      $multiply: [
+                        { $ifNull: ["$Product.grossWt", 0] },
+                        {
                           $ifNull: [
                             "$Product.wastageCharges.discountedValue",
                             0,
                           ],
                         },
-                      },
-                      {
-                        case: { $eq: ["$Product.wastageCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$Product.grossWt", 0] },
-                            {
-                              $ifNull: [
-                                "$Product.wastageCharges.discountedValue",
-                                0,
-                              ],
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
+                      ],
+                    },
                   },
-                },
-                2,
-              ],
+                ],
+                default: 0,
+              },
             },
           },
         },
@@ -702,30 +686,53 @@ class CartRepository {
         },
         {
           $addFields: {
+            actualGstRate: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $gt: ["$Product.gst", 0] },
+                    { $gt: ["$actualSubtotal", 0] },
+                  ],
+                },
+                then: {
+                  $divide: [
+                    { $multiply: ["$actualSubtotal", "$Product.gst"] },
+                    100,
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
+        },
+        {
+          $addFields: {
             discountedAmount: {
-              $round: [
-                {
+              // $round: [
+              //   {
                   $add: [
                     { $ifNull: ["$discountedSubtotal", 0] },
                     { $ifNull: ["$gstRate", 0] },
                   ],
-                },
-                2,
-              ],
+              //   },
+              //   2,
+              // ],
             },
+
             totalAmount: {
-              $round: [
-                {
+              // $round: [
+                // {
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
+                    { $ifNull: ["$actualGstRate", 0] },
                   ],
-                },
-                2,
-              ],
+                // },
+              //   2,
+              // ],
             },
           },
         },
+
         {
           $addFields: {
             totalDiamondWeight: {
@@ -761,7 +768,7 @@ class CartRepository {
             },
           },
         },
-          {
+        {
           $addFields: {
             totalDiamondPrice: {
               $sum: {

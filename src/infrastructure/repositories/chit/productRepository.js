@@ -553,6 +553,27 @@ class ProductRepository {
             },
           },
         },
+         {
+          $addFields: {
+            actualGstRate: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $gt: ["$gst", 0] },
+                    { $gt: ["$actualSubtotal", 0] },
+                  ],
+                },
+                then: {
+                  $divide: [
+                    { $multiply: ["$actualSubtotal", "$gst"] },
+                    100,
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
+        },
         {
           $addFields: {
             discountedAmount: {
@@ -567,7 +588,7 @@ class ProductRepository {
               
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
+                    { $ifNull: ["$actualGstRate", 0] },
                   ],
                 
             },
@@ -1435,6 +1456,27 @@ class ProductRepository {
             },
           },
         },
+         {
+          $addFields: {
+            actualGstRate: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $gt: ["$gst", 0] },
+                    { $gt: ["$actualSubtotal", 0] },
+                  ],
+                },
+                then: {
+                  $divide: [
+                    { $multiply: ["$actualSubtotal", "$gst"] },
+                    100,
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
+        },
         {
           $addFields: {
             discountedAmount: {
@@ -1449,7 +1491,7 @@ class ProductRepository {
               
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
+                    { $ifNull: ["$actualGstRate", 0] },
                   ],
                
             },
@@ -1913,6 +1955,27 @@ class ProductRepository {
             },
           },
         },
+         {
+          $addFields: {
+            actualGstRate: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $gt: ["$gst", 0] },
+                    { $gt: ["$actualSubtotal", 0] },
+                  ],
+                },
+                then: {
+                  $divide: [
+                    { $multiply: ["$actualSubtotal", "$gst"] },
+                    100,
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
+        },
         {
           $addFields: {
             discountedAmount: {
@@ -1928,7 +1991,7 @@ class ProductRepository {
               
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
+                    { $ifNull: ["$actualGstRate", 0] },
                   ],
               
             },
@@ -2255,6 +2318,27 @@ class ProductRepository {
             },
           },
         },
+         {
+          $addFields: {
+            actualGstRate: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $gt: ["$gst", 0] },
+                    { $gt: ["$actualSubtotal", 0] },
+                  ],
+                },
+                then: {
+                  $divide: [
+                    { $multiply: ["$actualSubtotal", "$gst"] },
+                    100,
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
+        },
         {
           $addFields: {
             discountedAmount: {
@@ -2269,7 +2353,7 @@ class ProductRepository {
               
                   $add: [
                     { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
+                    { $ifNull: ["$actualGstRate", 0] },
                   ],
                
             },

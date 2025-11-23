@@ -344,7 +344,8 @@ class OrderRepository {
             { path: "id_state" },
             { path: "id_country" },
           ],
-        }).populate('paymentId')
+        })
+        .populate("paymentId")
         .lean();
       let address = "";
       if (findOrder.deliveryAddress) {
@@ -361,114 +362,115 @@ class OrderRepository {
           .join(", ");
       }
       const findOrderItem = await OrderItem.aggregate([
-  {
-    $match: {
-      orderId: new mongoose.Types.ObjectId(orderId),
-    },
-  },
+        {
+          $match: {
+            orderId: new mongoose.Types.ObjectId(orderId),
+          },
+        },
 
-  // Lookup purity
-  {
-    $lookup: {
-      from: "purities",
-      localField: "id_purity",
-      foreignField: "_id",
-      as: "Purity",
-    },
-  },
-  {
-    $unwind: {
-      path: "$Purity",
-      preserveNullAndEmptyArrays: true,
-    },
-  },
+        // Lookup purity
+        {
+          $lookup: {
+            from: "purities",
+            localField: "id_purity",
+            foreignField: "_id",
+            as: "Purity",
+          },
+        },
+        {
+          $unwind: {
+            path: "$Purity",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
 
-  // Lookup product
-  {
-    $lookup: {
-      from: "products",
-      localField: "productId",
-      foreignField: "_id",
-      as: "productId",
-    },
-  },
-  {
-    $unwind: {
-      path: "$productId",
-      preserveNullAndEmptyArrays: true,
-    },
-  },
+        // Lookup product
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "productId",
+          },
+        },
+        {
+          $unwind: {
+            path: "$productId",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
 
-  // Lookup sizeMaster
-  {
-    $lookup: {
-      from: "sizemasters",
-      localField: "productId.availableSizes.sizeId",
-      foreignField: "_id",
-      as: "SizeMaster",
-    },
-  },
-  {
-    $unwind: {
-      path: "$SizeMaster",
-      preserveNullAndEmptyArrays: true,
-    },
-  },
+        // Lookup sizeMaster
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "productId.availableSizes.sizeId",
+            foreignField: "_id",
+            as: "SizeMaster",
+          },
+        },
+        {
+          $unwind: {
+            path: "$SizeMaster",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
 
-  // Find matching size object
-  {
-    $addFields: {
-      productSize: {
-        $arrayElemAt: [
-          {
-            $filter: {
-              input: "$productId.availableSizes.values",
-              as: "size",
-              cond: { $eq: ["$$size._id", "$sizeId"] },
+        // Find matching size object
+        {
+          $addFields: {
+            productSize: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$productId.availableSizes.values",
+                    as: "size",
+                    cond: { $eq: ["$$size._id", "$sizeId"] },
+                  },
+                },
+                0,
+              ],
             },
           },
-          0,
-        ],
-      },
-    },
-  },
+        },
 
-  // Create final size text (ex: "22mm")
-  {
-    $addFields: {
-      size: {
-        $concat: [
-          { $toString: "$productSize.sizeValue" },
-          { $ifNull: ["$SizeMaster.unit", ""] },
-        ],
-      },
-    },
-  },
+        // Create final size text (ex: "22mm")
+        {
+          $addFields: {
+            size: {
+              $concat: [
+                { $toString: "$productSize.sizeValue" },
+                { $ifNull: ["$SizeMaster.unit", ""] },
+              ],
+            },
+          },
+        },
 
-  // ⭐ ADD purityName here (IMPORTANT!)
-  {
-    $addFields: {
-      purityName: "$Purity.purity_name",
-    },
-  },
+        // ⭐ ADD purityName here (IMPORTANT!)
+        {
+          $addFields: {
+            purityName: "$Purity.purity_name",
+          },
+        },
 
-  // Final Project
-  {
-    $project: {
-      SizeMaster: 0,
-      productSize: 0,
-      Purity: 0,          // optional
-      "productId.availableSizes": 0, // optional
-    },
-  },
-]);
+        // Final Project
+        {
+          $project: {
+            SizeMaster: 0,
+            productSize: 0,
+            Purity: 0, // optional
+            "productId.availableSizes": 0, // optional
+          },
+        },
+      ]);
 
       return {
         item: findOrderItem,
         overAll: {
           placedAt: findOrder.createdAt,
-          estimatedDeliveryDate:findOrder.estimatedDeliveryDate,
-          arrivedAt:findOrder?.statusData[findOrder.statusData.length-1]?.date,
+          estimatedDeliveryDate: findOrder.estimatedDeliveryDate,
+          arrivedAt:
+            findOrder?.statusData[findOrder.statusData.length - 1]?.date,
           orderId: findOrder.orderId,
           address,
           subTotal: findOrder.subtotal,
@@ -482,6 +484,11 @@ class OrderRepository {
           orderTypeNo: findOrder?.orderType,
           totalGstAmount: findOrder?.totalGstAmount,
           paymentMode: findOrder?.paymentId?.paymentModeName,
+          cancelReason: findOrder?.cancelReason,
+          totalStoneWeight: findOrder?.totalStoneWeight??0,
+          totalDiamondWeight: findOrder?.totalDiamondWeight??0,
+          totalStonePrice: findOrder?.totalStonePrice??0,
+          totalDiamondPrice: findOrder?.totalDiamondPrice??0,
         },
         pathUrl: `${config.DISPLAY_IMG_URL}products/`,
       };
@@ -552,7 +559,7 @@ class OrderRepository {
     }
   }
 
-  async updatePaymentCount(orderId,paymentId=null) {
+  async updatePaymentCount(orderId, paymentId = null) {
     try {
       const statusData = {
         name: ORDER_STATUS["2"],
@@ -596,7 +603,8 @@ class OrderRepository {
             { path: "id_state" },
             { path: "id_country" },
           ],
-        }).populate('paymentId')
+        })
+        .populate("paymentId")
         .populate({
           path: "userId",
           select: "firstname lastname email mobile cus_img",
@@ -667,7 +675,13 @@ class OrderRepository {
             qty: "$quantity",
             img: { $arrayElemAt: ["$product.product_image", 0] },
             price: "$discountAmount",
-            grossWt: "$product.grossWt",
+            grossWt: "$grossWeight",
+            netWt: "$netWt",
+            totalStoneWeight: "$totalStoneWeight",
+            totalDiamondWeight: "$totalDiamondWeight",
+            totalStonePrice: "$totalStonePrice",
+            totalDiamondPrice: "$totalDiamondPrice",
+            metalRate: "$metalRate",
           },
         },
       ]);
@@ -700,6 +714,10 @@ class OrderRepository {
           deliveryRecipientPhone: findOrder?.deliveryAddress?.mobileNo,
           totalGstAmount: findOrder?.totalGstAmount,
           paymentMode: findOrder?.paymentId?.paymentModeName,
+          totalStoneWeight: findOrder?.totalStoneWeight??0,
+          totalDiamondWeight: findOrder?.totalDiamondWeight??0,
+          totalStonePrice: findOrder?.totalStonePrice??0,
+          totalDiamondPrice: findOrder?.totalDiamondPrice??0,
         },
         productPathUrl: `${config.DISPLAY_IMG_URL}products/`,
         customerPathUrl: `${config.DISPLAY_IMG_URL}customer/`,
@@ -905,7 +923,7 @@ class OrderRepository {
             newOrders: [
               {
                 $match: {
-                  orderStatus: 1, // Processing
+                  orderStatus: { $ne: ORDER_STATUS_NO.CANCELLED },
                   createdAt: { $gte: startDate, $lte: endDate },
                 },
               },
@@ -914,7 +932,7 @@ class OrderRepository {
             pendingOrders: [
               {
                 $match: {
-                  orderStatus: 5, // Payment pending
+                  orderStatus: ORDER_STATUS_NO.PLACED, // Payment pending
                   createdAt: { $gte: startDate, $lte: endDate },
                 },
               },
@@ -923,17 +941,49 @@ class OrderRepository {
             deliveredToday: [
               {
                 $match: {
-                  orderStatus: 3, // Delivered
-                  deliveredDate: { $gte: startDate, $lte: endDate }, // use deliveredDate instead
+                  orderStatus: ORDER_STATUS_NO.DELIVERED,
+                  $expr: {
+                    $and: [
+                      {
+                        $gte: [
+                          { $arrayElemAt: ["$statusData.date", -1] },
+                          startDate,
+                        ],
+                      },
+                      {
+                        $lte: [
+                          { $arrayElemAt: ["$statusData.date", -1] },
+                          endDate,
+                        ],
+                      },
+                    ],
+                  },
                 },
               },
               { $count: "count" },
             ],
+
             inShipment: [
+
               {
                 $match: {
-                  orderStatus: 2, // Placed
-                  createdAt: { $gte: startDate, $lte: endDate },
+                  orderStatus: ORDER_STATUS_NO.SHIPPED,
+                  $expr: {
+                    $and: [
+                      {
+                        $gte: [
+                          { $arrayElemAt: ["$statusData.date", -1] },
+                          startDate,
+                        ],
+                      },
+                      {
+                        $lte: [
+                          { $arrayElemAt: ["$statusData.date", -1] },
+                          endDate,
+                        ],
+                      },
+                    ],
+                  },
                 },
               },
               { $count: "count" },
@@ -941,7 +991,8 @@ class OrderRepository {
             totalSales: [
               {
                 $match: {
-                  // orderStatus: { $in: [1, 2, 3, 4] },
+                  orderType: { $in: [ORDER_TYPE.ONLINE_ORDER,ORDER_TYPE.STORE_PICKUP] },
+                  orderStatus: { $ne:ORDER_STATUS_NO.CANCELLED },
                   createdAt: { $gte: startDate, $lte: endDate },
                 },
               },
@@ -987,7 +1038,6 @@ class OrderRepository {
           },
         },
       ]);
-
 
       return result;
     } catch (err) {
@@ -1096,7 +1146,7 @@ class OrderRepository {
   // }
 
   // async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
-  //   try{ 
+  //   try{
   //     page = Number(page);
   //     limit = Number(limit);
   //     const skip = (page - 1) * limit;
@@ -1182,141 +1232,140 @@ class OrderRepository {
   //   }
   // }
 
-async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
-  try {
-    page = Number(page);
-    limit = Number(limit);
-    const skip = (page - 1) * limit;
+  async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
+    try {
+      page = Number(page);
+      limit = Number(limit);
+      const skip = (page - 1) * limit;
 
-    const pipeline = [
-      // ---------------------------- 
-      // MATCH ORDERS
-      // ---------------------------- 
-      {
-        $match: {
-          ...filter,
-          paymentId: { $exists: true, $ne: null },
+      const pipeline = [
+        // ----------------------------
+        // MATCH ORDERS
+        // ----------------------------
+        {
+          $match: {
+            ...filter,
+            paymentId: { $exists: true, $ne: null },
+          },
         },
-      },
-      
-      // ---------------------------- 
-      // JOIN PAYMENT INFO
-      // ---------------------------- 
-      {
-        $lookup: {
-          from: "orderpaymens",
-          localField: "paymentId",
-          foreignField: "_id",
-          as: "payment",
-        },
-      },
-      { $unwind: "$payment" },
-      
-      // ---------------------------- 
-      // ONLY SUCCESSFUL PAYMENTS
-      // ---------------------------- 
-      {
-        $match: {
-          "payment.payment_status": 1, // ✅ Fixed field name
-          "payment.payment_amount": { $gt: 0 },
-        },
-      },
-      
-      // ---------------------------- 
-      // JOIN CUSTOMER INFO
-      // ---------------------------- 
-      {
-        $lookup: {
-          from: "customers",
-          localField: "userId",
-          foreignField: "_id",
-          as: "customer",
-        },
-      },
-      { $unwind: "$customer" },
-    ];
 
-    // ---------------------------- 
-    // SEARCH CONDITIONS
-    // ---------------------------- 
-    if (search && search.trim() !== "") {
-      const regex = new RegExp(search.trim(), "i");
-      pipeline.push({
-        $match: {
-          $or: [
-            { orderId: { $regex: regex } },
-            { "customer.firstname": { $regex: regex } },
-            { "customer.lastname": { $regex: regex } },
-            {
-              $expr: {
-                $regexMatch: {
-                  input: { $toString: "$customer.mobile" },
-                  regex,
+        // ----------------------------
+        // JOIN PAYMENT INFO
+        // ----------------------------
+        {
+          $lookup: {
+            from: "orderpaymens",
+            localField: "paymentId",
+            foreignField: "_id",
+            as: "payment",
+          },
+        },
+        { $unwind: "$payment" },
+
+        // ----------------------------
+        // ONLY SUCCESSFUL PAYMENTS
+        // ----------------------------
+        {
+          $match: {
+            "payment.payment_status": 1, // ✅ Fixed field name
+            "payment.payment_amount": { $gt: 0 },
+          },
+        },
+
+        // ----------------------------
+        // JOIN CUSTOMER INFO
+        // ----------------------------
+        {
+          $lookup: {
+            from: "customers",
+            localField: "userId",
+            foreignField: "_id",
+            as: "customer",
+          },
+        },
+        { $unwind: "$customer" },
+      ];
+
+      // ----------------------------
+      // SEARCH CONDITIONS
+      // ----------------------------
+      if (search && search.trim() !== "") {
+        const regex = new RegExp(search.trim(), "i");
+        pipeline.push({
+          $match: {
+            $or: [
+              { orderId: { $regex: regex } },
+              { "customer.firstname": { $regex: regex } },
+              { "customer.lastname": { $regex: regex } },
+              {
+                $expr: {
+                  $regexMatch: {
+                    input: { $toString: "$customer.mobile" },
+                    regex,
+                  },
                 },
               },
-            },
-          ],
+            ],
+          },
+        });
+      }
+
+      // ----------------------------
+      // COUNT TOTAL
+      // ----------------------------
+      const countPipeline = [...pipeline, { $count: "totalCount" }];
+      const countResult = await Order.aggregate(countPipeline);
+      const totalCount = countResult?.[0]?.totalCount || 0;
+
+      // ----------------------------
+      // PAGINATION
+      // ----------------------------
+      pipeline.push({ $sort: { createdAt: -1 } });
+      pipeline.push({ $skip: skip });
+      pipeline.push({ $limit: limit });
+
+      // ----------------------------
+      // FINAL PROJECTION
+      // ----------------------------
+      pipeline.push({
+        $project: {
+          _id: 1,
+          orderId: 1,
+          createdAt: 1,
+          totalAmount: 1,
+          payment_amount: "$payment.payment_amount",
+          cf_payment_id: "$payment.cf_payment_id",
+          cf_order_id: "$payment.cf_order_id",
+          payment_session_id: "$payment.payment_session_id",
+          payment_status: "$payment.payment_status",
+          paymentModeName: "$payment.paymentModeName",
+          id_transaction: "$payment.id_transaction",
+          id_customer: {
+            _id: "$customer._id",
+            firstname: "$customer.firstname",
+            lastname: "$customer.lastname",
+            mobile: "$customer.mobile",
+          },
         },
       });
+
+      // ----------------------------
+      // RUN FINAL PIPELINE
+      // ----------------------------
+      const result = await Order.aggregate(pipeline);
+
+      return {
+        result,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        limit,
+      };
+    } catch (error) {
+      console.error(error);
+      return null;
     }
-
-    // ---------------------------- 
-    // COUNT TOTAL
-    // ---------------------------- 
-    const countPipeline = [...pipeline, { $count: "totalCount" }];
-    const countResult = await Order.aggregate(countPipeline);
-    const totalCount = countResult?.[0]?.totalCount || 0;
-
-    // ---------------------------- 
-    // PAGINATION
-    // ---------------------------- 
-    pipeline.push({ $sort: { createdAt: -1 } });
-    pipeline.push({ $skip: skip });
-    pipeline.push({ $limit: limit });
-
-    // ---------------------------- 
-    // FINAL PROJECTION
-    // ---------------------------- 
-    pipeline.push({
-      $project: {
-        _id: 1,
-        orderId: 1,
-        createdAt: 1,
-        totalAmount: 1,
-        payment_amount: "$payment.payment_amount",
-        cf_payment_id: "$payment.cf_payment_id",
-        cf_order_id: "$payment.cf_order_id",
-        payment_session_id: "$payment.payment_session_id",
-        payment_status: "$payment.payment_status",
-        paymentModeName: "$payment.paymentModeName",
-        id_transaction: "$payment.id_transaction",
-        id_customer: {
-          _id: "$customer._id",
-          firstname: "$customer.firstname",
-          lastname: "$customer.lastname",
-          mobile: "$customer.mobile",
-        },
-      },
-    });
-
-    // ---------------------------- 
-    // RUN FINAL PIPELINE
-    // ---------------------------- 
-    const result = await Order.aggregate(pipeline);
-
-    return {
-      result,
-      totalCount,
-      totalPages: Math.ceil(totalCount / limit),
-      currentPage: page,
-      limit,
-    };
-  } catch (error) {
-    console.error(error);
-    return null;
   }
-}
-
 
   // async getTopSellingProducttable(page=1,limit=10,filter) {
   //   try {
@@ -1411,159 +1460,158 @@ async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
   //   }
   // }
 
-async getTopSellingProducttable(
-  page = 1,
-  limit = 10,
-  filter = {},
-  search = ""
-) {
-  try {
-    const skip = (page - 1) * limit;
-    let basePipeline = [
-      { $match:{ createdAt: filter.createdAt } },
+  async getTopSellingProducttable(
+    page = 1,
+    limit = 10,
+    filter = {},
+    search = ""
+  ) {
+    try {
+      const skip = (page - 1) * limit;
+      let basePipeline = [
+        { $match: { createdAt: filter.createdAt } },
 
-      {
-        $lookup: {
-          from: "orderitems",
-          localField: "_id",
-          foreignField: "orderId",
-          as: "orderItem",
+        {
+          $lookup: {
+            from: "orderitems",
+            localField: "_id",
+            foreignField: "orderId",
+            as: "orderItem",
+          },
         },
-      },
-      { $unwind: "$orderItem" },
+        { $unwind: "$orderItem" },
 
-      {
-        $group: {
-          _id: "$orderItem.productId",
-          totalSold: { $sum: "$orderItem.quantity" },
-          totalAmount: { $sum: "$orderItem.discountAmount" },
+        {
+          $group: {
+            _id: "$orderItem.productId",
+            totalSold: { $sum: "$orderItem.quantity" },
+            totalAmount: { $sum: "$orderItem.discountAmount" },
+          },
         },
-      },
 
-      {
-        $lookup: {
-          from: "products",
-          localField: "_id",
-          foreignField: "_id",
-          as: "product",
+        {
+          $lookup: {
+            from: "products",
+            localField: "_id",
+            foreignField: "_id",
+            as: "product",
+          },
         },
-      },
-      { $unwind: "$product" }
-    ];
+        { $unwind: "$product" },
+      ];
 
-    //  CATEGORY FILTER
-    if (filter.id_category) {
-      basePipeline.push({
-        $match: {
-          "product.id_category": new mongoose.Types.ObjectId(filter.id_category)
-        }
-      });
-    }
-
-    // JOIN metadata
-    basePipeline.push(
-      {
-        $lookup: {
-          from: "metals",
-          localField: "product.id_metal",
-          foreignField: "_id",
-          as: "metal",
-        },
-      },
-      { $unwind: "$metal" },
-
-      {
-        $lookup: {
-          from: "categories",
-          localField: "product.id_category",
-          foreignField: "_id",
-          as: "category",
-        },
-      },
-      { $unwind: "$category" },
-
-      {
-        $lookup: {
-          from: "purities",
-          localField: "product.id_purity",
-          foreignField: "_id",
-          as: "purity",
-        },
-      },
-      { $unwind: "$purity" },
-
-      {
-        $project: {
-          _id: 0,
-          productId: "$_id",
-          name: "$product.product_name",
-          totalSold: 1,
-          metalName: "$metal.metal_name",
-          purityName: "$purity.purity_name",
-          categoryName: "$category.category_name",
-          totalAmount: 1,
-        },
+      //  CATEGORY FILTER
+      if (filter.id_category) {
+        basePipeline.push({
+          $match: {
+            "product.id_category": new mongoose.Types.ObjectId(
+              filter.id_category
+            ),
+          },
+        });
       }
-    );
 
-    // 🔍 SEARCH FILTER
-    if (search && search.trim() !== "") {
-      const searchRegex = new RegExp(search.trim(), "i");
-
-      basePipeline.push({
-        $match: {
-          $or: [
-            { name: { $regex: searchRegex } },
-            { categoryName: { $regex: searchRegex } },
-            { metalName: { $regex: searchRegex } },
-          ],
+      // JOIN metadata
+      basePipeline.push(
+        {
+          $lookup: {
+            from: "metals",
+            localField: "product.id_metal",
+            foreignField: "_id",
+            as: "metal",
+          },
         },
-      });
+        { $unwind: "$metal" },
+
+        {
+          $lookup: {
+            from: "categories",
+            localField: "product.id_category",
+            foreignField: "_id",
+            as: "category",
+          },
+        },
+        { $unwind: "$category" },
+
+        {
+          $lookup: {
+            from: "purities",
+            localField: "product.id_purity",
+            foreignField: "_id",
+            as: "purity",
+          },
+        },
+        { $unwind: "$purity" },
+
+        {
+          $project: {
+            _id: 0,
+            productId: "$_id",
+            name: "$product.product_name",
+            totalSold: 1,
+            metalName: "$metal.metal_name",
+            purityName: "$purity.purity_name",
+            categoryName: "$category.category_name",
+            totalAmount: 1,
+          },
+        }
+      );
+
+      // 🔍 SEARCH FILTER
+      if (search && search.trim() !== "") {
+        const searchRegex = new RegExp(search.trim(), "i");
+
+        basePipeline.push({
+          $match: {
+            $or: [
+              { name: { $regex: searchRegex } },
+              { categoryName: { $regex: searchRegex } },
+              { metalName: { $regex: searchRegex } },
+            ],
+          },
+        });
+      }
+
+      // 🎯 APPLY FACET FOR PAGINATION
+      const pipeline = [
+        ...basePipeline,
+
+        {
+          $facet: {
+            metadata: [{ $count: "totalDocuments" }],
+            data: [
+              { $sort: { totalSold: -1 } },
+              { $skip: skip },
+              { $limit: limit },
+            ],
+          },
+        },
+
+        {
+          $addFields: {
+            totalDocuments: { $arrayElemAt: ["$metadata.totalDocuments", 0] },
+          },
+        },
+      ];
+
+      const response = await Order.aggregate(pipeline);
+
+      const result = response[0].data || [];
+      const totalDocuments = response[0].totalDocuments || 0;
+      const totalPages = Math.ceil(totalDocuments / limit);
+
+      return {
+        result,
+        totalDocuments,
+        totalPages,
+        currentPage: page,
+        limit,
+      };
+    } catch (err) {
+      console.error("Error in getTopSellingProducttable:", err);
+      throw err;
     }
-
-    // 🎯 APPLY FACET FOR PAGINATION
-    const pipeline = [
-      ...basePipeline,
-
-      {
-        $facet: {
-          metadata: [{ $count: "totalDocuments" }],
-          data: [
-            { $sort: { totalSold: -1 } },
-            { $skip: skip },
-            { $limit: limit },
-          ],
-        },
-      },
-
-      {
-        $addFields: {
-          totalDocuments: { $arrayElemAt: ["$metadata.totalDocuments", 0] },
-        },
-      },
-    ];
-
-    const response = await Order.aggregate(pipeline);
-
-    const result = response[0].data || [];
-    const totalDocuments = response[0].totalDocuments || 0;
-    const totalPages = Math.ceil(totalDocuments / limit);
-
-    return {
-      result,
-      totalDocuments,
-      totalPages,
-      currentPage: page,
-      limit,
-    };
-
-  } catch (err) {
-    console.error("Error in getTopSellingProducttable:", err);
-    throw err;
   }
-}
-
-
 
   async findProductForOrderNow(productId, userId) {
     try {
