@@ -46,7 +46,6 @@ export function checkQuantitySize(items) {
                 stockAvailable: stockAvailable
             };
         });
-        
         return updatedItems;
         
     } catch (error) {
