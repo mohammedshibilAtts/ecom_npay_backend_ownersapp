@@ -73,8 +73,14 @@ app.use(
   })
 );
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Routes
+app.get('/e-product/:id', (req, res) => {
+  // Send the HTML file instead of JSON
+  return res.sendFile(__dirname + '/utils/deepLinkPage.html'); // Or use res.render() if using a template engine
+})
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
@@ -91,8 +97,7 @@ app.use('/api/shop',shopRoutes)
 // app.use('/api/sales',ausaleRoutes)
 
 // Serve static files
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Handle undefined routes
