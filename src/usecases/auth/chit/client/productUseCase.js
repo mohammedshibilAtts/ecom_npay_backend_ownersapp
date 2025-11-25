@@ -1132,7 +1132,7 @@ class ProductUseCase {
           sortOption = { discountDifference: -1 };
         }
       }
-
+      console.log("34567890-",filter)
       let priceFilter = {};
       if (filter && filter.priceRange) {
         const [minPrice, maxPrice] = filter.priceRange.split("-").map(Number);
@@ -1145,7 +1145,7 @@ class ProductUseCase {
           };
         }
       }
-
+      console.log("Sortsss....",sortOption)
       const result = await this.productRepository.getProductBySubcategory(
         new mongoose.Types.ObjectId(id),
         pageNumber,

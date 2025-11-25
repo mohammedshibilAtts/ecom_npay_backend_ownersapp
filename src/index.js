@@ -78,7 +78,6 @@ const __dirname = path.dirname(__filename);
 
 // Routes
 app.get('/e-product/:id', (req, res) => {
-  // Send the HTML file instead of JSON
   return res.sendFile(__dirname + '/utils/deepLinkPage.html'); // Or use res.render() if using a template engine
 })
 app.use('/api/auth', authRoutes);

@@ -38,15 +38,15 @@
       const isIOS =
         /iphone|ipod/.test(ua) ||
         ua.includes("ipad") ||
-        (ua.includes("macintosh") && navigator.maxTouchPoints > 1);
+        (ua.includes("macintosh") && navigator.maxTouchPoints > 1); 
  
       // --- REDIRECT URL ---
-      let redirectUrl = "https://omsakthijewels.au-pay.in/";  // fallback URL Website
+      let redirectUrl = "";  // fallback URL Website
  
       if (isIOS) {
-          redirectUrl = "https://apps.apple.com/in/app/swamy-jewellery/id6478052508";
+          redirectUrl = "";
         } else if (isAndroid) {
-          redirectUrl = "https://play.google.com/store/apps/details?id=com.rujas.app"; 
+          redirectUrl = ""; 
       }
  
       // Manual link update
