@@ -14,6 +14,7 @@ import {
   ORDER_TYPE,
   ORDER_TYPE_NAME,
 } from "../../../config/chit/const.js";
+import { checkQuantitySize } from "../../../utils/quantityCheckHelper.js";
 
 class OrderUseCase {
   constructor(
@@ -234,8 +235,6 @@ class OrderUseCase {
         totalDiscount: findProduct.discountedAmount,
         shippingFee: shppingCharge,
         totalAmount: findProduct.discountedAmount + shppingCharge,
-        // couponCode: "NEWUSER100",
-        // payment: "68899df2c34cf80f45b7ed1c",
         savedAmount: findProduct.totalAmount - findProduct.discountedAmount,
         status: ORDER_STATUS[1],
         deliveryAddress: addressId,
@@ -262,12 +261,12 @@ class OrderUseCase {
         refundAmount: 0,
         metalRate: findProduct?.latestMetalPrice,
         netWt: findProduct?.netWeight,
-         id_purity:findProduct.id_purity,
-        id_metal:findProduct.id_metal,
-        makingCharges: findProduct.makingCharges??null,
-        wastageCharges: findProduct.wastageCharges??null,
-        sku:findProduct.sku,
-        gstAmount:findCart?.gst
+        id_purity: findProduct.id_purity,
+        id_metal: findProduct.id_metal,
+        makingCharges: findProduct.makingCharges ?? null,
+        wastageCharges: findProduct.wastageCharges ?? null,
+        sku: findProduct.sku,
+        gstAmount: findCart?.gst,
       };
       const createOrder = await this.orderRepository.createOrder(orderData, [
         orderItems,
@@ -330,15 +329,14 @@ class OrderUseCase {
           data: cartItems,
         };
       }
-      
-      const checkQuantityAvailability =
-        await this.productRepository.checkQuantityAvailability(cartItems.items);
-      if (checkQuantityAvailability && checkQuantityAvailability.length >= 1) {
-        // return{
-        //   success:false,
-        //   message:"Product out of stock"
-        // }
+      const findAvailableStocks = checkQuantitySize(cartItems.items);
+      const isOutOfStock = findAvailableStocks?.some(
+        (item) => item.stockAvailable === false
+      );
+      if (isOutOfStock) {
+        return { success: false, message: "Product out of stock" };
       }
+
       let estimatedDeliveryDays;
       if (!isStorePickup) {
         const findPincodeData = await this.pincodeUseCase.getPincodesByFilters({
@@ -368,6 +366,23 @@ class OrderUseCase {
         .update(raw)
         .digest("hex")
         .slice(0, 15);
+
+      const totals = cartItems.items.reduce(
+        (acc, item) => {
+          acc.totalDiamondWeight += item.totalDiamondWeight || 0;
+          acc.totalStoneWeight += item.totalStoneWeight || 0;
+          acc.totalDiamondPrice += item.totalDiamondPrice || 0;
+          acc.totalStonePrice += item.totalStonePrice || 0;
+          return acc;
+        },
+        {
+          totalDiamondWeight: 0,
+          totalStoneWeight: 0,
+          totalDiamondPrice: 0,
+          totalStonePrice: 0,
+        }
+      );
+
       const orderData = {
         orderId: `ORD-${transactionId}`,
         userId: userData._id,
@@ -375,10 +390,11 @@ class OrderUseCase {
         cartId: findCart._id,
         shipping_is_billing: true,
         itemsCount: cartItems.items.length,
-        subtotal: cartItems.overAllAmount.totalDiscount,
+        subtotal: cartItems.overAllAmount.totalPrice,
         totalDiscount: cartItems.overAllAmount.totalDiscount,
         shippingFee: shppingCharge,
-        totalAmount: cartItems.overAllAmount.totalDiscount + shppingCharge,
+        totalAmount:
+          cartItems.overAllAmount.totalDiscount ,
         totalGstAmount: cartItems.overAllAmount.gstRate,
         // couponCode: "NEWUSER100",
         // payment: "68899df2c34cf80f45b7ed1c",
@@ -392,6 +408,10 @@ class OrderUseCase {
         orderType: isStorePickup
           ? ORDER_TYPE.STORE_PICKUP
           : ORDER_TYPE.ONLINE_ORDER,
+        totalDiamondWeight: totals.totalDiamondWeight,
+        totalStoneWeight: totals.totalStoneWeight,
+        totalDiamondPrice: totals.totalDiamondPrice,
+        totalStonePrice: totals.totalStonePrice,
       };
       const orderItems = cartItems.items.map((item) => ({
         productId: item.productId, // from API
@@ -414,19 +434,18 @@ class OrderUseCase {
         refundAmount: 0,
         metalRate: item.metalRate,
         netWt: item.netWt,
-        id_purity:item.id_purity,
-        id_metal:item.id_metal,
-        makingCharges: item.makingCharges??null,
-        wastageCharges: item.wastageCharges??null,
-        sku:item.sku,
-        gstAmount:item?.gstRate,
-        totalDiamondWeight:item.totalDiamondWeight,
-        totalStoneWeight:item.totalStoneWeight,
-        totalDiamondPrice:item.totalDiamondPrice,
-        totalStonePrice:item.totalStonePrice,
-        
+        id_purity: item.id_purity,
+        id_metal: item.id_metal,
+        makingCharges: item.makingCharges ?? null,
+        wastageCharges: item.wastageCharges ?? null,
+        sku: item.sku,
+        gstAmount: item?.gstRate,
+        totalDiamondWeight: item.totalDiamondWeight,
+        totalStoneWeight: item.totalStoneWeight,
+        totalDiamondPrice: item.totalDiamondPrice,
+        totalStonePrice: item.totalStonePrice,
       }));
-      console.log(cartItems)
+      console.log(cartItems);
       const createOrder = await this.orderRepository.createOrder(
         orderData,
         orderItems
