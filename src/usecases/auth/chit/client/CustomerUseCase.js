@@ -442,66 +442,77 @@ class CustomerUseCase {
     }
   }
 
-  async searchCustomerByMobile(search, customer) {
+  async searchCustomerByMobile(search, customers) {
     try {
-      const searchTerm = search?.trim();
-      let data = null;
-
-      const currentCustomer = await this.customerRepository.searchCustomerByMobile(customer);
-      
-      if(currentCustomer.mobile == search){
+      if (!search) {
         return {
           success: false,
-          message: "Self referring is not allowed.",
+          message: "Please provide search text.",
         };
-      }
-
-      if(currentCustomer.referral_code == `Cus-${search}`){
-        return {
-          success: false,
-          message: "Self referring is not allowed.",
-        };
-      }
-  
-      if (/^\d{10}$/.test(searchTerm)) {
-        data = await this.customerRepository.searchCustomerByMobile(searchTerm);
-      } else {
-        const code = `Cus-${searchTerm}`;
-        data = await this.customerRepository.finByReferralCode(code);
       }
  
-      if (!data) {
-        data = await this.employeeRepo.findOne({ mobile: searchTerm});
+      let customerMobile = customers;
+ 
+      if (isValidObjectId(customers)) {
+        const currentCustomer = await this.customerRepository.findById(customers);
+        customerMobile = currentCustomer?.mobile?.toString() || null;
       }
-  
-      if (!data) {
+ 
+      const searchTerm = search.trim();
+      let result = null;
+ 
+      if (customerMobile && customerMobile.toString() === searchTerm) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+ 
+      if (`Cus-${customerMobile}` === `Cus-${searchTerm}`) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+ 
+      if (/^\d{10}$/.test(searchTerm)) {
+        result = await this.customerRepository.searchCustomerByMobile(searchTerm);
+      } else {
+        result = await this.customerRepository.finByReferralCode(`Cus-${searchTerm}`);
+      }
+ 
+      if (!result) {
+        result = await this.employeeRepo.findOne({ mobile: searchTerm });
+      }
+ 
+      if (!result) {
         return {
           success: false,
           message: "No customer or employee found with given details.",
         };
       }
-  
-      const referrer = await this.customerRepository.findOne({ mobile: searchTerm });
-      if (referrer) {
-        const referralCode = `Cus-${referrer.referral_code?.split('-')[1] || ''}`;
-
-        if (
-          referrer.mobile.toString() === searchTerm ||
-          referralCode === `Cus-${searchTerm}`
-        ) {
-          return {
-            success: false,
-            message: "Self referring is not allowed.",
-          };
-        }
+ 
+      if (result?.mobile?.toString() === customerMobile?.toString()) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
       }
-  
+ 
+      if (`Cus-${result?.referral_code?.split('-')[1]}` === `Cus-${searchTerm}`) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+ 
+ 
       return {
         success: true,
         message: "Data fetched successfully.",
-        data,
+        data: result,
       };
-  
+ 
     } catch (error) {
       console.error("Error in searchCustomerByMobile:", error);
       return {
