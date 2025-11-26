@@ -2096,7 +2096,7 @@ class PaymentUseCase {
       const input = {
         recipients: [data.id_customer],
         title: "Scheme Account Created",
-        message: `Congratulations! Your ${schemedData?.schemeName} Scheme Account has been successfully created at SENKA JWELLERS.`,
+        message: `Congratulations! Your ${schemedData?.schemeName} Scheme Account has been successfully created at ${config.NOTIFICATION_NAME}.`,
         channel: "push",
       };
       await smsService.sendNotification(input);
@@ -2130,7 +2130,7 @@ class PaymentUseCase {
         const input = {
           recipients: [data.referral_id],
           title: "Scheme Account Created",
-          message: `Thank you for referring ${data?.customer_name} to SENKA JEWELERS! Your referral has successfully created a ${schemedData?.schemeName} Scheme Account.`,
+          message: `Thank you for referring ${data?.customer_name} to ${config.NOTIFICATION_NAME}! Your referral has successfully created a ${schemedData?.schemeName} Scheme Account.`,
           channel: "push",
         };
         await smsService.sendNotification(input);

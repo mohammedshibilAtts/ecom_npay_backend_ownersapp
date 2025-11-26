@@ -932,11 +932,11 @@ class OrderUseCase {
         let message = "";
 
         if (statusData?.statusNo == "2") {
-          message = `Your order has been placed successfully! Order ID: ${remarks}`;
+          message = `Your order has been placed successfully! Order ID: ${orderData?.orderId}`;
         } else if (statusData?.statusNo == "3") {
-          message = `Your order has been delivered successfully. Order ID: ${remarks}`;
+          message = `Your order has been delivered successfully. Order ID: ${orderData?.orderId}`;
         } else if (statusData?.statusNo == "4") {
-          message = `Your order has been cancelled. Order ID: ${remarks}`;
+          message = `Your order has been cancelled. Order ID: ${orderData?.orderId}`;
         }
 
         await this.sendNotification(orderData?.userId, title, message);
