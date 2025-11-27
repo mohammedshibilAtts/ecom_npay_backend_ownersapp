@@ -7,6 +7,7 @@ import isNotificationEnabled from "../../../../utils/notificationEnableChecket.j
 import SaveNotificationUsecase from "./saveNotificationUsecase.js";
 import SaveNotificationRepo from "../../../../infrastructure/repositories/chit/saveNotificationRepo.js";
 import EmployeeRepository from "../../../../infrastructure/repositories/chit/EmployeeRepository.js";
+import config from "../../../../config/chit/env.js";
 
 
 const customerRepo = new CustomerRepository();
@@ -55,10 +56,12 @@ class SchemeAccountUseCase {
       const input = {
         recipients: [data.id_customer],
         title: "Scheme Account Created",
-        message: `Congratulations! Your ${schemeInfo.id_scheme.scheme_name} Scheme Account has been successfully created at KEERTHI JWELLERS.`,
+        message: `Congratulations! Your ${schemeInfo.id_scheme.scheme_name} Scheme Account has been successfully created at ${config.NOTIFICATION_NAME}.`,
         channel: "push",
       }
       await smsService.sendNotification(input);
+
+      console.log(input.message);
       
       await this.saveNotificationUsecase.saveNotification({
         title: input.title,
@@ -109,7 +112,7 @@ class SchemeAccountUseCase {
         const input= {
           recipients: [data.referral_id],
           title: "Scheme Account Created",
-          message: `Thank you for referring ${data?.customer_name} to KEERTHI JEWELERS! Your referral has successfully created a ${schemeInfo.id_scheme.scheme_name} Scheme Account.`,
+          message: `Thank you for referring ${data?.customer_name} to ${config.NOTIFICATION_NAME}! Your referral has successfully created a ${schemeInfo.id_scheme.scheme_name} Scheme Account.`,
           channel: "push",
         }
         await smsService.sendNotification(input);
@@ -559,7 +562,6 @@ class SchemeAccountUseCase {
         data.typeofcustomer = 2;
       }
 
-
       if (customerData) {
         if (customerData.referral_id == null && data.referral_id !== "") {
           
@@ -579,6 +581,52 @@ class SchemeAccountUseCase {
           };
         }
       }
+
+      // if (data.platform === "android" || data.platform === "ios") {
+      //   let referralType = "Customer";
+      //   let referralId = data?.referral_id;
+      
+      //   if (referralId) {
+      //     const employeeData = await this.employeeRepository.findById(referralId);
+      //     const customerRefData = await this.customerRepo.findById(referralId);
+      
+      //     if (employeeData) {
+      //       referralType = "Employee";
+      //     } else if (customerRefData) {
+      //       referralType = "Customer";
+      //     } else {
+      //       return {
+      //         status: false,
+      //         message: "Invalid referral ID — no matching employee or customer found.",
+      //       };
+      //     }
+      
+      //     data.referral_type = referralType;
+      //     data.typeof_referral = referralType === "Employee" ? 1 : 2; // example: 1=Employee, 2=Customer
+      //   }
+      // }
+      
+      // if (data?.referral_type === "Employee" || data?.typeof_referral === 1) {
+      //   data.typeofcustomer = 2;
+      // }
+      
+      // if (customerData) {
+      //   const hasExistingReferral = !!customerData.referral_id;
+      
+      //   if (!hasExistingReferral && data.referral_id) {
+      //     const refData = {
+      //       referral_type: data?.referral_type,
+      //       referral_id: data?.referral_id,
+      //     };
+      //     await this.customerRepo.updateUniversal(data.id_customer, refData);
+      //   } else if (hasExistingReferral) {
+      //     return {
+      //       status: false,
+      //       message: "This user has already been referred.",
+      //     };
+      //   }
+      // }
+      
 
       if (data.referral_id === "") {
         delete data.referral_id;
@@ -652,14 +700,6 @@ class SchemeAccountUseCase {
           .status(404)
           .json({ status: "Failed", message: "Scheme Account not found" });
       }
-
-      //   data.created_by = tokenData.id_employee;
-      //   data.referal_id = 0;
-      //   data.typeofcustomer = 1;
-      //   data.date_add = new Date();
-      //   data.date_upd = new Date();
-      //   data.added_by = 0;
-      //   data.status = 0;
 
       const employeeData = this.employeeRepository.findOne({
         mobile: data.referal_code,
@@ -883,7 +923,7 @@ class SchemeAccountUseCase {
 
       arrobject.fine_amount = calcpayment.fine_amount || 0;
       // arrobject.total_paidinstallments = calcpayment.total_installments;
-      arrobject.total_paidamount = calcpayment.total_paidamount || account?.amount;
+      arrobject.total_paidamount = calcpayment.total_paidamount ||  account?.amount;
       arrobject.total_weight = calcpayment.total_weight || account?.weight;
       arrobject.status_name = this.getStatusName(account.status);
       arrobject.created_through = this.addedby(account.created_through);
@@ -1007,9 +1047,9 @@ class SchemeAccountUseCase {
 
       const employee = await this.employeeRepository.findOne({_id:tokenData?.id_employee,active:true,is_deleted:false})
 
-      if(!employee){
-        return {success:false,message:"Operation not permitted"}
-      }
+      // if (!employee || !tokenData?.id_role || tokenData.id_role.id_role !== 2) {
+      //   return { success: false, message: "Operation not permitted" };
+      // }
 
       const schemeAccount= await this.schemeAccountRepository.findById(id)
 
@@ -1025,6 +1065,7 @@ class SchemeAccountUseCase {
         bill_no,
         bill_date,
         total_paidamount,
+        closingBonus = 0,
         refund_paymenttype,
       } = data;
 
@@ -1041,6 +1082,12 @@ class SchemeAccountUseCase {
         refund_paymenttype,
         previousStatus:schemeAccount?.status
       };
+
+      const billNoExists = await this.closeAccRepo.findByBillNmber(bill_no)
+
+      if(billNoExists){
+        return { success: false, message: "Bill number already exists" };
+      }
 
       let newClosedAccount = "";
       if (refund_paymenttype !== "") {
@@ -1062,6 +1109,7 @@ class SchemeAccountUseCase {
         closed_by: createdBy,
         closed_date: new Date(),
         status: status,
+        closingBonus: closingBonus,
       };
 
       const revertData = await this.schemeAccountRepository.closeSchemeAccount(
@@ -1078,13 +1126,19 @@ class SchemeAccountUseCase {
 
       const notificationData = await isNotificationEnabled("schemeClose");
 
-      if (notificationData.push) {
-        const schemeData = await this.schemeAccountRepository.find({ _id: id });
+      if (notificationData?.push) {
+        let type = "Closed"
+
+        if(status == 3){
+          type = "Pre-closed"
+        }else if(status == 4){
+          type = "Refunded"
+        }
 
         const input = {
-          recipients: [data.id_customer],
-          title: "Scheme Account Closed",
-          message: `Your ${schemeData.scheme_name} Scheme Account with KEERTHI JWELLERS has been successfully closed. We appreciate your association with us`,
+          recipients: [schemeAccount?.id_customer],
+          title: `Scheme Account ${type}`,
+          message: `Your ${schemeAccount?.scheme_acc_number} Scheme Account with ${config.NOTIFICATION_NAME} has been successfully ${type}. We appreciate your association with us`,
           channel: "push",
         }
         await smsService.sendNotification(input);
@@ -1094,7 +1148,7 @@ class SchemeAccountUseCase {
           message: input.message,
           type:"alert",
           category:'Scheme account'
-        },data.id_customer)
+        },schemeAccount?.id_customer)
       }
 
       return {
@@ -1409,13 +1463,7 @@ class SchemeAccountUseCase {
       // Add computed fields
       pipeline.push({
         $addFields: {
-          customer_name: {
-            $concat: [
-              { $ifNull: ["$customer.firstname", ""] },
-              " ",
-              { $ifNull: ["$customer.lastname", ""] },
-            ],
-          },
+          account_name:"$account_name",
           mobile: "$customer.mobile",
           address: "$customer.address",
           scheme_name: "$scheme.scheme_name",
@@ -1494,9 +1542,9 @@ class SchemeAccountUseCase {
               parseFloat(gift_issues?.gift_amount || 0) -
               parseFloat(gift_issues?.excess_amount || 0),
             fine_amount: calcpayment?.fine_amount,
+            total_paidinstallments: calcpayment?.total_installments,
             total_paidamount: calcpayment?.total_paidamount || account?.amount,
             total_weight: calcpayment?.total_weight || account?.weight,
-            total_weight: calcpayment?.total_weight,
             status_name: this.getStatusName(account.status),
             created_through: this.addedby(account.added_by),
           };
@@ -1698,7 +1746,7 @@ class SchemeAccountUseCase {
 
       const schemeAccId = shcemeAccountData[0]._id;
 
-      const closeAccDetails = await this.closeAccRepo.getCloseaccount(
+      const closeAccDetails = await this.closeAccRepo.getCloseaccountrevert(
         schemeAccId
       );
       const returnData = {
@@ -2037,7 +2085,7 @@ class SchemeAccountUseCase {
 
       return {
         success: true,
-        message: "Customer shceme account fetched successfully",
+        message: "Customer scheme account fetched successfully",
         data: processedData,
         general: generalsetting,
       };

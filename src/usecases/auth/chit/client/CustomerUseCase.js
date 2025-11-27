@@ -5,6 +5,11 @@ import crypto from "crypto";
 import { generateReferralCode } from "../../../../utils/cryptoGenerator.js";
 import smsService from "../../../../config/chit/smsService.js";
 import SchemeAccountRepository from '../../../../infrastructure/repositories/chit/schemeAccountRepository.js'
+import EmployeeRepository from "../../../../infrastructure/repositories/chit/EmployeeRepository.js";
+import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
+
 
 class CustomerUseCase {
   constructor(
@@ -26,6 +31,7 @@ class CustomerUseCase {
     this.hashingService = hashingService;
     this.tokenService = tokenService;
     this.schemeAccountRepo = new SchemeAccountRepository()
+    this.employeeRepo = new EmployeeRepository()
   }
 
   
@@ -436,42 +442,84 @@ class CustomerUseCase {
     }
   }
 
-  async searchCustomerByMobile(search,customer) {
+  async searchCustomerByMobile(search, customers) {
     try {
-      const searchTerm = search;
-
-      let Data = "";
-
-      if (search.length == 10) {
-        Data = await this.customerRepository.searchCustomerByMobile(searchTerm);
+      if (!search) {
+        return {
+          success: false,
+          message: "Please provide search text.",
+        };
+      }
+ 
+      let customerMobile = customers;
+ 
+      if (isValidObjectId(customers)) {
+        const currentCustomer = await this.customerRepository.findById(customers);
+        customerMobile = currentCustomer?.mobile?.toString() || null;
+      }
+ 
+      const searchTerm = search.trim();
+      let result = null;
+ 
+      if (customerMobile && customerMobile.toString() === searchTerm) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+ 
+      if (`Cus-${customerMobile}` === `Cus-${searchTerm}`) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+ 
+      if (/^\d{10}$/.test(searchTerm)) {
+        result = await this.customerRepository.searchCustomerByMobile(searchTerm);
       } else {
-        const code = `Cus-${search}`;
-        Data = await this.customerRepository.finByReferralCode(code);
+        result = await this.customerRepository.finByReferralCode(`Cus-${searchTerm}`);
       }
-
-      if (!Data || Data.length === 0) {
-        return { success: true, message: "No customers found" };
+ 
+      if (!result) {
+        result = await this.employeeRepo.findOne({ mobile: searchTerm });
       }
-
-      const customerData = await this.customerRepository.findOne({mobile:customer})
-
-      if(customerData){
-        const code = `Cus-${search}`;
-        if(customerData.mobile ==  search){
-          return {stauts:false,message:"Self referring not allowed"}
-        }else if(customerData.referral_code == code){
-          return {stauts:false,message:"Self referring not allowed"}
-        }
+ 
+      if (!result) {
+        return {
+          success: false,
+          message: "No customer or employee found with given details.",
+        };
       }
-
+ 
+      if (result?.mobile?.toString() === customerMobile?.toString()) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+ 
+      if (`Cus-${result?.referral_code?.split('-')[1]}` === `Cus-${searchTerm}`) {
+        return {
+          success: false,
+          message: "Self referring is not allowed.",
+        };
+      }
+ 
+ 
       return {
         success: true,
-        message: "Data fetched successfully",
-        data: Data,
+        message: "Data fetched successfully.",
+        data: result,
       };
+ 
     } catch (error) {
-      console.error(error);
-      return { success: false, message: "Failed to fetch data" };
+      console.error("Error in searchCustomerByMobile:", error);
+      return {
+        success: false,
+        message: "Failed to fetch data.",
+        error: error.message,
+      };
     }
   }
 
@@ -956,7 +1004,7 @@ class CustomerUseCase {
       let code=''
       if(checkCusmoter.referral_code == "0" || checkCusmoter.referral_code == null){
         const referralCode = generateReferralCode(checkCusmoter.mobile);
-         code = `Cus-${referralCode}`;
+       code = `Cus-${referralCode}`;
         await this.customerRepository.updateUniversal(customerId,{referral_code:code})
       }
 
@@ -964,16 +1012,20 @@ class CustomerUseCase {
 
       if (referralData) {
         const outputData ={
-          referralCode: checkCusmoter.referral_code || code,
-          referralMessage:referralData?.message,
-          applink: referralData?.appLink,
-          faq: referralData?.faq
+          referralCode: checkCusmoter?.referral_code || code,
+          referralMessage:referralData?.message || "",
+          applink: referralData?.appLink || "",
+          faq: referralData?.faq || ""
          }
 
         return { success: true, message: "Referral details fetched successfully" ,data:outputData};
       }
 
-      return { success: false, message: "Failed to get referral details" };
+      const outputdata={
+        referralData:checkCusmoter?.referral_code || code,
+      }
+
+      return { success: false, message: "Failed to get referral details" ,data:outputdata};
     } catch (error) {
       console.error(error);
       return { success: false, message: "Error while getting referral data" };
@@ -1088,6 +1140,105 @@ class CustomerUseCase {
     }catch(error){
       console.error(error);
       return { success: false, message: "Error while changing password" };
+    }
+  }
+
+  async exportCustomers(startDate, endDate, search) {
+    try {
+      const exportDir = path.join(process.cwd(), "public", "exports");
+      if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+
+      const files = fs.readdirSync(exportDir);
+    for (const file of files) {
+      if (file.endsWith(".xlsx")) {
+        fs.unlinkSync(path.join(exportDir, file));
+      }
+    }
+  
+      const filename = `customers_${Date.now()}.xlsx`;
+      const filePath = path.join(exportDir, filename);
+  
+      const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ filename: filePath });
+      const sheet = workbook.addWorksheet("Customers");
+  
+      sheet.addRow(["Firstname", "LastName", "Mobile", "Joined Date", "Scheme Accounts"]).commit();
+  
+      let skip = 0;
+      const limit = 10000;
+      let hasMore = true;
+  
+      const filterQuery = {};
+      
+      if (startDate || endDate) {
+        filterQuery.createdAt = {};
+        if (startDate) {
+          filterQuery.createdAt.$gte = new Date(startDate);
+        }
+        if (endDate) {
+          const endDateObj = new Date(endDate);
+          endDateObj.setHours(23, 59, 59, 999);
+          filterQuery.createdAt.$lte = endDateObj;
+        }
+      }
+  
+      if (search && search.trim() !== '') {
+        filterQuery.$or = [
+          { firstname: { $regex: search, $options: 'i' } },
+          { lastname: { $regex: search, $options: 'i' } },
+        ];
+
+        if (!isNaN(search)) {
+          filterQuery.$or.push({ mobile: Number(search) });
+        }
+      }
+  
+      let totalExported = 0;
+  
+      while (hasMore) {
+        const customers = await this.customerRepository.getCustomersBatch(skip, limit, filterQuery);
+        if (!customers.length) break;
+  
+        for (const c of customers) {
+          const schemeAccounts = await this.schemeAccountRepo.countDocuments({
+            id_customer: c._id,
+            active: true,
+            status: 0
+          });
+  
+          const formattedDate = c.createdAt
+            ? new Date(c.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
+            : "";
+  
+          sheet.addRow([
+            c.firstname,
+            c.lastname,
+            c.mobile,
+            formattedDate,
+            schemeAccounts || 0
+          ]).commit();
+        }
+  
+        totalExported += customers.length;
+        skip += limit;
+        hasMore = customers.length === limit;
+      }
+  
+      await workbook.commit();
+  
+      console.log(`Exported ${totalExported} customers with filters:`, { startDate, endDate, search });
+  
+      return {
+        success: true,
+        message: "Customers exported successfully",
+        data: {
+          filename,
+          fileUrl: `/exports/${filename}`,
+          count: totalExported
+        },
+      };
+    } catch (err) {
+      console.error("Export Error:", err);
+      return { success: false, message: "Failed to export customers" };
     }
   }
 }

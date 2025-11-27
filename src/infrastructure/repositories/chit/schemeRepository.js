@@ -84,6 +84,7 @@ class SchemeRepository {
   async findAll(query) {
     const schemeData = await schemeModel.aggregate([
       { $match: query },
+  
       {
         $lookup: {
           from: "s3bucketsettings",
@@ -92,7 +93,9 @@ class SchemeRepository {
           as: "s3Details",
         },
       },
+  
       { $unwind: "$s3Details" },
+  
       {
         $project: {
           scheme_name: 1,
@@ -115,6 +118,7 @@ class SchemeRepository {
           },
           logo: 1,
           scheme_type: 1,
+          classification_order: 1,
           pathurl: {
             $concat: [
               "$s3Details.s3display_url",
@@ -123,8 +127,10 @@ class SchemeRepository {
           },
         },
       },
+  
+      { $sort: { classification_order: 1 } }
     ]);
-    console.log(schemeData);
+  
     return schemeData.length > 0 ? schemeData : null;
   }
 
@@ -365,7 +371,7 @@ class SchemeRepository {
           },
         },
         { $replaceRoot: { newRoot: "$document" } },
-        { $sort: { _id: -1 } },
+        { $sort: { classification_order: 1 } },
       ];
 
       const totalCount = await schemeModel.countDocuments(query);
@@ -396,19 +402,54 @@ class SchemeRepository {
     return null;
   }
 
-  async toggleSchemeStatus(id, active) {
-    const schemeData = await schemeModel.findOneAndUpdate(
-      { _id: id },
-      { $set: { active: !active } },
-      { new: true }
-    );
+  // async toggleSchemeStatus(id, active) {
+  //   const schemeData = await schemeModel.findOneAndUpdate(
+  //     { _id: id },
+  //     { $set: { active: !active } },
+  //     { new: true }
+  //   );
 
-    if (schemeData) {
-      return schemeData;
+  //   if (schemeData) {
+  //     return schemeData;
+  //   }
+
+  //   return null;
+  // }
+
+  async toggleSchemeStatus(id, active) {
+  try {
+    const scheme = await schemeModel.findById(id);
+    if (!scheme) throw new Error("Scheme not found");
+
+    const newStatus = !active;
+
+    if (newStatus === false) {
+
+      const currentOrder = scheme.classification_order;
+
+      await schemeModel.updateMany(
+        { classification_order: { $gt: currentOrder } },
+        { $inc: { classification_order: -1 } }
+      );
+
+      const maxOrder = await schemeModel.countDocuments();
+      scheme.classification_order = maxOrder;
+    } else {
+      const activeCount = await schemeModel.countDocuments({ active: true });
+      
+      scheme.classification_order = activeCount + 1;
     }
 
-    return null;
+    scheme.active = newStatus;
+    await scheme.save();
+
+    return scheme;
+  } catch (error) {
+    console.error("Error toggling scheme status:", error);
+    throw new Error("Database error while toggling scheme status");
   }
+}
+
 
   async getSchemeByclassificationId(id) {
     const schemeData = await schemeModel
@@ -605,6 +646,27 @@ class SchemeRepository {
       throw new Error("Database error while fetching schemes");
     }
   }
+
+ async updateSchemeOrder(schemeData) {
+  try {
+    const bulkOps = schemeData.map((scheme) => ({
+      updateOne: {
+        filter: { _id: scheme._id },
+        update: { $set: { classification_order: scheme.classification_order } },
+      },
+    }));
+
+    if (bulkOps.length > 0) {
+      await schemeModel.bulkWrite(bulkOps);
+    }
+
+    return { success: true, message: "Scheme order updated successfully" };
+  } catch (error) {
+    console.error("Error updating scheme order:", error);
+    throw new Error("Database error while updating classification order");
+  }
+}
+
 }
 
 export default SchemeRepository;

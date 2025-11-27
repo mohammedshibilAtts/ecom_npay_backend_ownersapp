@@ -1,5 +1,4 @@
 import { isValidObjectId } from "mongoose";
-import { token } from "morgan";
 
 class CustomerController {
   constructor(customerUseCase, validator) {
@@ -227,26 +226,21 @@ class CustomerController {
   async searchCustomerByMobile(req, res) {
     const { search, customer } = req.query;
     try {
-      if (!search) {
+      if (!customer && !search) {
         return res
           .status(200)
           .json({ message: "Referral code or mobile number is required" });
-      }
-
-      if (!customer) {
-        return res
-          .status(200)
-          .json({ message: "Customer mobile number is required" });
       }
 
       const result = await this.customerUseCase.searchCustomerByMobile(
         search,
         customer
       );
-      
-      if (!result.data) {
+
+       if (!result.data) {
         return res.status(400).json({ message: result.message });
       }
+
       
       if (!result.success) {
         return res.status(400).json({ message: result.message });
@@ -671,7 +665,7 @@ class CustomerController {
           .json({ message: result.message, data: result.data });
       }
 
-      return res.status(400).json({ message: result.message });
+      return res.status(200).json({ message: result.message,data: result.data  });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
@@ -816,6 +810,25 @@ class CustomerController {
       return res.status(400).json({ message: result.message });
     } catch (error) {
       console.error(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async exportCustomers(req, res) {
+    try {
+      const {startDate,endDate,search} = req.query;
+      const result = await this.customerUseCase.exportCustomers(startDate,endDate,search);
+  
+      if (result.success) {
+        return res.status(200).json({
+          message: result.message,
+          downloadUrl: `/exports/${result.data.filename}`,
+        });
+      }
+  
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error("Export Error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   }

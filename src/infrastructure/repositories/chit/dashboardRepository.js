@@ -6,209 +6,206 @@ import topupModel from "../../models/chit/topupModel.js";
 class DashboardRepository {
   async getAllOver(filter) {
     try {
-      const openAccountFilter = { ...filter, status: 0 };
+      const openAccountFilter = { ...filter };
+  
+      const [
+        totalCustomers,
+        payment,
+        totalAccounts,
+        overdueAccounts
+      ] = await Promise.all([
+        customerModel.find(filter).countDocuments(),
 
-      const [totalCustomers, payment, totalAccounts, overDues] =
-        await Promise.all([
-          customerModel.find(filter).countDocuments(),
-
-          await paymentModel.aggregate([
-           { $match: { ...filter, payment_status: 1 } },
-            {
-              $lookup: {
-                from: "schemes",
-                localField: "id_scheme",
-                foreignField: "_id",
-                as: "Scheme",
-              },
+        paymentModel.aggregate([
+          { $match: { ...filter, payment_status: 1 } },
+        
+          {
+            $lookup: {
+              from: "schemeaccounts",
+              localField: "id_scheme_account",
+              foreignField: "_id",
+              as: "schemeAccount",
             },
-            { $unwind: "$Scheme" },
-
-            {
-              $lookup: {
-                from: "metals",
-                localField: "Scheme.id_metal",
-                foreignField: "_id",
-                as: "Metal",
-              },
+          },
+          { $unwind: "$schemeAccount" },
+          { $match: { "schemeAccount.status": { $nin: [4, 3] } } },
+        
+          {
+            $lookup: {
+              from: "schemes",
+              localField: "schemeAccount.id_scheme",  // FIXED THIS LINE
+              foreignField: "_id",
+              as: "Scheme",
             },
-            { $unwind: "$Metal" },
-
-            {
-              $match: {
-                "Metal.metal_name": { $regex: /^gold$/i },
-              },
+          },
+          {
+            $unwind: {
+              path: "$Scheme",
+              preserveNullAndEmptyArrays: true,
             },
-
-            {
-              $group: {
-                _id: null,
-                totalMetalWeight: { $sum: "$metal_weight" },
-                totalAmount: { $sum: "$total_amt" },
-              },
+          },          
+        
+          {
+            $lookup: {
+              from: "metals",
+              localField: "Scheme.id_metal",
+              foreignField: "_id",
+              as: "Metal",
             },
-
-            {
-              $project: {
-                _id: 0,
-                // "Metal.metal_name":1,
-                metal_weight: 1,
-                totalMetalWeight: 1,
-                totalAmount: 1,
-              },
-            },
-          ]),
-
-          schemeAccountModel.find(openAccountFilter).countDocuments(),
-
-          schemeAccountModel.aggregate([
-            { $match: openAccountFilter },
-            {
-              $lookup: {
-                from: "schemes",
-                localField: "id_scheme",
-                foreignField: "_id",
-                as: "Scheme",
-              },
-            },
-            {
-              $lookup: {
-                from: "schemeclassifications",
-                localField: "id_classification",
-                foreignField: "_id",
-                as: "Classification",
-              },
-            },
-            {
-              $lookup: {
-                from: "customers",
-                localField: "id_customer",
-                foreignField: "_id",
-                as: "Customer",
-              },
-            },
-            { $unwind: "$Scheme" },
-            { $unwind: "$Classification" },
-            { $unwind: "$Customer" },
-
-            {
-              $addFields: {
-                daysPassed: {
-                  $add: [
-                    {
-                      $dateDiff: {
-                        startDate: "$start_date",
-                        endDate: new Date(),
-                        unit: "day",
-                      },
-                    },
-                    1,
-                  ],
-                },
-                monthsPassed: {
-                  $add: [
-                    {
-                      $dateDiff: {
-                        startDate: "$start_date",
-                        endDate: new Date(),
-                        unit: "month",
-                      },
-                    },
-                    1,
-                  ],
-                },
-                yearsPassed: {
-                  $add: [
-                    {
-                      $dateDiff: {
-                        startDate: "$start_date",
-                        endDate: new Date(),
-                        unit: "year",
-                      },
-                    },
-                    1,
-                  ],
-                },
-              },
-            },
-
-            {
-              $addFields: {
-                expectedInstallments: {
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$Scheme.installment_type", 1] },
-                        then: "$monthsPassed",
-                      },
-                      {
-                        case: { $eq: ["$Scheme.installment_type", 2] },
-                        then: { $trunc: { $divide: ["$daysPassed", 7] } },
-                      },
-                      {
-                        case: { $eq: ["$Scheme.installment_type", 3] },
-                        then: "$daysPassed",
-                      },
-                      {
-                        case: { $eq: ["$Scheme.installment_type", 4] },
-                        then: "$yearsPassed",
-                      },
+          },
+          { $unwind: { path: "$Metal", preserveNullAndEmptyArrays: true } },
+          
+          // Add safe handling for metal_weight like in first query
+          {
+            $addFields: {
+              safeMetalWeight: {
+                $cond: {
+                  if: {
+                    $or: [
+                      { $eq: ["$metal_weight", Infinity] },
+                      { $eq: ["$metal_weight", -Infinity] },
                     ],
-                    default: 0,
                   },
+                  then: 0,
+                  else: { $ifNull: ["$metal_weight", 0] },
                 },
               },
             },
-
-            // {
-            //   $lookup: {
-            //     from: "payments",
-            //     localField: "_id",
-            //     foreignField: "id_scheme_account",
-            //     as: "paymentsData",
-            //   },
-            // },
-            {
-              $addFields: {
-                totalPaidInstallments: {
-                  $sum: "$paid_installments",
+          },
+          
+          {
+            $addFields: {
+              includeWeight: {
+                $cond: {
+                  if: {
+                    $and: [
+                      {
+                        $in: [
+                          { $toLower: "$Metal.metal_name" },
+                          ["gold", "silver", "platinum", "diamond", "rose gold"]
+                        ]
+                      },
+                      {
+                        $not: {
+                          $in: ["$Scheme.scheme_type", [0, 8, 13, 11, 1, 7]]
+                        }
+                      }
+                    ]
+                  },
+                  then: "$safeMetalWeight",  // Use safe version
+                  else: 0,
                 },
               },
             },
-            {
-              $addFields: {
-                installmentDue: {
-                  $max: [
-                    {
-                      $subtract: [
-                        "$expectedInstallments",
-                        "$totalPaidInstallments",
-                      ],
-                    },
+          },
+        
+          {
+            $group: {
+              _id: null,
+              totalGoldSave: {
+                $sum: {
+                  $cond: [
+                    { $eq: [{ $toLower: "$Metal.metal_name" }, "gold"] },
+                    "$includeWeight",
                     0,
                   ],
                 },
               },
+              totalSilverSave: {
+                $sum: {
+                  $cond: [
+                    { $eq: [{ $toLower: "$Metal.metal_name" }, "silver"] },
+                    "$includeWeight",
+                    0,
+                  ],
+                },
+              },
+              totalAmount: { $sum: "$payment_amount" },
             },
-
-            { $match: { installmentDue: { $gt: 0 } } },
-            { $count: "overdueCount" },
-          ]),
-        ]);
-
-      const data = {
+          },
+        
+          {
+            $project: {
+              _id: 0,
+              totalGoldSave: 1,
+              totalSilverSave: 1,
+              totalAmount: 1,
+            },
+          },
+        ]),
+  
+        schemeAccountModel.find(openAccountFilter).countDocuments(),
+  
+        schemeAccountModel.aggregate([
+          { $match: openAccountFilter },
+          {
+            $lookup: {
+              from: "schemes",
+              localField: "id_scheme",
+              foreignField: "_id",
+              as: "Scheme",
+            },
+          },
+          { $unwind: "$Scheme" },
+          {
+            $addFields: {
+              daysPassed: {
+                $add: [
+                  {
+                    $dateDiff: {
+                      startDate: "$start_date",
+                      endDate: new Date(),
+                      unit: "day",
+                    },
+                  }, 1,
+                ],
+              },
+            },
+          },
+          {
+            $addFields: {
+              expectedInstallments: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ["$Scheme.installment_type", 1] }, then: { $add: [{ $dateDiff: { startDate: "$start_date", endDate: new Date(), unit: "month" } }, 1] } },
+                    { case: { $eq: ["$Scheme.installment_type", 2] }, then: { $trunc: { $divide: ["$daysPassed", 7] } } },
+                    { case: { $eq: ["$Scheme.installment_type", 3] }, then: "$daysPassed" },
+                    { case: { $eq: ["$Scheme.installment_type", 4] }, then: { $add: [{ $dateDiff: { startDate: "$start_date", endDate: new Date(), unit: "year" } }, 1] } },
+                  ],
+                  default: 0,
+                },
+              },
+            },
+          },
+          {
+            $addFields: {
+              installmentDue: {
+                $max: [{ $subtract: ["$expectedInstallments", "$paid_installments"] }, 0],
+              },
+            },
+          },
+          { $match: { installmentDue: { $gt: 0 } } },
+          { $count: "overdueCount" },
+        ])
+      ]);
+  
+      const summary = payment[0] || {};
+  
+      return {
         totalAccounts,
         totalCustomers,
-        totalGoldSave: payment[0]?.totalMetalWeight,
-        totalAmount: payment[0]?.totalAmount,
-        // overDues: overDues[0]?.overdueCount,
+        totalGoldSave: summary.totalGoldSave || 0,
+        totalSilverSave: summary.totalSilverSave || 0,
+        totalAmount: summary.totalAmount || 0,
+        overdueAccounts: overdueAccounts[0]?.overdueCount || 0,
       };
-      return data;
+  
     } catch (err) {
       console.error(err);
       throw new Error("Error fetching dashboard data");
     }
   }
+  
 
   async overdueCalculation() {
     try {
@@ -217,16 +214,16 @@ class DashboardRepository {
           $match: {
             status: 0,
             active: true,
-            is_deleted: false
-          }
+            is_deleted: false,
+          },
         },
         {
           $lookup: {
             from: "schemes",
             localField: "id_scheme",
             foreignField: "_id",
-            as: "scheme"
-          }
+            as: "scheme",
+          },
         },
         { $unwind: "$scheme" },
 
@@ -235,8 +232,8 @@ class DashboardRepository {
           $addFields: {
             currentDate: new Date(),
             startDateObj: "$start_date",
-            schemeInstallmentType: "$scheme.installment_type"
-          }
+            schemeInstallmentType: "$scheme.installment_type",
+          },
         },
         {
           $addFields: {
@@ -245,7 +242,7 @@ class DashboardRepository {
                 vars: {
                   startDate: "$startDateObj",
                   totalInstallments: "$total_installments",
-                  installmentType: "$schemeInstallmentType"
+                  installmentType: "$schemeInstallmentType",
                 },
                 in: {
                   $map: {
@@ -257,22 +254,34 @@ class DashboardRepository {
                         unit: {
                           $switch: {
                             branches: [
-                              { case: { $eq: ["$$installmentType", 1] }, then: "month" },
-                              { case: { $eq: ["$$installmentType", 2] }, then: "week" },
-                              { case: { $eq: ["$$installmentType", 3] }, then: "day" },
-                              { case: { $eq: ["$$installmentType", 4] }, then: "year" }
+                              {
+                                case: { $eq: ["$$installmentType", 1] },
+                                then: "month",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 2] },
+                                then: "week",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 3] },
+                                then: "day",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 4] },
+                                then: "year",
+                              },
                             ],
-                            default: "month"
-                          }
+                            default: "month",
+                          },
                         },
-                        amount: "$$i"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+                        amount: "$$i",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
         {
           $addFields: {
@@ -281,62 +290,129 @@ class DashboardRepository {
                 $filter: {
                   input: "$expectedDueDates",
                   as: "dueDate",
-                  cond: { $lte: ["$$dueDate", "$currentDate"] }
-                }
-              }
-            }
-          }
+                  cond: { $lte: ["$$dueDate", "$currentDate"] },
+                },
+              },
+            },
+          },
         },
         {
           $addFields: {
             overdueInstallments: {
               $cond: {
-                if: { $gt: ["$expectedInstallmentCount", "$paid_installments"] },
-                then: { $subtract: ["$expectedInstallmentCount", "$paid_installments"] },
-                else: 0
-              }
-            }
-          }
+                if: {
+                  $gt: ["$expectedInstallmentCount", "$paid_installments"],
+                },
+                then: {
+                  $subtract: [
+                    "$expectedInstallmentCount",
+                    "$paid_installments",
+                  ],
+                },
+                else: 0,
+              },
+            },
+          },
         },
         {
           $match: {
-            overdueInstallments: { $gt: 0 }
-          }
+            overdueInstallments: { $gt: 0 },
+          },
         },
         {
-          $count: "totalOverdueAccounts"
-        }
-
-        
+          $count: "totalOverdueAccounts",
+        },
       ]);
-  
+
       const count = result.length > 0 ? result[0].totalOverdueAccounts : 0;
       return { totalOverdueAccounts: count };
-  
     } catch (error) {
       console.error("Error in overdueCalculation:", error);
       throw error;
     }
   }
-  
 
   async getAccountStat(customFilter) {
     try {
       const [newCustomer, paymentData, schemeData] = await Promise.all([
         await customerModel.countDocuments(customFilter),
-        await paymentModel.aggregate([
-          { $match: {...customFilter,payment_status:1} },
+        
+        paymentModel.aggregate([
+          { $match: { ...customFilter, payment_status: 1 } },
+
+          {
+            $lookup: {
+              from: "schemeaccounts",
+              localField: "id_scheme_account",
+              foreignField: "_id",
+              as: "schemeAccount",
+            },
+          },
+          { $unwind: "$schemeAccount" },
+          { $match: { "schemeAccount.status": { $nin: [4, 3] } } },
+          {
+            $lookup: {
+              from: "schemes",
+              localField: "schemeAccount.id_scheme",
+              foreignField: "_id",
+              as: "scheme",
+            },
+          },
+          { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false } },
+
+          {
+            $addFields: {
+              safeMetalWeight: {
+                $cond: {
+                  if: {
+                    $or: [
+                      { $eq: ["$metal_weight", Infinity] },
+                      { $eq: ["$metal_weight", -Infinity] },
+                    ],
+                  },
+                  then: 0,
+                  else: { $ifNull: ["$metal_weight", 0] },
+                },
+              },
+              safePaymentAmount: { $ifNull: ["$payment_amount", 0] },
+            },
+          },
+
+          {
+            $addFields: {
+              includeWeight: {
+                $cond: {
+                  if: {
+                    $not: {
+                      $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
+                    },
+                  },
+                  then: "$safeMetalWeight",
+                  else: 0,
+                },
+              },
+            },
+          },
           {
             $group: {
               _id: null,
-              totalMetalWeight: { $sum: "$metal_weight" },
-              totalAmount: { $sum: "$payment_amount" },
+              totalMetalWeight: { $sum: "$includeWeight" },
+              totalIncludeWeight: { $sum: "$includeWeight" },
+              totalAmount: { $sum: "$safePaymentAmount" },
             },
           },
-          { $project: { _id: 0, totalMetalWeight: 1, totalAmount: 1 } },
+          {
+            $project: {
+              _id: 0,
+              totalMetalWeight: 1,
+              totalIncludeWeight: 1,
+              totalAmount: 1,
+            },
+          },
         ]),
+
         await schemeAccountModel.aggregate([
-          { $match: customFilter },
+          { $match: { ...customFilter, status: { $nin: [4,3] } } },
           {
             $facet: {
               totalAccounts: [{ $count: "count" }],
@@ -379,10 +455,9 @@ class DashboardRepository {
 
   async getAccountData(customFilter) {
     try {
-
       const result = await schemeAccountModel.aggregate([
         { $match: customFilter },
-      
+
         // Join with Scheme to access scheme_type
         {
           $lookup: {
@@ -393,153 +468,154 @@ class DashboardRepository {
           },
         },
         { $unwind: "$Scheme" },
-      
+
         {
           $facet: {
-            totalAccounts: [
-              { $count: "count" }
-            ],
-      
+            totalAccounts: [{ $count: "count" }],
+
             digiGoldAccounts: [
               { $match: { "Scheme.scheme_type": 10 } },
-              { $count: "count" }
+              { $count: "count" },
             ],
-      
+
             digiSilverAccounts: [
               { $match: { "Scheme.scheme_type": 11 } },
-              { $count: "count" }
+              { $count: "count" },
             ],
-      
-            openAccounts: [
-              { $match: { status: 0 } },
-              { $count: "count" }
-            ],
-      
-            closeAccounts: [
-              { $match: { status: 1 } },
-              { $count: "count" }
-            ],
-      
-            completedAccounts: [
-              { $match: { status: 2 } },
-              { $count: "count" }
-            ],
-      
-            preclosedAccounts: [
-              { $match: { status: 3 } },
-              { $count: "count" }
-            ],
-      
-            refundAccounts: [
-              { $match: { status: 4 } },
-              { $count: "count" }
-            ]
-          }
+
+            openAccounts: [{ $match: { status: 0 } }, { $count: "count" }],
+
+            closeAccounts: [{ $match: { status: 1 } }, { $count: "count" }],
+
+            completedAccounts: [{ $match: { status: 2 } }, { $count: "count" }],
+
+            preclosedAccounts: [{ $match: { status: 3 } }, { $count: "count" }],
+
+            refundAccounts: [{ $match: { status: 4 } }, { $count: "count" }],
+          },
         },
-      
+
         // Flatten all results with default 0 if no data
         {
           $project: {
-            totalAccounts: { $ifNull: [{ $arrayElemAt: ["$totalAccounts.count", 0] }, 0] },
-            digiGoldAccounts: { $ifNull: [{ $arrayElemAt: ["$digiGoldAccounts.count", 0] }, 0] },
-            digiSilverAccounts: { $ifNull: [{ $arrayElemAt: ["$digiSilverAccounts.count", 0] }, 0] },
-            openAccounts: { $ifNull: [{ $arrayElemAt: ["$openAccounts.count", 0] }, 0] },
-            closeAccounts: { $ifNull: [{ $arrayElemAt: ["$closeAccounts.count", 0] }, 0] },
-            completedAccounts: { $ifNull: [{ $arrayElemAt: ["$completedAccounts.count", 0] }, 0] },
-            preclosedAccounts: { $ifNull: [{ $arrayElemAt: ["$preclosedAccounts.count", 0] }, 0] },
-            refundAccounts: { $ifNull: [{ $arrayElemAt: ["$refundAccounts.count", 0] }, 0] },
-          }
-        }
+            totalAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$totalAccounts.count", 0] }, 0],
+            },
+            digiGoldAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$digiGoldAccounts.count", 0] }, 0],
+            },
+            digiSilverAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$digiSilverAccounts.count", 0] }, 0],
+            },
+            openAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$openAccounts.count", 0] }, 0],
+            },
+            closeAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$closeAccounts.count", 0] }, 0],
+            },
+            completedAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$completedAccounts.count", 0] }, 0],
+            },
+            preclosedAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$preclosedAccounts.count", 0] }, 0],
+            },
+            refundAccounts: {
+              $ifNull: [{ $arrayElemAt: ["$refundAccounts.count", 0] }, 0],
+            },
+          },
+        },
       ]);
-      
-      return result[0]
+
+      return result[0];
     } catch (err) {
       console.error(err);
       throw new Error("Error fetching dashboard data");
     }
   }
 
-   async paymentReportEdger(filter, skip, pageSize) {
-        try {
-          const allPaymentModes = await paymentModel.db
-            .collection("paymentmodes")
-            .find({})
-            .toArray();
-      
-          const paymentData = await paymentModel.aggregate([
-            { 
-              $match: filter
-            },
-      
-            {
-              $lookup: {
-                from: "paymentmodes",
-                localField: "payment_mode",
-                foreignField: "_id",
-                as: "PaymentData"
-              }
-            },
-            { $unwind: { path: "$PaymentData", preserveNullAndEmptyArrays: true } },
-      
-            {
-              $addFields: {
-                total_amt: { $ifNull: ["$total_amt", 0] }
-              }
-            },
-      
-            {
-              $group: {
-                _id: "$PaymentData._id",
-                mode_name: { $first: "$PaymentData.mode_name" },
-                totalAmount: { $sum: "$total_amt" }
-              }
-            }
-          ]);
-      
-          const mergedData = allPaymentModes.map((mode) => {
-            const found = paymentData.find((data) => String(data._id) === String(mode._id));
-            return {
-              _id: mode._id,
-              mode_name: mode.mode_name,
-              totalAmount: found ? found.totalAmount : 0
-            };
-          });
-      
-          // Pagination details
-          const totalDocuments = mergedData.length;
-          const totalPages = Math.ceil(totalDocuments / pageSize);
-          const currentPage = Math.floor(skip / pageSize) + 1;
-      
-          const paginatedData = mergedData.slice(skip, skip + pageSize);
-          return {
-            data: paginatedData,
-            totalDocuments,
-            totalPages,
-            currentPage
-          };
-        } catch (err) {
-          throw err;
-        }
+  async paymentReportEdger(filter, skip, pageSize) {
+    try {
+      const allPaymentModes = await paymentModel.db
+        .collection("paymentmodes")
+        .find({})
+        .toArray();
+
+      const paymentData = await paymentModel.aggregate([
+        {
+          $match: filter,
+        },
+
+        {
+          $lookup: {
+            from: "paymentmodes",
+            localField: "payment_mode",
+            foreignField: "_id",
+            as: "PaymentData",
+          },
+        },
+        { $unwind: { path: "$PaymentData", preserveNullAndEmptyArrays: true } },
+
+        {
+          $addFields: {
+            total_amt: { $ifNull: ["$total_amt", 0] },
+          },
+        },
+
+        {
+          $group: {
+            _id: "$PaymentData._id",
+            mode_name: { $first: "$PaymentData.mode_name" },
+            totalAmount: { $sum: "$total_amt" },
+          },
+        },
+      ]);
+
+      const mergedData = allPaymentModes.map((mode) => {
+        const found = paymentData.find(
+          (data) => String(data._id) === String(mode._id)
+        );
+        return {
+          _id: mode._id,
+          mode_name: mode.mode_name,
+          totalAmount: found ? found.totalAmount : 0,
+        };
+      });
+
+      // Pagination details
+      const totalDocuments = mergedData.length;
+      const totalPages = Math.ceil(totalDocuments / pageSize);
+      const currentPage = Math.floor(skip / pageSize) + 1;
+
+      const paginatedData = mergedData.slice(skip, skip + pageSize);
+      return {
+        data: paginatedData,
+        totalDocuments,
+        totalPages,
+        currentPage,
+      };
+    } catch (err) {
+      throw err;
+    }
   }
 
-  async getPaymentHistory(skip, pageSize,filter) {
+  async getPaymentHistory(skip, pageSize, filter) {
     try {
       const paymentData = await paymentModel
-        .find({...filter,payment_status:1})
+        .find(filter)
         .populate({
-          path: 'id_customer',
-          select: 'firstname lastname'  
+          path: "id_customer",
+          select: "firstname lastname",
         })
         .populate({
-          path: 'id_scheme',
-          select: 'scheme_name'
+          path: "id_scheme",
+          select: "scheme_name",
         })
-        .sort({ createdAt: -1 })      
-        .skip(skip)                  
-        .limit(pageSize);            
-  
-      const total = await paymentModel.countDocuments();
-  
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize);
+
+      const total = await paymentModel.countDocuments(filter);
+
       return {
         data: paymentData,
         total,
@@ -549,24 +625,22 @@ class DashboardRepository {
       throw err;
     }
   }
-  
-  async getNotificationCount (id_branch){
-    try{
 
-      // const count = 
-
-    }catch(err){
-      console.error(err)
-      throw err
-    }
-  }
-
-
-  async paymentModeData(filter){
-    try{
+  async paymentModeData(filter) {
+    try {
       const Data = await paymentModel.aggregate([
-        { $match: {...filter,payment_status:1} },
-      
+        { $match: { ...filter, payment_status: 1 } },
+        {
+          $lookup: {
+            from: "schemeaccounts",
+            localField: "id_scheme_account",
+            foreignField: "_id",
+            as: "schemeAccount",
+          },
+        },
+        { $unwind: "$schemeAccount" },
+        { $match: { "schemeAccount.status": { $nin: [4,3] } } },
+
         {
           $lookup: {
             from: "paymentmodes",
@@ -576,16 +650,19 @@ class DashboardRepository {
           },
         },
         {
-          $unwind: {path:"$payment_mode_info",preserveNullAndEmptyArrays:true}
+          $unwind: {
+            path: "$payment_mode_info",
+            preserveNullAndEmptyArrays: true,
+          },
         },
-      
+
         {
           $group: {
             _id: "$payment_mode_info.mode_name", // assuming `name` is the field in PaymentMode
             totalAmount: { $sum: "$payment_amount" },
           },
         },
-      
+
         {
           $project: {
             _id: 0,
@@ -594,14 +671,12 @@ class DashboardRepository {
           },
         },
       ]);
-      
-      return Data
-    }catch(err){
-      throw err
+
+      return Data;
+    } catch (err) {
+      throw err;
     }
   }
-
- 
 }
 
 export default DashboardRepository;
