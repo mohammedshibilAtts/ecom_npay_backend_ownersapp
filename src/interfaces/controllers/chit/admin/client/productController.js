@@ -203,19 +203,17 @@ class ProductController {
        search,
        limit = 10 
      } = req.query;
-
+  
      const filters = {
        sort,
        priceRange,
        search,
      };
-
       const result = await this.productUsecase.getProductBySubcategroy(
         id,
         parseInt(page),
         parseInt(limit),
         req.user,
-        search,
         filters
       );
 

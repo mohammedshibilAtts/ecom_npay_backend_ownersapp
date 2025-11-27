@@ -26,6 +26,7 @@ const config = {
   AWS_DISPLAY_URL:process.env.AWS_DISPLAY_URL,
   NOTIFICATION_NAME:process.env.NOTIFICATION_NAME,
   DISPLAY_IMG_URL:`${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}`,
+  NOTIFICATION_NAME:process.env.NOTIFICATION_NAME
 };
 
 export default config; 
