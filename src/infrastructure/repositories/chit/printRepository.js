@@ -6,6 +6,7 @@ class PrintRepository {
   async getReceipt(filter) {
     try {
       const pipeline = [
+        
         {
           $lookup: {
             from: "schemeaccounts",
