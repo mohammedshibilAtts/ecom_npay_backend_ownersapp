@@ -1120,7 +1120,6 @@ class ProductUseCase {
       }
 
       let sortOption = { createdAt: -1 };
-
       if (filter && filter.sort) {
         if (filter.sort === "price_lth") {
           sortOption = { discountedAmount: 1 };
@@ -1128,11 +1127,11 @@ class ProductUseCase {
           sortOption = { discountedAmount: -1 };
         } else if (filter.sort === "discount_lth") {
           sortOption = { discountDifference: 1 };
-        } else if (filter.sort === "discount_htl") {
+        } else if (filter.sort === "discount") {
           sortOption = { discountDifference: -1 };
         }
       }
-      console.log("34567890-",filter)
+      console.log({filter})
       let priceFilter = {};
       if (filter && filter.priceRange) {
         const [minPrice, maxPrice] = filter.priceRange.split("-").map(Number);
@@ -1145,7 +1144,6 @@ class ProductUseCase {
           };
         }
       }
-      console.log("Sortsss....",sortOption)
       const result = await this.productRepository.getProductBySubcategory(
         new mongoose.Types.ObjectId(id),
         pageNumber,
@@ -1219,7 +1217,7 @@ class ProductUseCase {
           sortOption = { discountedAmount: -1 };
         } else if (filter.sort === "discount_lth") {
           sortOption = { discountDifference: 1 };
-        } else if (filter.sort === "discount_htl") {
+        } else if (filter.sort === "discount") {
           sortOption = { discountDifference: -1 };
         }
       }

@@ -1996,6 +1996,20 @@ class ProductRepository {
               
             },
           },
+          
+        },
+
+              {
+          $addFields: {
+            discountDifference: {
+              
+                  $subtract: [
+                    { $ifNull: ["$totalAmount", 0] },
+                    { $ifNull: ["$discountedAmount", 0] },
+                  ],
+               
+            },
+          }
         },
 
         ...(Object.keys(priceFilter).length > 0
@@ -2020,6 +2034,7 @@ class ProductRepository {
                   latestMetalPrice: 1,
                   netWeight: 1,
                   bestSeller: 1,
+                  discountDifference:1
                 },
               },
             ],
