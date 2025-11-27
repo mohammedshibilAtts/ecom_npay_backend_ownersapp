@@ -210,15 +210,7 @@ class CategoryUseCase {
         }
       }
 
-      // Handle category banner upload
-      let categoryBannerUrlFinal = null;
-      if (files && files.categoryBanner) {
-        categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null);
-        console.log("....................................",categoryBannerUrlFinal)
-        if (categoryBannerUrlFinal) {
-          updateFields.categoryBanner = categoryBannerUrlFinal;
-        }
-      }
+      
       } catch (error) {
         console.error("Error uploading category image:", error);
         return {
@@ -228,6 +220,18 @@ class CategoryUseCase {
       }
     }
 
+    if(files && files.categoryBanner){
+    // Handle category banner upload
+      let categoryBannerUrlFinal = null;
+      if (files && files.categoryBanner) {
+        categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null);
+        if (categoryBannerUrlFinal) {
+          updateFields.categoryBanner = categoryBannerUrlFinal;
+        }
+      }
+
+    }
+    
       const updateCategory = await this.categoryRepository.editCategory(
         id,
         updateFields
