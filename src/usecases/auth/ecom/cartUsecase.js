@@ -114,8 +114,7 @@ class CartUseCase {
       return {
         success: true,
         message: "Cart details retrieved successfully.",
-        data: {items:findAvailableStocks,overAllAmount:cartItems.overAllAmount},
-      };
+        data: {items:findAvailableStocks,overAllAmount:cartItems.overAllAmount,pathUrl:`${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}products/`}}
     } catch (error) {
       throw new Error(`Failed to get cart: ${error.message}`);
     }
