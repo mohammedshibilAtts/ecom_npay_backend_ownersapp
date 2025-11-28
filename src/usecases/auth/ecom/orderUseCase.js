@@ -931,11 +931,11 @@ class OrderUseCase {
         let title = "Order Status";
         let message = "";
 
-        if (statusData?.statusNo == "2") {
+        if (statusData?.statusNo == ORDER_STATUS_NO.PLACED) {
           message = `Your order has been placed successfully! Order ID: ${orderData?.orderId}`;
-        } else if (statusData?.statusNo == "3") {
+        } else if (statusData?.statusNo == ORDER_STATUS_NO.DELIVERED) {
           message = `Your order has been delivered successfully. Order ID: ${orderData?.orderId}`;
-        } else if (statusData?.statusNo == "4") {
+        } else if (statusData?.statusNo == ORDER_STATUS_NO.CANCELLED) {
           message = `Your order has been cancelled. Order ID: ${orderData?.orderId}`;
         }
 
