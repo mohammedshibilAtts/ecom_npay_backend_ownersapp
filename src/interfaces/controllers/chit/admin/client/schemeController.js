@@ -20,10 +20,14 @@ class SchemeController{
             description3,
             description4
           } = req.body;
-
-          if(description1.length > 50 || description2.length > 50 ||description3.length > 50||description4.length > 50){
-            return res.status(400).json({message:"More than 50 character no allowed for scheme desciptions"})
+          console.log(req.body)
+            if(scheme_type != "10" && scheme_type != "14"){
+            if(description1.length > 50 || description2.length > 50 ||description3.length > 50||description4.length > 50){
+              return res.status(400).json({message:"More than 50 character no allowed for scheme desciptions"})
+            }
           }
+
+         
 
           if(scheme_type !== "10" || scheme_type !== "14"){
             if (!req.files || !req.files.logo || (!req.files.logo[0]?.buffer)) {
