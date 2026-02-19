@@ -204,281 +204,284 @@ class ProductUseCase {
     return transformed;
   }
 
-  async addProduct(productData, product_image) {
-    try {
-      const objectIdValidationErrors = [
-        this.validateObjectId(productData.id_branch, "Branch"),
-        this.validateObjectId(productData.id_category, "Category"),
-        this.validateObjectId(productData.id_purity, "Purity"),
-        this.validateObjectId(productData.id_metal, "Metal"),
-      ].filter(Boolean);
+  // async addProduct(productData, product_image) {
+  //   try {
+  //     const objectIdValidationErrors = [
+  //       this.validateObjectId(productData.id_branch, "Branch"),
+  //       this.validateObjectId(productData.id_category, "Category"),
+  //       this.validateObjectId(productData.id_purity, "Purity"),
+  //       this.validateObjectId(productData.id_metal, "Metal"),
+  //     ].filter(Boolean);
 
-      if (objectIdValidationErrors.length) {
-        return { success: false, message: objectIdValidationErrors[0].message };
-      }
-      const checkProductCode = await this.productRepository.findByField({code:productData.code})
-      const checkProductSku = await this.productRepository.findByField({sku:productData.sku})
-      if(checkProductCode&&Object.entries(checkProductCode).length>=0){
-        return { success: false, message: "Product Code already exisit" };
-      }
-      if(checkProductSku&&Object.entries(checkProductSku).length>=0){
-        return { success: false, message: "Product SKU already exisit" };
-      }
-      const [checkBranchId, checkCategoryId, checkPurityId, checkMetalId] =
-        await Promise.all([
-          this.branchRepository.findById(productData.id_branch),
-          this.categoryRepository.findById(productData.id_category),
-          this.purityRepository.findById(productData.id_purity),
-          this.metalRepository.findById(productData.id_metal),
-        ]);
+  //     if (objectIdValidationErrors.length) {
+  //       return { success: false, message: objectIdValidationErrors[0].message };
+  //     }
+  //     const checkProductCode = await this.productRepository.findByField({code:productData.code})
+  //     const checkProductSku = await this.productRepository.findByField({sku:productData.sku})
+  //     if(checkProductCode&&Object.entries(checkProductCode).length>=0){
+  //       return { success: false, message: "Product Code already exisit" };
+  //     }
+  //     if(checkProductSku&&Object.entries(checkProductSku).length>=0){
+  //       return { success: false, message: "Product SKU already exisit" };
+  //     }
+  //     const [checkBranchId, checkCategoryId, checkPurityId, checkMetalId] =
+  //       await Promise.all([
+  //         this.branchRepository.findById(productData.id_branch),
+  //         this.categoryRepository.findById(productData.id_category),
+  //         this.purityRepository.findById(productData.id_purity),
+  //         this.metalRepository.findById(productData.id_metal),
+  //       ]);
 
-      if (!checkBranchId) {
-        return { success: false, message: "Branch not found" };
-      }
-      if (!checkCategoryId) {
-        return { success: false, message: "Category not found" };
-      }
-      if (!checkPurityId) {
-        return { success: false, message: "Purity not found" };
-      }
-      if (!checkMetalId) {
-        return { success: false, message: "Metal not found" };
-      }
+  //     if (!checkBranchId) {
+  //       return { success: false, message: "Branch not found" };
+  //     }
+  //     if (!checkCategoryId) {
+  //       return { success: false, message: "Category not found" };
+  //     }
+  //     if (!checkPurityId) {
+  //       return { success: false, message: "Purity not found" };
+  //     }
+  //     if (!checkMetalId) {
+  //       return { success: false, message: "Metal not found" };
+  //     }
 
-      const existingProduct = await this.productRepository.findByName(
-        productData.product_name,
-        productData.id_branch
-      );
+  //     const existingProduct = await this.productRepository.findByName(
+  //       productData.product_name,
+  //       productData.id_branch
+  //     );
 
-      if (existingProduct) {
-        return { success: false, message: "Product already existing" };
-      }
+  //     if (existingProduct) {
+  //       return { success: false, message: "Product already existing" };
+  //     }
 
-      const existingCode = await this.productRepository.findByCode(
-        productData.code
-      );
-      if (existingCode) {
-        return { success: false, message: "Product code already existing" };
-      }
+  //     const existingCode = await this.productRepository.findByCode(
+  //       productData.code
+  //     );
+  //     if (existingCode) {
+  //       return { success: false, message: "Product code already existing" };
+  //     }
 
-      const s3configs = await this.s3Helper(productData.id_branch);
-      if (s3configs.success == false) return s3configs;
+  //     const s3configs = await this.s3Helper(productData.id_branch);
+  //     if (s3configs.success == false) return s3configs;
 
-      const uploadPromises = product_image.map(async (image, index) => {
-        if (!image.buffer || !image.mimetype || !image.originalname) {
-          console.warn(`Skipping invalid image at index ${index}:`, image);
-          return null;
-        }
+  //     const uploadPromises = product_image.map(async (image, index) => {
+  //       if (!image.buffer || !image.mimetype || !image.originalname) {
+  //         console.warn(`Skipping invalid image at index ${index}:`, image);
+  //         return null;
+  //       }
 
-        return this.s3Service.uploadToS3(image, "products", s3configs);
-      });
+  //       return this.s3Service.uploadToS3(image, "products", s3configs);
+  //     });
 
-      const uploadedImages = (await Promise.all(uploadPromises)).filter(
-        Boolean
-      );
-      productData.product_image = uploadedImages;
+  //     const uploadedImages = (await Promise.all(uploadPromises)).filter(
+  //       Boolean
+  //     );
+  //     productData.product_image = uploadedImages;
 
-      // Parse stringified objects
-      if (typeof productData.availableSizes === "string") {
-        productData.availableSizes = JSON.parse(productData.availableSizes);
-      }
+  //     // Parse stringified objects
+  //     if (typeof productData.availableSizes === "string") {
+  //       productData.availableSizes = JSON.parse(productData.availableSizes);
+  //     }
 
-      if (typeof productData.makingCharges === "string") {
-        productData.makingCharges = JSON.parse(productData.makingCharges);
-      }
+  //     if (typeof productData.makingCharges === "string") {
+  //       productData.makingCharges = JSON.parse(productData.makingCharges);
+  //     }
 
-      if (typeof productData.wastageCharges === "string") {
-        productData.wastageCharges = JSON.parse(productData.wastageCharges);
-      }
+  //     if (typeof productData.wastageCharges === "string") {
+  //       productData.wastageCharges = JSON.parse(productData.wastageCharges);
+  //     }
 
-      // Parse collection
-      if (
-        productData.collection &&
-        typeof productData.collection === "string"
-      ) {
-        try {
-          productData.collection = JSON.parse(productData.collection);
-        } catch (error) {
-          if (productData.collection.includes(",")) {
-            productData.collection = productData.collection
-              .split(",")
-              .map((id) => id.trim());
-          } else if (
-            productData.collection.startsWith("[") &&
-            productData.collection.endsWith("]")
-          ) {
-            const cleanedString = productData.collection
-              .replace(/'/g, '"')
-              .replace(/\[|\]/g, "");
-            productData.collection = JSON.parse(`[${cleanedString}]`);
-          } else {
-            productData.collection = [productData.collection];
-          }
-        }
-      }
+  //     // Parse collection
+  //     if (
+  //       productData.collection &&
+  //       typeof productData.collection === "string"
+  //     ) {
+  //       try {
+  //         productData.collection = JSON.parse(productData.collection);
+  //       } catch (error) {
+  //         if (productData.collection.includes(",")) {
+  //           productData.collection = productData.collection
+  //             .split(",")
+  //             .map((id) => id.trim());
+  //         } else if (
+  //           productData.collection.startsWith("[") &&
+  //           productData.collection.endsWith("]")
+  //         ) {
+  //           const cleanedString = productData.collection
+  //             .replace(/'/g, '"')
+  //             .replace(/\[|\]/g, "");
+  //           productData.collection = JSON.parse(`[${cleanedString}]`);
+  //         } else {
+  //           productData.collection = [productData.collection];
+  //         }
+  //       }
+  //     }
 
-      if (Array.isArray(productData.collection)) {
-        productData.collection = productData.collection.filter((id) => {
-          const isValid = this.validateObjectId(id, "Collection item");
-          return isValid === null;
-        });
-      }
+  //     if (Array.isArray(productData.collection)) {
+  //       productData.collection = productData.collection.filter((id) => {
+  //         const isValid = this.validateObjectId(id, "Collection item");
+  //         return isValid === null;
+  //       });
+  //     }
 
      
       
-      // Convert string numbers to actual numbers in charges
-      if (productData.makingCharges) {
-        const mc = productData.makingCharges;
-        mc.actualValue = Number(mc.actualValue || 0);
-        mc.discountedValue = Number(mc.discountedValue || 0);
-        mc.discountedPercentage = Number(mc.discountedPercentage || 0);
-        mc.discountView = mc.discountView === "true";
-        mc.mcView = mc.mcView === "true";
-      }
+  //     // Convert string numbers to actual numbers in charges
+  //     if (productData.makingCharges) {
+  //       const mc = productData.makingCharges;
+  //       mc.actualValue = Number(mc.actualValue || 0);
+  //       mc.discountedValue = Number(mc.discountedValue || 0);
+  //       mc.discountedPercentage = Number(mc.discountedPercentage || 0);
+  //       mc.discountView = mc.discountView === "true";
+  //       mc.mcView = mc.mcView === "true";
+  //     }
 
-      if (productData.wastageCharges) {
-        const wc = productData.wastageCharges;
-        wc.actualValue = Number(wc.actualValue || 0);
-        wc.discountedValue = Number(wc.discountedValue || 0);
-        wc.discountedPercentage = Number(wc.discountedPercentage || 0);
-        wc.discountView = wc.discountView === "true";
-        wc.wastageView = wc.wastageView === "true";
-      }
+  //     if (productData.wastageCharges) {
+  //       const wc = productData.wastageCharges;
+  //       wc.actualValue = Number(wc.actualValue || 0);
+  //       wc.discountedValue = Number(wc.discountedValue || 0);
+  //       wc.discountedPercentage = Number(wc.discountedPercentage || 0);
+  //       wc.discountView = wc.discountView === "true";
+  //       wc.wastageView = wc.wastageView === "true";
+  //     }
 
-      // Handle availableSizes.values - FIX FOR THE MAIN ERROR
-      if (productData.availableSizes) {
-        // Ensure values is properly formatted as an array
-        if (typeof productData.availableSizes.values === "string") {
-          try {
-            // Try to parse if it's a JSON string
-            if (
-              productData.availableSizes.values.startsWith("[") ||
-              productData.availableSizes.values.startsWith("{")
-            ) {
-              productData.availableSizes.values = JSON.parse(
-                productData.availableSizes.values
-              );
-            } else {
-              // If it's the problematic string "[object Object]", create default array
-              productData.availableSizes.values = [
-                {
-                  sizeValue: 0,
-                  quantity: 0,
-                },
-              ];
-            }
-          } catch (e) {
-            console.warn(
-              "Failed to parse availableSizes.values, using default:",
-              e
-            );
-            productData.availableSizes.values = [
-              {
-                sizeValue: 0,
-                quantity: 0,
-              },
-            ];
-          }
-        }
+  //     // Handle availableSizes.values - FIX FOR THE MAIN ERROR
+  //     if (productData.availableSizes) {
+  //       // Ensure values is properly formatted as an array
+  //       if (typeof productData.availableSizes.values === "string") {
+  //         try {
+  //           // Try to parse if it's a JSON string
+  //           if (
+  //             productData.availableSizes.values.startsWith("[") ||
+  //             productData.availableSizes.values.startsWith("{")
+  //           ) {
+  //             productData.availableSizes.values = JSON.parse(
+  //               productData.availableSizes.values
+  //             );
+  //           } else {
+  //             // If it's the problematic string "[object Object]", create default array
+  //             productData.availableSizes.values = [
+  //               {
+  //                 sizeValue: 0,
+  //                 quantity: 0,
+  //               },
+  //             ];
+  //           }
+  //         } catch (e) {
+  //           console.warn(
+  //             "Failed to parse availableSizes.values, using default:",
+  //             e
+  //           );
+  //           productData.availableSizes.values = [
+  //             {
+  //               sizeValue: 0,
+  //               quantity: 0,
+  //             },
+  //           ];
+  //         }
+  //       }
 
-        // Ensure each value in the array has proper number types
-        if (Array.isArray(productData.availableSizes.values)) {
-          productData.availableSizes.values =
-            productData.availableSizes.values.map((item) => ({
-              sizeValue: Number(item.sizeValue || 0),
-              quantity: Number(item.quantity || 0),
-            }));
-        }
-      }
+  //       // Ensure each value in the array has proper number types
+  //       if (Array.isArray(productData.availableSizes.values)) {
+  //         productData.availableSizes.values =
+  //           productData.availableSizes.values.map((item) => ({
+  //             sizeValue: Number(item.sizeValue || 0),
+  //             quantity: Number(item.quantity || 0),
+  //           }));
+  //       }
+  //     }
 
-      // Convert other numeric fields from strings to numbers
-      const numberFields = [
-        "gst",
-        "quantity",
-        "grossWt",
-        "netWeight",
-        "stonewt",
-        "diamondwt",
-        "price",
-        "totalprice",
-        "stonecost",
-        "stoneprice",
-        "diamondcost",
-        "diamondprice",
-        "totalstoneanddiamond",
-        "currentMetalRate",
-      ];
+  //     // Convert other numeric fields from strings to numbers
+  //     const numberFields = [
+  //       "gst",
+  //       "quantity",
+  //       "grossWt",
+  //       "netWeight",
+  //       "stonewt",
+  //       "diamondwt",
+  //       "price",
+  //       "totalprice",
+  //       "stonecost",
+  //       "stoneprice",
+  //       "diamondcost",
+  //       "diamondprice",
+  //       "totalstoneanddiamond",
+  //       "currentMetalRate",
+  //     ];
 
-      numberFields.forEach((field) => {
-        if (productData[field] !== undefined && productData[field] !== "") {
-          productData[field] = Number(productData[field]);
-        }
-      });
+  //     numberFields.forEach((field) => {
+  //       if (productData[field] !== undefined && productData[field] !== "") {
+  //         productData[field] = Number(productData[field]);
+  //       }
+  //     });
 
-      // Convert boolean strings to actual booleans
-      const booleanFields = ["showprice", "stone", "diamond"];
-      booleanFields.forEach((field) => {
-        if (productData[field] !== undefined) {
-          productData[field] = productData[field] === "true";
-        }
-      });
+  //     // Convert boolean strings to actual booleans
+  //     const booleanFields = ["showprice", "stone", "diamond"];
+  //     booleanFields.forEach((field) => {
+  //       if (productData[field] !== undefined) {
+  //         productData[field] = productData[field] === "true";
+  //       }
+  //     });
 
-      // Process stone and diamond data
-      const stoneDiamondData = [];
+  //     // Process stone and diamond data
+  //     const stoneDiamondData = [];
 
-      if (productData.stone && productData.stones) {
-        productData.stones.forEach((stone) => {
-          stoneDiamondData.push({
-            type: "stone",
-            itemId: stone.itemId || stone.stoneId,
-            weight: Number(stone.weight || stone.stoneWeight || 0),
-            cost: Number(stone.cost || stone.stoneCost || 0),
-            price: Number(stone.price || stone.stonePrice || 0),
-          });
-        });
-      }
+  //     if (productData.stone && productData.stones) {
+  //       productData.stones.forEach((stone) => {
+  //         stoneDiamondData.push({
+  //           type: "stone",
+  //           itemId: stone.itemId || stone.stoneId,
+  //           weight: Number(stone.weight || stone.stoneWeight || 0),
+  //           cost: Number(stone.cost || stone.stoneCost || 0),
+  //           price: Number(stone.price || stone.stonePrice || 0),
+  //         });
+  //       });
+  //     }
 
-      if (productData.diamond && productData.diamonds) {
-        productData.diamonds.forEach((diamond) => {
-          stoneDiamondData.push({
-            type: "diamond",
-            itemId: diamond.itemId || diamond.diamondId,
-            weight: Number(diamond.weight || diamond.diamondWeight || 0),
-            cost: Number(diamond.cost || diamond.diamondCost || 0),
-            price: Number(diamond.price || diamond.diamondPrice || 0),
-          });
-        });
-      }
+  //     if (productData.diamond && productData.diamonds) {
+  //       productData.diamonds.forEach((diamond) => {
+  //         stoneDiamondData.push({
+  //           type: "diamond",
+  //           itemId: diamond.itemId || diamond.diamondId,
+  //           weight: Number(diamond.weight || diamond.diamondWeight || 0),
+  //           cost: Number(diamond.cost || diamond.diamondCost || 0),
+  //           price: Number(diamond.price || diamond.diamondPrice || 0),
+  //         });
+  //       });
+  //     }
 
-      let savedDetails = [];
-      if (stoneDiamondData.length > 0) {
-        savedDetails = await this.stoneDetailsRepo.createMany(stoneDiamondData);
-      }
+  //     let savedDetails = [];
+  //     if (stoneDiamondData.length > 0) {
+  //       savedDetails = await this.stoneDetailsRepo.createMany(stoneDiamondData);
+  //     }
 
-      // Only set stoneDetails if we have valid details
-      if (savedDetails.length > 0) {
-        productData.stoneDetails = savedDetails.map((s) => s._id);
-      } else {
-        productData.stoneDetails = [];
-      }
+  //     // Only set stoneDetails if we have valid details
+  //     if (savedDetails.length > 0) {
+  //       productData.stoneDetails = savedDetails.map((s) => s._id);
+  //     } else {
+  //       productData.stoneDetails = [];
+  //     }
 
-      const saveProduct = await this.productRepository.addProduct(productData);
-      if (saveProduct) {
-        return { success: true, message: "Product added successfully" };
-      }
-      return {
-        success: false,
-        message: "Failed to add product. Please try again later",
-      };
-    } catch (err) {
-      console.error("Error in addProduct:", err);
-      return {
-        success: false,
-        message: "An error occurred while adding Product.",
-        error: err.message,
-      };
-    }
-  }
+  //     const saveProduct = await this.productRepository.addProduct(productData);
+  //     if (saveProduct) {
+  //       return { success: true, message: "Product added successfully" };
+  //     }
+  //     return {
+  //       success: false,
+  //       message: "Failed to add product. Please try again later",
+  //     };
+  //   } catch (err) {
+  //     console.error("Error in addProduct:", err);
+  //     return {
+  //       success: false,
+  //       message: "An error occurred while adding Product.",
+  //       error: err.message,
+  //     };
+  //   }
+  // }
+
+
+
 
   async editProduct(id, productData, images) {
     try {
@@ -1544,6 +1547,175 @@ class ProductUseCase {
       };
     }
   }
+
+
+
+
+
+
+
+  
+  async addProduct(productData, product_image) {
+  try {
+
+    // ===== OBJECT ID VALIDATION =====
+    const objectIdValidationErrors = [
+      this.validateObjectId(productData.id_branch, "Branch"),
+      this.validateObjectId(productData.id_category, "Category"),
+      this.validateObjectId(productData.id_metal, "Metal"),
+      this.validateObjectId(productData.subcategoryId, "SubCategory"),
+    ].filter(Boolean);
+
+    if (objectIdValidationErrors.length) {
+      return { success: false, message: objectIdValidationErrors[0].message };
+    }
+
+    // ===== UNIQUE CHECKS =====
+    const checkProductCode = await this.productRepository.findByField({
+      code: productData.code,
+    });
+
+    const checkProductSku = await this.productRepository.findByField({
+      sku: productData.sku,
+    });
+
+    if (checkProductCode) {
+      return { success: false, message: "Product Code already exist" };
+    }
+
+    if (productData.sku && checkProductSku) {
+      return { success: false, message: "Product SKU already exist" };
+    }
+
+    // ===== MASTER EXISTENCE CHECK =====
+    const [checkBranchId, checkCategoryId, checkMetalId] =
+      await Promise.all([
+        this.branchRepository.findById(productData.id_branch),
+        this.categoryRepository.findById(productData.id_category),
+        this.metalRepository.findById(productData.id_metal),
+      ]);
+
+    if (!checkBranchId) {
+      return { success: false, message: "Branch not found" };
+    }
+
+    if (!checkCategoryId) {
+      return { success: false, message: "Category not found" };
+    }
+
+    if (!checkMetalId) {
+      return { success: false, message: "Metal not found" };
+    }
+
+    // ===== DUPLICATE NAME CHECK =====
+    const existingProduct = await this.productRepository.findByName(
+      productData.product_name,
+      productData.id_branch
+    );
+
+    if (existingProduct) {
+      return { success: false, message: "Product already existing" };
+    }
+
+    // ===== IMAGE UPLOAD =====
+    const s3configs = await this.s3Helper(productData.id_branch);
+    if (s3configs.success == false) return s3configs;
+
+    const uploadPromises = product_image.map(async (image, index) => {
+      if (!image.buffer || !image.mimetype || !image.originalname) {
+        console.warn(`Skipping invalid image at index ${index}`);
+        return null;
+      }
+
+      return this.s3Service.uploadToS3(image, "products", s3configs);
+    });
+
+    const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean);
+    productData.product_image = uploadedImages;
+
+    // ===== PARSE COLLECTION FIELD =====
+    if (productData.collection && typeof productData.collection === "string") {
+      try {
+        productData.collection = JSON.parse(productData.collection);
+      } catch (error) {
+        if (productData.collection.includes(",")) {
+          productData.collection = productData.collection
+            .split(",")
+            .map((id) => id.trim());
+        } else {
+          productData.collection = [productData.collection];
+        }
+      }
+    }
+
+    if (Array.isArray(productData.collection)) {
+      productData.collection = productData.collection.filter((id) => {
+        const isValid = this.validateObjectId(id, "Collection item");
+        return isValid === null;
+      });
+    }
+
+    // ===== CONVERT BASIC TYPES =====
+    const numberFields = ["gst"];
+    numberFields.forEach((field) => {
+      if (productData[field] !== undefined && productData[field] !== "") {
+        productData[field] = Number(productData[field]);
+      }
+    });
+
+    const booleanFields = ["showprice", "bestSeller", "onlineProduct", "active","isMrp"];
+    booleanFields.forEach((field) => {
+      if (productData[field] !== undefined) {
+        productData[field] = productData[field] === "true";
+      }
+    });
+
+    // ===== SAVE PRODUCT =====
+    const saveProduct = await this.productRepository.addProduct(productData);
+
+    if (saveProduct) {
+      return { success: true, message: "Product added successfully",pid:saveProduct._id };
+    }
+
+    return {
+      success: false,
+      message: "Failed to add product. Please try again later",
+    };
+
+  } catch (err) {
+    console.error("Error in addProduct:", err);
+
+    return {
+      success: false,
+      message: "An error occurred while adding Product.",
+      error: err.message,
+    };
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 export default ProductUseCase;

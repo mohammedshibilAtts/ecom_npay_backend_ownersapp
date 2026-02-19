@@ -1,0 +1,93 @@
+// models/itemModel.js
+
+import mongoose from "mongoose";
+
+const itemSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+
+    size: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SizeMaster",
+    },
+
+    id_purity: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Purity",
+      required: true,
+    },
+
+    currentMetalRate: {
+      type: Number,
+      required: true,
+    },
+
+    tagNo: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+
+    grossWt: {
+      type: Number,
+      required: true,
+    },
+    netWeight: {
+      type: Number,
+      required: true,
+    },
+
+    stonewt: Number,
+    diamondcts: Number,
+    diamondwt: Number,
+
+    diaCertificateNo: String,
+
+    huidCharges: Number,
+    huidNo: String,
+    showHuidNo: Boolean,
+    showHuidCharge: Boolean,
+
+    gst: {
+      type: Number,
+      required: true,
+    },
+
+    price: {
+      type: Number,
+      required: true, // created date price
+    },
+    totalprice: {
+      type: Number,
+      required: true, //  created date Total Price
+    },
+
+    makingCharges: {
+      makingMode: Number,
+      calculationType: Number,
+      makingActualValue: Number,
+      makingDiscountedPercentage: Number,
+      makingDiscountedValue: Number,
+    },
+
+    wastageCharges: {
+      wastageMode: Number,
+      calculationType: Number,
+      wastageActualValue: Number,
+      wastageDiscountedPercentage: Number,
+      wastageDiscountedValue: Number,
+    },
+
+    active: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { timestamps: true },
+);
+
+export default mongoose.model("Item", itemSchema);

@@ -8,6 +8,7 @@ import collectionRoutes from './collectionRoutes.js'
 import stateMaster from './stateMasterRoutes.js'
 import stonedetailsRoutes from './stonedetailsRoutes.js'
 import ecomSettings from './ecomSettingsRoutes.js'
+import itemRoutes from './itemRoutes.js'
 
 const router = express.Router()
 
@@ -20,5 +21,7 @@ router.use('/pincode-master',pincodeMasterRoutes)
 router.use('/state-master',stateMaster)
 router.use('/stonedetails',stonedetailsRoutes)
 router.use('/settings',ecomSettings)
+router.use('/items',itemRoutes)
+
 
 export default router;

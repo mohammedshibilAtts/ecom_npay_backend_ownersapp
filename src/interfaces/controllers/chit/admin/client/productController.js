@@ -17,12 +17,12 @@ class ProductController {
 
       req.body.created_by = req.user.id_employee;
       req.body.modified_by = req.user.id_employee;
-      const addProductResult = await this.productUsecase.addProduct(
+    const addProductResult = await this.productUsecase.addProduct(
         req.body,
         req.files.product_image
       );
       if (addProductResult.success) {
-        return res.status(201).json({ message: addProductResult.message });
+        return res.status(201).json({ message: addProductResult.message,pid:addProductResult.pid });
       }
       return res.status(400).json({ message: addProductResult.message });
     } catch (err) {

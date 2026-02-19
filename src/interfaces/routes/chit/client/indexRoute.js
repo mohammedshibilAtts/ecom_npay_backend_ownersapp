@@ -56,6 +56,7 @@ import color from './colormasterRoutes.js';
 import stonemaster from './stonemasterRoutes.js'
 
 
+
 const router = express.Router();
 
 router.use('/dashboard', dashboardRoutes)
@@ -115,6 +116,7 @@ router.use('/shape',shape)
 router.use('/cut',cut)
 router.use('/colour',color)
 router.use('/stonemaster',stonemaster)
+
 
 
  //for print
