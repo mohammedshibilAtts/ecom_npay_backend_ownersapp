@@ -31,6 +31,14 @@ const itemSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    sizeValue: {
+      type: String,
+      required: true,
+    },
+    unit: {
+      type: String,
+      required: true,
+    },
 
     grossWt: {
       type: Number,
@@ -86,6 +94,10 @@ const itemSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    status:{
+      type:Number,
+      default:1   // 1 In 2 Out 
+    }
   },
   { timestamps: true },
 );

@@ -5,7 +5,6 @@ import moment from "moment";
 import { OrderItem } from "../../models/ecom/orderItemModel.js";
 import { ORDER_STATUS_NO, ORDER_TYPE } from "../../../config/chit/const.js";
 import config from "../../../config/chit/env.js";
-import productModel from "../../models/chit/productModel.js";
 
 class ProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -161,7 +160,11 @@ class ProductRepository {
         {
           $lookup: {
             from: "metalrates",
-            let: { metalId: "$id_metal", purityId: "$id_purity",id_branch: "$id_branch" },
+            let: {
+              metalId: "$id_metal",
+              purityId: "$id_purity",
+              id_branch: "$id_branch",
+            },
             pipeline: [
               {
                 $match: {
@@ -297,52 +300,48 @@ class ProductRepository {
         {
           $addFields: {
             finalMakingCharge: {
-             
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$makingCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$makingCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$makingCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$makingCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ["$makingCharges.mode", 1] },
+                    then: {
+                      $ifNull: ["$makingCharges.discountedValue", 0],
+                    },
                   },
-               
+                  {
+                    case: { $eq: ["$makingCharges.mode", 2] },
+                    then: {
+                      $multiply: [
+                        { $ifNull: ["$grossWt", 0] },
+                        { $ifNull: ["$makingCharges.discountedValue", 0] },
+                      ],
+                    },
+                  },
+                ],
+                default: 0,
+              },
             },
             finalWastageCharge: {
-             
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$wastageCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$wastageCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ["$wastageCharges.mode", 1] },
+                    then: {
+                      $ifNull: ["$wastageCharges.discountedValue", 0],
+                    },
                   },
-               
+                  {
+                    case: { $eq: ["$wastageCharges.mode", 2] },
+                    then: {
+                      $multiply: [
+                        { $ifNull: ["$grossWt", 0] },
+                        { $ifNull: ["$wastageCharges.discountedValue", 0] },
+                      ],
+                    },
+                  },
+                ],
+                default: 0,
+              },
             },
           },
         },
@@ -553,21 +552,15 @@ class ProductRepository {
             },
           },
         },
-         {
+        {
           $addFields: {
             actualGstRate: {
               $cond: {
                 if: {
-                  $and: [
-                    { $gt: ["$gst", 0] },
-                    { $gt: ["$actualSubtotal", 0] },
-                  ],
+                  $and: [{ $gt: ["$gst", 0] }, { $gt: ["$actualSubtotal", 0] }],
                 },
                 then: {
-                  $divide: [
-                    { $multiply: ["$actualSubtotal", "$gst"] },
-                    100,
-                  ],
+                  $divide: [{ $multiply: ["$actualSubtotal", "$gst"] }, 100],
                 },
                 else: 0,
               },
@@ -577,20 +570,16 @@ class ProductRepository {
         {
           $addFields: {
             discountedAmount: {
-              
-                  $add: [
-                    { $ifNull: ["$discountedSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
-                  ],
-               
+              $add: [
+                { $ifNull: ["$discountedSubtotal", 0] },
+                { $ifNull: ["$gstRate", 0] },
+              ],
             },
             totalAmount: {
-              
-                  $add: [
-                    { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$actualGstRate", 0] },
-                  ],
-                
+              $add: [
+                { $ifNull: ["$actualSubtotal", 0] },
+                { $ifNull: ["$actualGstRate", 0] },
+              ],
             },
           },
         },
@@ -643,8 +632,10 @@ class ProductRepository {
             grossWt: 1,
             sizeUnit: "$Size.unit",
             onlineProduct: { $ifNull: ["$onlineProduct", true] },
-            stoneDiamondDetails:1,
-            active:1
+            stoneDiamondDetails: 1,
+            active: 1,
+            sizeId: 1,
+            isMrp: 1,
           },
         },
         { $limit: 1 },
@@ -654,7 +645,7 @@ class ProductRepository {
       if (productData?.onlineProduct == false) {
         productData.orderStatus = await this.findProductForOrderNow(
           id,
-          customerId
+          customerId,
         );
       }
 
@@ -665,457 +656,456 @@ class ProductRepository {
     }
   }
 
-//   async findById(id, customerId) {
-//   try {
-//     const isValidCustomerId =
-//       customerId && mongoose.Types.ObjectId.isValid(customerId);
+  //   async findById(id, customerId) {
+  //   try {
+  //     const isValidCustomerId =
+  //       customerId && mongoose.Types.ObjectId.isValid(customerId);
 
-//     const userData = await ProductModel.aggregate([
-//       {
-//         $match: {
-//           _id: new mongoose.Types.ObjectId(id),
-//           is_deleted: false,
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "s3bucketsettings",
-//           localField: "id_branch",
-//           foreignField: "id_branch",
-//           as: "s3Details",
-//         },
-//       },
-//       { $unwind: "$s3Details" },
-//       {
-//         $lookup: {
-//           from: "categories",
-//           localField: "id_category",
-//           foreignField: "_id",
-//           as: "category",
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "purities",
-//           localField: "id_purity",
-//           foreignField: "_id",
-//           as: "purityDetails",
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "branches",
-//           localField: "id_branch",
-//           foreignField: "_id",
-//           as: "branches",
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "sizemasters",
-//           localField: "availableSizes.sizeId",
-//           foreignField: "_id",
-//           as: "Size",
-//         },
-//       },
-//       { $unwind: { path: "$Size", preserveNullAndEmptyArrays: true } },
-//       { $unwind: "$branches" },
+  //     const userData = await ProductModel.aggregate([
+  //       {
+  //         $match: {
+  //           _id: new mongoose.Types.ObjectId(id),
+  //           is_deleted: false,
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "s3bucketsettings",
+  //           localField: "id_branch",
+  //           foreignField: "id_branch",
+  //           as: "s3Details",
+  //         },
+  //       },
+  //       { $unwind: "$s3Details" },
+  //       {
+  //         $lookup: {
+  //           from: "categories",
+  //           localField: "id_category",
+  //           foreignField: "_id",
+  //           as: "category",
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "purities",
+  //           localField: "id_purity",
+  //           foreignField: "_id",
+  //           as: "purityDetails",
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "branches",
+  //           localField: "id_branch",
+  //           foreignField: "_id",
+  //           as: "branches",
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "sizemasters",
+  //           localField: "availableSizes.sizeId",
+  //           foreignField: "_id",
+  //           as: "Size",
+  //         },
+  //       },
+  //       { $unwind: { path: "$Size", preserveNullAndEmptyArrays: true } },
+  //       { $unwind: "$branches" },
 
-//       ...(isValidCustomerId
-//         ? [
-//             {
-//               $lookup: {
-//                 from: "wishlists",
-//                 let: { productId: "$_id" },
-//                 pipeline: [
-//                   {
-//                     $match: {
-//                       $expr: {
-//                         $and: [
-//                           { $eq: ["$itemId", "$$productId"] },
-//                           {
-//                             $eq: [
-//                               "$id_customer",
-//                               new mongoose.Types.ObjectId(customerId),
-//                             ],
-//                           },
-//                         ],
-//                       },
-//                     },
-//                   },
-//                 ],
-//                 as: "wishlistMatch",
-//               },
-//             },
-//             {
-//               $addFields: {
-//                 isWishlisted: { $gt: [{ $size: "$wishlistMatch" }, 0] },
-//               },
-//             },
-//           ]
-//         : [
-//             {
-//               $addFields: { isWishlisted: false },
-//             },
-//           ]),
+  //       ...(isValidCustomerId
+  //         ? [
+  //             {
+  //               $lookup: {
+  //                 from: "wishlists",
+  //                 let: { productId: "$_id" },
+  //                 pipeline: [
+  //                   {
+  //                     $match: {
+  //                       $expr: {
+  //                         $and: [
+  //                           { $eq: ["$itemId", "$$productId"] },
+  //                           {
+  //                             $eq: [
+  //                               "$id_customer",
+  //                               new mongoose.Types.ObjectId(customerId),
+  //                             ],
+  //                           },
+  //                         ],
+  //                       },
+  //                     },
+  //                   },
+  //                 ],
+  //                 as: "wishlistMatch",
+  //               },
+  //             },
+  //             {
+  //               $addFields: {
+  //                 isWishlisted: { $gt: [{ $size: "$wishlistMatch" }, 0] },
+  //               },
+  //             },
+  //           ]
+  //         : [
+  //             {
+  //               $addFields: { isWishlisted: false },
+  //             },
+  //           ]),
 
-//       {
-//         $lookup: {
-//           from: "metalrates",
-//           let: { metalId: "$id_metal", purityId: "$id_purity", id_branch: "$id_branch" },
-//           pipeline: [
-//             {
-//               $match: {
-//                 $expr: {
-//                   $and: [
-//                     { $eq: ["$material_type_id", "$$metalId"] },
-//                     { $eq: ["$purity_id", "$$purityId"] },
-//                     { $eq: ["$id_branch", "$$id_branch"] },
-//                   ],
-//                 },
-//               },
-//             },
-//             { $sort: { createdAt: -1 } },
-//             { $limit: 1 },
-//           ],
-//           as: "metalPriceInfo",
-//         },
-//       },
+  //       {
+  //         $lookup: {
+  //           from: "metalrates",
+  //           let: { metalId: "$id_metal", purityId: "$id_purity", id_branch: "$id_branch" },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ["$material_type_id", "$$metalId"] },
+  //                     { $eq: ["$purity_id", "$$purityId"] },
+  //                     { $eq: ["$id_branch", "$$id_branch"] },
+  //                   ],
+  //                 },
+  //               },
+  //             },
+  //             { $sort: { createdAt: -1 } },
+  //             { $limit: 1 },
+  //           ],
+  //           as: "metalPriceInfo",
+  //         },
+  //       },
 
-//       {
-//         $lookup: {
-//           from: "stonedetails",
-//           localField: "stoneDetails",
-//           foreignField: "_id",
-//           as: "stoneDiamondDetails",
-//         },
-//       },
-//       {
-//         $unwind: {
-//           path: "$stoneDiamondDetails",
-//           preserveNullAndEmptyArrays: true,
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "stone_masters",
-//           localField: "stoneDiamondDetails.itemId",
-//           foreignField: "_id",
-//           as: "stoneDiamondDetails.stoneInfo",
-//         },
-//       },
-//       {
-//         $unwind: {
-//           path: "$stoneDiamondDetails.stoneInfo",
-//           preserveNullAndEmptyArrays: true,
-//         },
-//       },
+  //       {
+  //         $lookup: {
+  //           from: "stonedetails",
+  //           localField: "stoneDetails",
+  //           foreignField: "_id",
+  //           as: "stoneDiamondDetails",
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$stoneDiamondDetails",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "stone_masters",
+  //           localField: "stoneDiamondDetails.itemId",
+  //           foreignField: "_id",
+  //           as: "stoneDiamondDetails.stoneInfo",
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$stoneDiamondDetails.stoneInfo",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
 
-//       {
-//         $group: {
-//           _id: "$_id",
-//           root: { $first: "$$ROOT" },
-//           stoneDiamondDetails: { $push: "$stoneDiamondDetails" },
-//         },
-//       },
-//       {
-//         $replaceRoot: {
-//           newRoot: {
-//             $mergeObjects: ["$root", { stoneDiamondDetails: "$stoneDiamondDetails" }],
-//           },
-//         },
-//       },
+  //       {
+  //         $group: {
+  //           _id: "$_id",
+  //           root: { $first: "$$ROOT" },
+  //           stoneDiamondDetails: { $push: "$stoneDiamondDetails" },
+  //         },
+  //       },
+  //       {
+  //         $replaceRoot: {
+  //           newRoot: {
+  //             $mergeObjects: ["$root", { stoneDiamondDetails: "$stoneDiamondDetails" }],
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           latestMetalPrice: {
-//             $ifNull: [{ $arrayElemAt: ["$metalPriceInfo.rate", 0] }, 0],
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           latestMetalPrice: {
+  //             $ifNull: [{ $arrayElemAt: ["$metalPriceInfo.rate", 0] }, 0],
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           baseMetalValue: {
-//             $multiply: [
-//               { $ifNull: ["$netWeight", 0] },
-//               { $ifNull: ["$latestMetalPrice", 0] },
-//             ],
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           baseMetalValue: {
+  //             $multiply: [
+  //               { $ifNull: ["$netWeight", 0] },
+  //               { $ifNull: ["$latestMetalPrice", 0] },
+  //             ],
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           rawMakingCharge: {
-//             $switch: {
-//               branches: [
-//                 {
-//                   case: { $eq: ["$makingCharges.mode", 1] },
-//                   then: { $ifNull: ["$makingCharges.actualValue", 0] },
-//                 },
-//                 {
-//                   case: { $eq: ["$makingCharges.mode", 2] },
-//                   then: {
-//                     $multiply: [
-//                       { $ifNull: ["$grossWt", 0] },
-//                       { $ifNull: ["$makingCharges.actualValue", 0] },
-//                     ],
-//                   },
-//                 },
-//               ],
-//               default: 0,
-//             },
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           rawMakingCharge: {
+  //             $switch: {
+  //               branches: [
+  //                 {
+  //                   case: { $eq: ["$makingCharges.mode", 1] },
+  //                   then: { $ifNull: ["$makingCharges.actualValue", 0] },
+  //                 },
+  //                 {
+  //                   case: { $eq: ["$makingCharges.mode", 2] },
+  //                   then: {
+  //                     $multiply: [
+  //                       { $ifNull: ["$grossWt", 0] },
+  //                       { $ifNull: ["$makingCharges.actualValue", 0] },
+  //                     ],
+  //                   },
+  //                 },
+  //               ],
+  //               default: 0,
+  //             },
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           rawWastageCharge: {
-//             $switch: {
-//               branches: [
-//                 {
-//                   case: { $eq: ["$wastageCharges.mode", 1] },
-//                   then: { $ifNull: ["$wastageCharges.actualValue", 0] },
-//                 },
-//                 {
-//                   case: { $eq: ["$wastageCharges.mode", 2] },
-//                   then: {
-//                     $multiply: [
-//                       { $ifNull: ["$grossWt", 0] },
-//                       { $ifNull: ["$wastageCharges.actualValue", 0] },
-//                     ],
-//                   },
-//                 },
-//               ],
-//               default: 0,
-//             },
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           rawWastageCharge: {
+  //             $switch: {
+  //               branches: [
+  //                 {
+  //                   case: { $eq: ["$wastageCharges.mode", 1] },
+  //                   then: { $ifNull: ["$wastageCharges.actualValue", 0] },
+  //                 },
+  //                 {
+  //                   case: { $eq: ["$wastageCharges.mode", 2] },
+  //                   then: {
+  //                     $multiply: [
+  //                       { $ifNull: ["$grossWt", 0] },
+  //                       { $ifNull: ["$wastageCharges.actualValue", 0] },
+  //                     ],
+  //                   },
+  //                 },
+  //               ],
+  //               default: 0,
+  //             },
+  //           },
+  //         },
+  //       },
 
-//       // ❌ REMOVED $round FROM FINAL MAKING & WASTAGE CHARGE
-//       {
-//         $addFields: {
-//           finalMakingCharge: {
-//             $switch: {
-//               branches: [
-//                 {
-//                   case: { $eq: ["$makingCharges.mode", 1] },
-//                   then: { $ifNull: ["$makingCharges.discountedValue", 0] },
-//                 },
-//                 {
-//                   case: { $eq: ["$makingCharges.mode", 2] },
-//                   then: {
-//                     $multiply: [
-//                       { $ifNull: ["$grossWt", 0] },
-//                       { $ifNull: ["$makingCharges.discountedValue", 0] },
-//                     ],
-//                   },
-//                 },
-//               ],
-//               default: 0,
-//             },
-//           },
+  //       // ❌ REMOVED $round FROM FINAL MAKING & WASTAGE CHARGE
+  //       {
+  //         $addFields: {
+  //           finalMakingCharge: {
+  //             $switch: {
+  //               branches: [
+  //                 {
+  //                   case: { $eq: ["$makingCharges.mode", 1] },
+  //                   then: { $ifNull: ["$makingCharges.discountedValue", 0] },
+  //                 },
+  //                 {
+  //                   case: { $eq: ["$makingCharges.mode", 2] },
+  //                   then: {
+  //                     $multiply: [
+  //                       { $ifNull: ["$grossWt", 0] },
+  //                       { $ifNull: ["$makingCharges.discountedValue", 0] },
+  //                     ],
+  //                   },
+  //                 },
+  //               ],
+  //               default: 0,
+  //             },
+  //           },
 
-//           finalWastageCharge: {
-//             $switch: {
-//               branches: [
-//                 {
-//                   case: { $eq: ["$wastageCharges.mode", 1] },
-//                   then: { $ifNull: ["$wastageCharges.discountedValue", 0] },
-//                 },
-//                 {
-//                   case: { $eq: ["$wastageCharges.mode", 2] },
-//                   then: {
-//                     $multiply: [
-//                       { $ifNull: ["$grossWt", 0] },
-//                       { $ifNull: ["$wastageCharges.discountedValue", 0] },
-//                     ],
-//                   },
-//                 },
-//               ],
-//               default: 0,
-//             },
-//           },
-//         },
-//       },
+  //           finalWastageCharge: {
+  //             $switch: {
+  //               branches: [
+  //                 {
+  //                   case: { $eq: ["$wastageCharges.mode", 1] },
+  //                   then: { $ifNull: ["$wastageCharges.discountedValue", 0] },
+  //                 },
+  //                 {
+  //                   case: { $eq: ["$wastageCharges.mode", 2] },
+  //                   then: {
+  //                     $multiply: [
+  //                       { $ifNull: ["$grossWt", 0] },
+  //                       { $ifNull: ["$wastageCharges.discountedValue", 0] },
+  //                     ],
+  //                   },
+  //                 },
+  //               ],
+  //               default: 0,
+  //             },
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           diamondValue: {
-//             $sum: {
-//               $map: {
-//                 input: {
-//                   $filter: {
-//                     input: "$stoneDiamondDetails",
-//                     as: "sd",
-//                     cond: { $eq: ["$$sd.type", "diamond"] },
-//                   },
-//                 },
-//                 as: "diamond",
-//                 in: { $ifNull: ["$$diamond.price", 0] },
-//               },
-//             },
-//           },
-//           stoneValue: {
-//             $sum: {
-//               $map: {
-//                 input: {
-//                   $filter: {
-//                     input: "$stoneDiamondDetails",
-//                     as: "sd",
-//                     cond: { $eq: ["$$sd.type", "stone"] },
-//                   },
-//                 },
-//                 as: "stone",
-//                 in: { $ifNull: ["$$stone.price", 0] },
-//               },
-//             },
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           diamondValue: {
+  //             $sum: {
+  //               $map: {
+  //                 input: {
+  //                   $filter: {
+  //                     input: "$stoneDiamondDetails",
+  //                     as: "sd",
+  //                     cond: { $eq: ["$$sd.type", "diamond"] },
+  //                   },
+  //                 },
+  //                 as: "diamond",
+  //                 in: { $ifNull: ["$$diamond.price", 0] },
+  //               },
+  //             },
+  //           },
+  //           stoneValue: {
+  //             $sum: {
+  //               $map: {
+  //                 input: {
+  //                   $filter: {
+  //                     input: "$stoneDiamondDetails",
+  //                     as: "sd",
+  //                     cond: { $eq: ["$$sd.type", "stone"] },
+  //                   },
+  //                 },
+  //                 as: "stone",
+  //                 in: { $ifNull: ["$$stone.price", 0] },
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           // diamond totals
-//           totalDiamondWeight: {
-//             $sum: "$stoneDiamondDetails.weight",
-//           },
-//           totalDiamondCost: {
-//             $sum: "$stoneDiamondDetails.cost",
-//           },
-//           totalDiamondPrice: {
-//             $sum: "$stoneDiamondDetails.price",
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           // diamond totals
+  //           totalDiamondWeight: {
+  //             $sum: "$stoneDiamondDetails.weight",
+  //           },
+  //           totalDiamondCost: {
+  //             $sum: "$stoneDiamondDetails.cost",
+  //           },
+  //           totalDiamondPrice: {
+  //             $sum: "$stoneDiamondDetails.price",
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           discountedSubtotal: {
-//             $add: [
-//               { $ifNull: ["$baseMetalValue", 0] },
-//               { $ifNull: ["$finalWastageCharge", 0] },
-//               { $ifNull: ["$finalMakingCharge", 0] },
-//               { $ifNull: ["$diamondValue", 0] },
-//               { $ifNull: ["$stoneValue", 0] },
-//             ],
-//           },
-//           actualSubtotal: {
-//             $add: [
-//               { $ifNull: ["$baseMetalValue", 0] },
-//               { $ifNull: ["$rawWastageCharge", 0] },
-//               { $ifNull: ["$rawMakingCharge", 0] },
-//               { $ifNull: ["$diamondValue", 0] },
-//               { $ifNull: ["$stoneValue", 0] },
-//             ],
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           discountedSubtotal: {
+  //             $add: [
+  //               { $ifNull: ["$baseMetalValue", 0] },
+  //               { $ifNull: ["$finalWastageCharge", 0] },
+  //               { $ifNull: ["$finalMakingCharge", 0] },
+  //               { $ifNull: ["$diamondValue", 0] },
+  //               { $ifNull: ["$stoneValue", 0] },
+  //             ],
+  //           },
+  //           actualSubtotal: {
+  //             $add: [
+  //               { $ifNull: ["$baseMetalValue", 0] },
+  //               { $ifNull: ["$rawWastageCharge", 0] },
+  //               { $ifNull: ["$rawMakingCharge", 0] },
+  //               { $ifNull: ["$diamondValue", 0] },
+  //               { $ifNull: ["$stoneValue", 0] },
+  //             ],
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $addFields: {
-//           gstRate: {
-//             $cond: {
-//               if: {
-//                 $and: [
-//                   { $gt: ["$gst", 0] },
-//                   { $gt: ["$discountedSubtotal", 0] },
-//                 ],
-//               },
-//               then: {
-//                 $divide: [
-//                   { $multiply: ["$discountedSubtotal", "$gst"] },
-//                   100,
-//                 ],
-//               },
-//               else: 0,
-//             },
-//           },
-//         },
-//       },
+  //       {
+  //         $addFields: {
+  //           gstRate: {
+  //             $cond: {
+  //               if: {
+  //                 $and: [
+  //                   { $gt: ["$gst", 0] },
+  //                   { $gt: ["$discountedSubtotal", 0] },
+  //                 ],
+  //               },
+  //               then: {
+  //                 $divide: [
+  //                   { $multiply: ["$discountedSubtotal", "$gst"] },
+  //                   100,
+  //                 ],
+  //               },
+  //               else: 0,
+  //             },
+  //           },
+  //         },
+  //       },
 
-//       // ❌ REMOVED $round FROM TOTALS
-//       {
-//         $addFields: {
-//           discountedAmount: {
-//             $add: [
-//               { $ifNull: ["$discountedSubtotal", 0] },
-//               { $ifNull: ["$gstRate", 0] },
-//             ],
-//           },
-//           totalAmount: {
-//             $add: [
-//               { $ifNull: ["$actualSubtotal", 0] },
-//               { $ifNull: ["$gstRate", 0] },
-//             ],
-//           },
-//         },
-//       },
+  //       // ❌ REMOVED $round FROM TOTALS
+  //       {
+  //         $addFields: {
+  //           discountedAmount: {
+  //             $add: [
+  //               { $ifNull: ["$discountedSubtotal", 0] },
+  //               { $ifNull: ["$gstRate", 0] },
+  //             ],
+  //           },
+  //           totalAmount: {
+  //             $add: [
+  //               { $ifNull: ["$actualSubtotal", 0] },
+  //               { $ifNull: ["$gstRate", 0] },
+  //             ],
+  //           },
+  //         },
+  //       },
 
-//       {
-//         $project: {
-//           product_name: 1,
-//           description: 1,
-//           product_image: 1,
-//           id_category: 1,
-//           showprice: 1,
-//           id_branch: 1,
-//           subcategoryId: 1,
-//           categoryName: "$category.category_name",
-//           pathurl: {
-//             $concat: [
-//               "$s3Details.s3display_url",
-//               `${config?.AWS_LOCAL_PATH}products/`,
-//             ],
-//           },
-//           isWishlisted: 1,
-//           totalAmount: 1,
-//           discountedAmount: 1,
-//           purityName: { $arrayElemAt: ["$purityDetails.purity_name", 0] },
-//           netWeight: "$netWeight",
-//           grossWeight: "$grossWt",
-//           sku: 1,
-//           availableSizes: 1,
-//           makingCharges: 1,
-//           wastageCharges: 1,
-//           latestMetalPrice: "$latestMetalPrice",
-//           stoneDiamondDetails: 1,
-//           baseMetalValue: 1,
-//           finalWastageCharge: 1,
-//           finalMakingCharge: 1,
-//           active: 1,
-//         },
-//       },
+  //       {
+  //         $project: {
+  //           product_name: 1,
+  //           description: 1,
+  //           product_image: 1,
+  //           id_category: 1,
+  //           showprice: 1,
+  //           id_branch: 1,
+  //           subcategoryId: 1,
+  //           categoryName: "$category.category_name",
+  //           pathurl: {
+  //             $concat: [
+  //               "$s3Details.s3display_url",
+  //               `${config?.AWS_LOCAL_PATH}products/`,
+  //             ],
+  //           },
+  //           isWishlisted: 1,
+  //           totalAmount: 1,
+  //           discountedAmount: 1,
+  //           purityName: { $arrayElemAt: ["$purityDetails.purity_name", 0] },
+  //           netWeight: "$netWeight",
+  //           grossWeight: "$grossWt",
+  //           sku: 1,
+  //           availableSizes: 1,
+  //           makingCharges: 1,
+  //           wastageCharges: 1,
+  //           latestMetalPrice: "$latestMetalPrice",
+  //           stoneDiamondDetails: 1,
+  //           baseMetalValue: 1,
+  //           finalWastageCharge: 1,
+  //           finalMakingCharge: 1,
+  //           active: 1,
+  //         },
+  //       },
 
-//       { $limit: 1 },
-//     ]);
+  //       { $limit: 1 },
+  //     ]);
 
-//     const productData = userData[0];
+  //     const productData = userData[0];
 
-//     if (productData?.onlineProduct == false) {
-//       productData.orderStatus = await this.findProductForOrderNow(
-//         id,
-//         customerId
-//       );
-//     }
+  //     if (productData?.onlineProduct == false) {
+  //       productData.orderStatus = await this.findProductForOrderNow(
+  //         id,
+  //         customerId
+  //       );
+  //     }
 
-//     return productData || null;
+  //     return productData || null;
 
-//   } catch (err) {
-//     console.error(err);
-//     throw new Error("Database error occurred while finding Product by id");
-//   }
-// }
-
+  //   } catch (err) {
+  //     console.error(err);
+  //     throw new Error("Database error occurred while finding Product by id");
+  //   }
+  // }
 
   async editProduct(productData, id) {
     try {
       const editProduct = await ProductModel.updateOne(
         { _id: id },
-        { $set: productData }
+        { $set: productData },
       );
       if (editProduct.modifiedCount == 1) {
         return editProduct;
@@ -1132,7 +1122,7 @@ class ProductRepository {
     try {
       const deleteProduct = await ProductModel.updateOne(
         { _id: id },
-        { is_deleted: true }
+        { is_deleted: true },
       );
       if (deleteProduct.modifiedCount == 1) {
         return true;
@@ -1146,13 +1136,13 @@ class ProductRepository {
 
   async changeStatus(id, status) {
     try {
-      console.log(status)
+      console.log(status);
       const updateStatus = await ProductModel.updateOne(
         { _id: id },
-        { active: !status }
+        { active: !status },
       );
       if (updateStatus.modifiedCount == 1) {
-        console.log(updateStatus)
+        console.log(updateStatus);
         return updateStatus;
       }
       return null;
@@ -1211,323 +1201,42 @@ class ProductRepository {
         { $unwind: { path: "$id_metal", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: "purities",
-            localField: "id_purity",
-            foreignField: "_id",
-            as: "id_purity",
-          },
-        },
-        { $unwind: { path: "$id_purity", preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
             from: "s3bucketsettings",
             localField: "id_branch._id",
             foreignField: "id_branch",
             as: "s3Details",
           },
         },
-        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
-
-        // Price Calculation Pipeline
         {
           $lookup: {
-            from: "metalrates",
-            let: { metalId: "$id_metal._id", purityId: "$id_purity._id" },
+            from: "items",
+            let: { productId: "$_id" },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: ["$material_type_id", "$$metalId"] },
-                      { $eq: ["$purity_id", "$$purityId"] },
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
                     ],
                   },
                 },
               },
-              { $sort: { createdAt: -1 } },
-              { $limit: 1 },
+              {
+                $count: "stockCount",
+              },
             ],
-            as: "metalPriceInfo",
-          },
-        },
-        {
-          $lookup: {
-            from: "stonedetails",
-            localField: "stoneDetails",
-            foreignField: "_id",
-            as: "stoneDiamondDetails",
-          },
-        },
-
-        {
-          $addFields: {
-            latestMetalPrice: {
-              $ifNull: [{ $arrayElemAt: ["$metalPriceInfo.rate", 0] }, 0],
-            },
-            netWeight: {
-              $ifNull: ["$netWeight", "$grossWt"],
-            },
+            as: "stockData",
           },
         },
         {
           $addFields: {
-            baseMetalValue: {
-              $multiply: [
-                { $ifNull: ["$netWeight", 0] },
-                { $ifNull: ["$latestMetalPrice", 0] },
-              ],
+            stock: {
+              $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0],
             },
           },
         },
-        {
-          $addFields: {
-            rawMakingCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$makingCharges.mode", 1] },
-                    then: { $ifNull: ["$makingCharges.actualValue", 0] },
-                  },
-                  {
-                    case: { $eq: ["$makingCharges.mode", 2] },
-                    then: {
-                      $multiply: [
-                        { $ifNull: ["$grossWt", 0] },
-                        { $ifNull: ["$makingCharges.actualValue", 0] },
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            rawWastageCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$wastageCharges.mode", 1] },
-                    then: { $ifNull: ["$wastageCharges.actualValue", 0] },
-                  },
-                  {
-                    case: { $eq: ["$wastageCharges.mode", 2] },
-                    then: {
-                      $multiply: [
-                        { $ifNull: ["$grossWt", 0] },
-                        { $ifNull: ["$wastageCharges.actualValue", 0] },
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            finalMakingCharge: {
-              
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$makingCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$makingCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$makingCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$makingCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
-                  },
-               
-            },
-            finalWastageCharge: {
-            
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$wastageCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$wastageCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
-                  },
-               
-            },
-          },
-        },
-        {
-          $addFields: {
-            diamondValue: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "sd",
-                      cond: { $eq: ["$$sd.type", "diamond"] },
-                    },
-                  },
-                  as: "diamond",
-                  in: { $ifNull: ["$$diamond.price", 0] },
-                },
-              },
-            },
-            stoneValue: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "sd",
-                      cond: { $eq: ["$$sd.type", "stone"] },
-                    },
-                  },
-                  as: "stone",
-                  in: { $ifNull: ["$$stone.price", 0] },
-                },
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            discountedSubtotal: {
-              $add: [
-                { $ifNull: ["$baseMetalValue", 0] },
-                { $ifNull: ["$finalWastageCharge", 0] },
-                { $ifNull: ["$finalMakingCharge", 0] },
-                { $ifNull: ["$diamondValue", 0] },
-                { $ifNull: ["$stoneValue", 0] },
-              ],
-            },
-            actualSubtotal: {
-              $add: [
-                { $ifNull: ["$baseMetalValue", 0] },
-                { $ifNull: ["$rawWastageCharge", 0] },
-                { $ifNull: ["$rawMakingCharge", 0] },
-                { $ifNull: ["$diamondValue", 0] },
-                { $ifNull: ["$stoneValue", 0] },
-              ],
-            },
-          },
-        },
-        {
-          $addFields: {
-            gstRate: {
-              $cond: {
-                if: {
-                  $and: [
-                    { $gt: ["$gst", 0] },
-                    { $gt: ["$discountedSubtotal", 0] },
-                  ],
-                },
-                then: {
-                  $divide: [
-                    { $multiply: ["$discountedSubtotal", "$gst"] },
-                    100,
-                  ],
-                },
-                else: 0,
-              },
-            },
-          },
-        },
-         {
-          $addFields: {
-            actualGstRate: {
-              $cond: {
-                if: {
-                  $and: [
-                    { $gt: ["$gst", 0] },
-                    { $gt: ["$actualSubtotal", 0] },
-                  ],
-                },
-                then: {
-                  $divide: [
-                    { $multiply: ["$actualSubtotal", "$gst"] },
-                    100,
-                  ],
-                },
-                else: 0,
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            discountedAmount: {
-             
-                  $add: [
-                    { $ifNull: ["$discountedSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
-                  ],
-                },
-               
-            totalAmount: {
-              
-                  $add: [
-                    { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$actualGstRate", 0] },
-                  ],
-               
-            },
-          },
-        },
-        {
-          $addFields: {
-            discountDifference: {
-              
-                  $subtract: [
-                    { $ifNull: ["$totalAmount", 0] },
-                    { $ifNull: ["$discountedAmount", 0] },
-                  ],
-               
-            },
-            discountPercentage: {
-              
-                  $multiply: [
-                    {
-                      $divide: [
-                        {
-                          $subtract: [
-                            { $ifNull: ["$totalAmount", 0] },
-                            { $ifNull: ["$discountedAmount", 0] },
-                          ],
-                        },
-                        { $max: [{ $ifNull: ["$totalAmount", 1] }, 1] },
-                      ],
-                    },
-                    100,
-                  ],
-               
-            },
-          },
-        },
-
+        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
         ...(customerId
           ? [
               {
@@ -1580,7 +1289,7 @@ class ProductRepository {
         searchWords.forEach((word) => {
           const wordRegex = new RegExp(
             word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-            "i"
+            "i",
           );
 
           orConditions.push(
@@ -1588,7 +1297,6 @@ class ProductRepository {
             { "id_branch.branch_name": { $regex: wordRegex } },
             { "id_category.category_name": { $regex: wordRegex } },
             { "id_metal.metal_name": { $regex: wordRegex } },
-            { "id_purity.purity_name": { $regex: wordRegex } }
           );
         });
 
@@ -1600,7 +1308,7 @@ class ProductRepository {
         const momentDate = moment(
           searchOptions.term,
           ["DD/MM/YYYY", "YYYY-MM-DD"],
-          true
+          true,
         );
         if (momentDate.isValid()) {
           const startOfDay = momentDate.startOf("day").toDate();
@@ -1622,20 +1330,16 @@ class ProductRepository {
         {
           $project: {
             product_name: 1,
-            // weight: 1,
             createdAt: 1,
             product_image: 1,
             active: 1,
             bestSeller: "$bestSeller",
             branchName: "$id_branch.branch_name",
             metalName: "$id_metal.metal_name",
-            purityName: "$id_purity.purity_name",
             isWishlisted: 1,
             quantity: "$quantity",
-            totalAmount: 1,
-            discountedAmount: 1,
-            discountDifference: 1,
-            onlineProduct:1,
+            onlineProduct: 1,
+            stock:1,
             pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
@@ -1643,7 +1347,7 @@ class ProductRepository {
               ],
             },
           },
-        }
+        },
       );
 
       const products = await ProductModel.aggregate(pipeline);
@@ -1662,7 +1366,7 @@ class ProductRepository {
     try {
       const countUpdate = await ProductModel.updateOne(
         { _id: id },
-        { $set: { whatsapp_sent: count } }
+        { $set: { whatsapp_sent: count } },
       );
 
       if (countUpdate.modifiedCount > 0) {
@@ -1724,7 +1428,11 @@ class ProductRepository {
         {
           $lookup: {
             from: "metalrates",
-            let: { metalId: "$id_metal", purityId: "$id_purity", branchId: "$id_branch",},
+            let: {
+              metalId: "$id_metal",
+              purityId: "$id_purity",
+              branchId: "$id_branch",
+            },
             pipeline: [
               {
                 $match: {
@@ -1800,27 +1508,26 @@ class ProductRepository {
         {
           $addFields: {
             finalMakingCharge: {
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$makingCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$makingCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$makingCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$makingCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ["$makingCharges.mode", 1] },
+                    then: {
+                      $ifNull: ["$makingCharges.discountedValue", 0],
+                    },
                   },
-              
+                  {
+                    case: { $eq: ["$makingCharges.mode", 2] },
+                    then: {
+                      $multiply: [
+                        { $ifNull: ["$grossWt", 0] },
+                        { $ifNull: ["$makingCharges.discountedValue", 0] },
+                      ],
+                    },
+                  },
+                ],
+                default: 0,
+              },
             },
           },
         },
@@ -1852,28 +1559,26 @@ class ProductRepository {
         {
           $addFields: {
             finalWastageCharge: {
-
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$wastageCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$wastageCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
+              $switch: {
+                branches: [
+                  {
+                    case: { $eq: ["$wastageCharges.mode", 1] },
+                    then: {
+                      $ifNull: ["$wastageCharges.discountedValue", 0],
+                    },
                   },
-               
+                  {
+                    case: { $eq: ["$wastageCharges.mode", 2] },
+                    then: {
+                      $multiply: [
+                        { $ifNull: ["$grossWt", 0] },
+                        { $ifNull: ["$wastageCharges.discountedValue", 0] },
+                      ],
+                    },
+                  },
+                ],
+                default: 0,
+              },
             },
           },
         },
@@ -1955,21 +1660,15 @@ class ProductRepository {
             },
           },
         },
-         {
+        {
           $addFields: {
             actualGstRate: {
               $cond: {
                 if: {
-                  $and: [
-                    { $gt: ["$gst", 0] },
-                    { $gt: ["$actualSubtotal", 0] },
-                  ],
+                  $and: [{ $gt: ["$gst", 0] }, { $gt: ["$actualSubtotal", 0] }],
                 },
                 then: {
-                  $divide: [
-                    { $multiply: ["$actualSubtotal", "$gst"] },
-                    100,
-                  ],
+                  $divide: [{ $multiply: ["$actualSubtotal", "$gst"] }, 100],
                 },
                 else: 0,
               },
@@ -1979,37 +1678,30 @@ class ProductRepository {
         {
           $addFields: {
             discountedAmount: {
-            
-                  $add: [
-                    { $ifNull: ["$discountedSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
-                  ],
-                },
-                
-             
+              $add: [
+                { $ifNull: ["$discountedSubtotal", 0] },
+                { $ifNull: ["$gstRate", 0] },
+              ],
+            },
+
             totalAmount: {
-              
-                  $add: [
-                    { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$actualGstRate", 0] },
-                  ],
-              
+              $add: [
+                { $ifNull: ["$actualSubtotal", 0] },
+                { $ifNull: ["$actualGstRate", 0] },
+              ],
             },
           },
-          
         },
 
-              {
+        {
           $addFields: {
             discountDifference: {
-              
-                  $subtract: [
-                    { $ifNull: ["$totalAmount", 0] },
-                    { $ifNull: ["$discountedAmount", 0] },
-                  ],
-               
+              $subtract: [
+                { $ifNull: ["$totalAmount", 0] },
+                { $ifNull: ["$discountedAmount", 0] },
+              ],
             },
-          }
+          },
         },
 
         ...(Object.keys(priceFilter).length > 0
@@ -2034,7 +1726,7 @@ class ProductRepository {
                   latestMetalPrice: 1,
                   netWeight: 1,
                   bestSeller: 1,
-                  discountDifference:1
+                  discountDifference: 1,
                 },
               },
             ],
@@ -2062,398 +1754,398 @@ class ProductRepository {
     }
   }
 
-  async getProductByCategory(category, page, limit, userId, filters) {
-    try {
-      const skip = (page - 1) * limit;
-      const sortOption = filters?.sort || { createdAt: -1 };
-      const priceFilter = filters?.priceFilter || {};
+  // async getProductByCategory(category, page, limit, userId, filters) {
+  //   try {
+  //     const skip = (page - 1) * limit;
+  //     const sortOption = filters?.sort || { createdAt: -1 };
+  //     const priceFilter = filters?.priceFilter || {};
 
-      const aggregationPipeline = [
-        { $match: { id_category: category, active: true, is_deleted: false } },
-        {
-          $lookup: {
-            from: "wishlists",
-            let: {
-              productId: "$_id",
-              customerId: userId ? { $toString: userId } : null,
-            },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      {
-                        $eq: [
-                          "$id_customer",
-                          new mongoose.Types.ObjectId(userId),
-                        ],
-                      },
-                      { $eq: ["$itemId", "$$productId"] },
-                    ],
-                  },
-                },
-              },
-            ],
-            as: "wishlistInfo",
-          },
-        },
-        {
-          $addFields: {
-            isWishlist: { $gt: [{ $size: "$wishlistInfo" }, 0] },
-          },
-        },
-        {
-          $lookup: {
-            from: "metalrates",
-            let: { metalId: "$id_metal", purityId: "$id_purity",branchId: "$id_branch" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ["$material_type_id", "$$metalId"] },
-                      { $eq: ["$purity_id", "$$purityId"] },
-                      { $eq: ["$id_branch", "$$branchId"] },
-                    ],
-                  },
-                },
-              },
-              { $sort: { createdAt: -1 } },
-              { $limit: 1 },
-            ],
-            as: "metalPriceInfo",
-          },
-        },
-        {
-          $lookup: {
-            from: "stonedetails",
-            localField: "stoneDetails",
-            foreignField: "_id",
-            as: "stoneDiamondDetails",
-          },
-        },
-        {
-          $addFields: {
-            latestMetalPrice: {
-              $ifNull: [{ $arrayElemAt: ["$metalPriceInfo.rate", 0] }, 0],
-            },
-            netWeight: {
-              $ifNull: ["$netWeight", "$grossWt"],
-            },
-          },
-        },
-        {
-          $addFields: {
-            baseMetalValue: {
-              $multiply: [
-                { $ifNull: ["$netWeight", 0] },
-                { $ifNull: ["$latestMetalPrice", 0] },
-              ],
-            },
-          },
-        },
-        {
-          $addFields: {
-            rawMakingCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$makingCharges.mode", 1] },
-                    then: { $ifNull: ["$makingCharges.actualValue", 0] },
-                  },
-                  {
-                    case: { $eq: ["$makingCharges.mode", 2] },
-                    then: {
-                      $multiply: [
-                        { $ifNull: ["$grossWt", 0] },
-                        { $ifNull: ["$makingCharges.actualValue", 0] },
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            finalMakingCharge: {
-             
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$makingCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$makingCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$makingCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$makingCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
-                  },
-                
-            },
-          },
-        },
-        {
-          $addFields: {
-            rawWastageCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$wastageCharges.mode", 1] },
-                    then: { $ifNull: ["$wastageCharges.actualValue", 0] },
-                  },
-                  {
-                    case: { $eq: ["$wastageCharges.mode", 2] },
-                    then: {
-                      $multiply: [
-                        { $ifNull: ["$grossWt", 0] },
-                        { $ifNull: ["$wastageCharges.actualValue", 0] },
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            finalWastageCharge: {
-             
-                  $switch: {
-                    branches: [
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 1] },
-                        then: {
-                          $ifNull: ["$wastageCharges.discountedValue", 0],
-                        },
-                      },
-                      {
-                        case: { $eq: ["$wastageCharges.mode", 2] },
-                        then: {
-                          $multiply: [
-                            { $ifNull: ["$grossWt", 0] },
-                            { $ifNull: ["$wastageCharges.discountedValue", 0] },
-                          ],
-                        },
-                      },
-                    ],
-                    default: 0,
-                  },
-               
-            },
-          },
-        },
-        {
-          $addFields: {
-            diamondValue: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "sd",
-                      cond: { $eq: ["$$sd.type", "diamond"] },
-                    },
-                  },
-                  as: "diamond",
-                  in: { $ifNull: ["$$diamond.price", 0] },
-                },
-              },
-            },
-            stoneValue: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "sd",
-                      cond: { $eq: ["$$sd.type", "stone"] },
-                    },
-                  },
-                  as: "stone",
-                  in: { $ifNull: ["$$stone.price", 0] },
-                },
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            discountedSubtotal: {
-              $add: [
-                { $ifNull: ["$baseMetalValue", 0] },
-                { $ifNull: ["$finalWastageCharge", 0] },
-                { $ifNull: ["$finalMakingCharge", 0] },
-                { $ifNull: ["$diamondValue", 0] },
-                { $ifNull: ["$stoneValue", 0] },
-              ],
-            },
-            actualSubtotal: {
-              $add: [
-                { $ifNull: ["$baseMetalValue", 0] },
-                { $ifNull: ["$rawWastageCharge", 0] },
-                { $ifNull: ["$rawMakingCharge", 0] },
-                { $ifNull: ["$diamondValue", 0] },
-                { $ifNull: ["$stoneValue", 0] },
-              ],
-            },
-          },
-        },
-        {
-          $addFields: {
-            gstRate: {
-              $cond: {
-                if: {
-                  $and: [
-                    { $gt: ["$gst", 0] },
-                    { $gt: ["$discountedSubtotal", 0] },
-                  ],
-                },
-                then: {
-                  $divide: [
-                    { $multiply: ["$discountedSubtotal", "$gst"] },
-                    100,
-                  ],
-                },
-                else: 0,
-              },
-            },
-          },
-        },
-         {
-          $addFields: {
-            actualGstRate: {
-              $cond: {
-                if: {
-                  $and: [
-                    { $gt: ["$gst", 0] },
-                    { $gt: ["$actualSubtotal", 0] },
-                  ],
-                },
-                then: {
-                  $divide: [
-                    { $multiply: ["$actualSubtotal", "$gst"] },
-                    100,
-                  ],
-                },
-                else: 0,
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            discountedAmount: {
-              
-                  $add: [
-                    { $ifNull: ["$discountedSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
-                  ],
-               
-            },
-            totalAmount: {
-              
-                  $add: [
-                    { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$actualGstRate", 0] },
-                  ],
-               
-            },
-          },
-        },
-        {
-          $addFields: {
-            discountDifference: {
-            
-                  $subtract: [
-                    { $ifNull: ["$totalAmount", 0] },
-                    { $ifNull: ["$discountedAmount", 0] },
-                  ],
-                
-            },
-            discountPercentage: {
-              
-                  $multiply: [
-                    {
-                      $divide: [
-                        {
-                          $subtract: [
-                            { $ifNull: ["$totalAmount", 0] },
-                            { $ifNull: ["$discountedAmount", 0] },
-                          ],
-                        },
-                        { $max: [{ $ifNull: ["$totalAmount", 1] }, 1] },
-                      ],
-                    },
-                    100,
-                  ],
-               
-            },
-          },
-        },
-        ...(Object.keys(priceFilter).length > 0
-          ? [{ $match: priceFilter }]
-          : []),
-        { $sort: sortOption },
-        {
-          $facet: {
-            metadata: [{ $count: "totalCount" }],
-            products: [
-              { $skip: skip },
-              { $limit: limit },
-              {
-                $project: {
-                  _id: 1,
-                  product_name: 1,
-                  product_image: 1,
-                  isWishlist: 1,
-                  totalAmount: 1,
-                  discountedAmount: 1,
-                  bestSeller: 1,
-                },
-              },
-            ],
-          },
-        },
-        {
-          $unwind: {
-            path: "$metadata",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-      ];
+  //     const aggregationPipeline = [
+  //       { $match: { id_category: category, active: true, is_deleted: false } },
+  //       {
+  //         $lookup: {
+  //           from: "wishlists",
+  //           let: {
+  //             productId: "$_id",
+  //             customerId: userId ? { $toString: userId } : null,
+  //           },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     {
+  //                       $eq: [
+  //                         "$id_customer",
+  //                         new mongoose.Types.ObjectId(userId),
+  //                       ],
+  //                     },
+  //                     { $eq: ["$itemId", "$$productId"] },
+  //                   ],
+  //                 },
+  //               },
+  //             },
+  //           ],
+  //           as: "wishlistInfo",
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           isWishlist: { $gt: [{ $size: "$wishlistInfo" }, 0] },
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "metalrates",
+  //           let: { metalId: "$id_metal", purityId: "$id_purity",branchId: "$id_branch" },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ["$material_type_id", "$$metalId"] },
+  //                     { $eq: ["$purity_id", "$$purityId"] },
+  //                     { $eq: ["$id_branch", "$$branchId"] },
+  //                   ],
+  //                 },
+  //               },
+  //             },
+  //             { $sort: { createdAt: -1 } },
+  //             { $limit: 1 },
+  //           ],
+  //           as: "metalPriceInfo",
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "stonedetails",
+  //           localField: "stoneDetails",
+  //           foreignField: "_id",
+  //           as: "stoneDiamondDetails",
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           latestMetalPrice: {
+  //             $ifNull: [{ $arrayElemAt: ["$metalPriceInfo.rate", 0] }, 0],
+  //           },
+  //           netWeight: {
+  //             $ifNull: ["$netWeight", "$grossWt"],
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           baseMetalValue: {
+  //             $multiply: [
+  //               { $ifNull: ["$netWeight", 0] },
+  //               { $ifNull: ["$latestMetalPrice", 0] },
+  //             ],
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           rawMakingCharge: {
+  //             $switch: {
+  //               branches: [
+  //                 {
+  //                   case: { $eq: ["$makingCharges.mode", 1] },
+  //                   then: { $ifNull: ["$makingCharges.actualValue", 0] },
+  //                 },
+  //                 {
+  //                   case: { $eq: ["$makingCharges.mode", 2] },
+  //                   then: {
+  //                     $multiply: [
+  //                       { $ifNull: ["$grossWt", 0] },
+  //                       { $ifNull: ["$makingCharges.actualValue", 0] },
+  //                     ],
+  //                   },
+  //                 },
+  //               ],
+  //               default: 0,
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           finalMakingCharge: {
 
-      const result = await ProductModel.aggregate(aggregationPipeline);
+  //                 $switch: {
+  //                   branches: [
+  //                     {
+  //                       case: { $eq: ["$makingCharges.mode", 1] },
+  //                       then: {
+  //                         $ifNull: ["$makingCharges.discountedValue", 0],
+  //                       },
+  //                     },
+  //                     {
+  //                       case: { $eq: ["$makingCharges.mode", 2] },
+  //                       then: {
+  //                         $multiply: [
+  //                           { $ifNull: ["$grossWt", 0] },
+  //                           { $ifNull: ["$makingCharges.discountedValue", 0] },
+  //                         ],
+  //                       },
+  //                     },
+  //                   ],
+  //                   default: 0,
+  //                 },
 
-      const products = result[0]?.products || [];
-      const totalCount = result[0]?.metadata?.totalCount || 0;
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           rawWastageCharge: {
+  //             $switch: {
+  //               branches: [
+  //                 {
+  //                   case: { $eq: ["$wastageCharges.mode", 1] },
+  //                   then: { $ifNull: ["$wastageCharges.actualValue", 0] },
+  //                 },
+  //                 {
+  //                   case: { $eq: ["$wastageCharges.mode", 2] },
+  //                   then: {
+  //                     $multiply: [
+  //                       { $ifNull: ["$grossWt", 0] },
+  //                       { $ifNull: ["$wastageCharges.actualValue", 0] },
+  //                     ],
+  //                   },
+  //                 },
+  //               ],
+  //               default: 0,
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           finalWastageCharge: {
 
-      return {
-        products,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        currentPage: page,
-        hasNext: page < Math.ceil(totalCount / limit),
-        hasPrev: page > 1,
-      };
-    } catch (error) {
-      console.error("Error fetching products by category:", error);
-      throw new Error("Error fetching products by category");
-    }
-  }
+  //                 $switch: {
+  //                   branches: [
+  //                     {
+  //                       case: { $eq: ["$wastageCharges.mode", 1] },
+  //                       then: {
+  //                         $ifNull: ["$wastageCharges.discountedValue", 0],
+  //                       },
+  //                     },
+  //                     {
+  //                       case: { $eq: ["$wastageCharges.mode", 2] },
+  //                       then: {
+  //                         $multiply: [
+  //                           { $ifNull: ["$grossWt", 0] },
+  //                           { $ifNull: ["$wastageCharges.discountedValue", 0] },
+  //                         ],
+  //                       },
+  //                     },
+  //                   ],
+  //                   default: 0,
+  //                 },
+
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           diamondValue: {
+  //             $sum: {
+  //               $map: {
+  //                 input: {
+  //                   $filter: {
+  //                     input: "$stoneDiamondDetails",
+  //                     as: "sd",
+  //                     cond: { $eq: ["$$sd.type", "diamond"] },
+  //                   },
+  //                 },
+  //                 as: "diamond",
+  //                 in: { $ifNull: ["$$diamond.price", 0] },
+  //               },
+  //             },
+  //           },
+  //           stoneValue: {
+  //             $sum: {
+  //               $map: {
+  //                 input: {
+  //                   $filter: {
+  //                     input: "$stoneDiamondDetails",
+  //                     as: "sd",
+  //                     cond: { $eq: ["$$sd.type", "stone"] },
+  //                   },
+  //                 },
+  //                 as: "stone",
+  //                 in: { $ifNull: ["$$stone.price", 0] },
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           discountedSubtotal: {
+  //             $add: [
+  //               { $ifNull: ["$baseMetalValue", 0] },
+  //               { $ifNull: ["$finalWastageCharge", 0] },
+  //               { $ifNull: ["$finalMakingCharge", 0] },
+  //               { $ifNull: ["$diamondValue", 0] },
+  //               { $ifNull: ["$stoneValue", 0] },
+  //             ],
+  //           },
+  //           actualSubtotal: {
+  //             $add: [
+  //               { $ifNull: ["$baseMetalValue", 0] },
+  //               { $ifNull: ["$rawWastageCharge", 0] },
+  //               { $ifNull: ["$rawMakingCharge", 0] },
+  //               { $ifNull: ["$diamondValue", 0] },
+  //               { $ifNull: ["$stoneValue", 0] },
+  //             ],
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           gstRate: {
+  //             $cond: {
+  //               if: {
+  //                 $and: [
+  //                   { $gt: ["$gst", 0] },
+  //                   { $gt: ["$discountedSubtotal", 0] },
+  //                 ],
+  //               },
+  //               then: {
+  //                 $divide: [
+  //                   { $multiply: ["$discountedSubtotal", "$gst"] },
+  //                   100,
+  //                 ],
+  //               },
+  //               else: 0,
+  //             },
+  //           },
+  //         },
+  //       },
+  //        {
+  //         $addFields: {
+  //           actualGstRate: {
+  //             $cond: {
+  //               if: {
+  //                 $and: [
+  //                   { $gt: ["$gst", 0] },
+  //                   { $gt: ["$actualSubtotal", 0] },
+  //                 ],
+  //               },
+  //               then: {
+  //                 $divide: [
+  //                   { $multiply: ["$actualSubtotal", "$gst"] },
+  //                   100,
+  //                 ],
+  //               },
+  //               else: 0,
+  //             },
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           discountedAmount: {
+
+  //                 $add: [
+  //                   { $ifNull: ["$discountedSubtotal", 0] },
+  //                   { $ifNull: ["$gstRate", 0] },
+  //                 ],
+
+  //           },
+  //           totalAmount: {
+
+  //                 $add: [
+  //                   { $ifNull: ["$actualSubtotal", 0] },
+  //                   { $ifNull: ["$actualGstRate", 0] },
+  //                 ],
+
+  //           },
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           discountDifference: {
+
+  //                 $subtract: [
+  //                   { $ifNull: ["$totalAmount", 0] },
+  //                   { $ifNull: ["$discountedAmount", 0] },
+  //                 ],
+
+  //           },
+  //           discountPercentage: {
+
+  //                 $multiply: [
+  //                   {
+  //                     $divide: [
+  //                       {
+  //                         $subtract: [
+  //                           { $ifNull: ["$totalAmount", 0] },
+  //                           { $ifNull: ["$discountedAmount", 0] },
+  //                         ],
+  //                       },
+  //                       { $max: [{ $ifNull: ["$totalAmount", 1] }, 1] },
+  //                     ],
+  //                   },
+  //                   100,
+  //                 ],
+
+  //           },
+  //         },
+  //       },
+  //       ...(Object.keys(priceFilter).length > 0
+  //         ? [{ $match: priceFilter }]
+  //         : []),
+  //       { $sort: sortOption },
+  //       {
+  //         $facet: {
+  //           metadata: [{ $count: "totalCount" }],
+  //           products: [
+  //             { $skip: skip },
+  //             { $limit: limit },
+  //             {
+  //               $project: {
+  //                 _id: 1,
+  //                 product_name: 1,
+  //                 product_image: 1,
+  //                 isWishlist: 1,
+  //                 totalAmount: 1,
+  //                 discountedAmount: 1,
+  //                 bestSeller: 1,
+  //               },
+  //             },
+  //           ],
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$metadata",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //     ];
+
+  //     const result = await ProductModel.aggregate(aggregationPipeline);
+
+  //     const products = result[0]?.products || [];
+  //     const totalCount = result[0]?.metadata?.totalCount || 0;
+
+  //     return {
+  //       products,
+  //       totalCount,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //       currentPage: page,
+  //       hasNext: page < Math.ceil(totalCount / limit),
+  //       hasPrev: page > 1,
+  //     };
+  //   } catch (error) {
+  //     console.error("Error fetching products by category:", error);
+  //     throw new Error("Error fetching products by category");
+  //   }
+  // }
 
   async getCategoryByCollectionId(id) {
     try {
@@ -2469,8 +2161,8 @@ class ProductRepository {
 
       const categories = await categoryModel
         .find(
-          { _id: { $in: categoryIds },active:true },
-          { _id: 1, category_name: 1, image: 1, pathUrl: 1, categoryBanner: 1 }
+          { _id: { $in: categoryIds }, active: true },
+          { _id: 1, category_name: 1, image: 1, pathUrl: 1, categoryBanner: 1 },
         )
         .lean();
 
@@ -2615,7 +2307,7 @@ class ProductRepository {
   //           product_name: 1,
   //           sku: 1,
   //           quantity: 1,
-  //           createdAt: 1,  
+  //           createdAt: 1,
   //           categoryName: "$categoryInfo.category_name",
   //           subCategoryName: "$subcategoriesInfo.name",
   //           sizeId: "$availableSizes.sizeId",
@@ -2708,161 +2400,176 @@ class ProductRepository {
   //     throw error;
   //   }
   // }
+
+
   async getProductStockReport(page, limit, filter = {}) {
-  try {
-    const skip = (page - 1) * limit;
+    try {
+      const skip = (page - 1) * limit;
 
-    const query = {
-      active: true,
-      is_deleted: false,
-      onlineProduct: true,
-      ...filter,
-    };
+      const query = {
+        active: true,
+        is_deleted: false,
+        onlineProduct: true,
+        ...filter,
+      };
 
-    // ---------------- COUNT ----------------
-    const totalCountAgg = await ProductModel.aggregate([
-      { $match: query },
-      { $unwind: "$availableSizes.values" },
-      {
-        $group: { _id: "$_id" }
-      },
-      { $count: "totalCount" }
-    ]);
+      // ---------------- COUNT ----------------
+      const totalCountAgg = await ProductModel.aggregate([
+        { $match: query },
+        { $unwind: "$availableSizes.values" },
+        {
+          $group: { _id: "$_id" },
+        },
+        { $count: "totalCount" },
+      ]);
 
-    const totalCount = totalCountAgg[0]?.totalCount || 0;
-    const totalPages = Math.ceil(totalCount / limit);
-    const hasNext = page < totalPages;
-    const hasPrev = page > 1;
+      const totalCount = totalCountAgg[0]?.totalCount || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+      const hasNext = page < totalPages;
+      const hasPrev = page > 1;
 
-    // ---------------- DATA PIPELINE ----------------
-    const products = await ProductModel.aggregate([
-      { $match: query },
+      // ---------------- DATA PIPELINE ----------------
+      const products = await ProductModel.aggregate([
+        { $match: query },
 
-      { $unwind: "$availableSizes.values" },
+        { $unwind: "$availableSizes.values" },
 
-      {
-        $lookup: {
-          from: "sizemasters",
-          localField: "availableSizes.sizeId",
-          foreignField: "_id",
-          as: "sizeInfo"
-        }
-      },
-      { $unwind: { path: "$sizeInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "availableSizes.sizeId",
+            foreignField: "_id",
+            as: "sizeInfo",
+          },
+        },
+        { $unwind: { path: "$sizeInfo", preserveNullAndEmptyArrays: true } },
 
-      {
-        $lookup: {
-          from: "categories",
-          localField: "id_category",
-          foreignField: "_id",
-          as: "categoryInfo"
-        }
-      },
-      { $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "categoryInfo",
+          },
+        },
+        {
+          $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true },
+        },
 
-      {
-        $lookup: {
-          from: "subcategories",
-          localField: "subcategoryId",
-          foreignField: "_id",
-          as: "subcategoriesInfo"
-        }
-      },
-      { $unwind: { path: "$subcategoriesInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "subcategoriesInfo",
+          },
+        },
+        {
+          $unwind: {
+            path: "$subcategoriesInfo",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
 
-      // IMPORTANT: include createdAt BEFORE grouping
-      {
-        $project: {
-          productId: "$_id",
-          product_name: 1,
-          sku: 1,
-          quantity: 1,
-          createdAt: 1,
-          categoryName: "$categoryInfo.category_name",
-          subCategoryName: "$subcategoriesInfo.name",
-          sizeValue: "$availableSizes.values.sizeValue",
-          sizeQuantity: "$availableSizes.values.quantity",
-          unit: "$sizeInfo.unit"
-        }
-      },
+        // IMPORTANT: include createdAt BEFORE grouping
+        {
+          $project: {
+            productId: "$_id",
+            product_name: 1,
+            sku: 1,
+            quantity: 1,
+            createdAt: 1,
+            categoryName: "$categoryInfo.category_name",
+            subCategoryName: "$subcategoriesInfo.name",
+            sizeValue: "$availableSizes.values.sizeValue",
+            sizeQuantity: "$availableSizes.values.quantity",
+            unit: "$sizeInfo.unit",
+          },
+        },
 
-      {
-        $group: {
-          _id: "$productId",
-          product_name: { $first: "$product_name" },
-          sku: { $first: "$sku" },
-          createdAt: { $first: "$createdAt" }, // preserve createdAt
-          categoryName: { $first: "$categoryName" },
-          subCategoryName: { $first: "$subCategoryName" },
-          totalQuantity: { $first: "$quantity" },
-          sizesArray: {
-            $push: {
-              $concat: [
-                { $toString: "$sizeValue" },
-                " ",
-                "$unit",
-                " (",
-                { $toString: "$sizeQuantity" },
-                ")"
-              ]
-            }
-          }
-        }
-      },
-
-      {
-        $addFields: {
-          sizes: {
-            $reduce: {
-              input: "$sizesArray",
-              initialValue: "",
-              in: {
+        {
+          $group: {
+            _id: "$productId",
+            product_name: { $first: "$product_name" },
+            sku: { $first: "$sku" },
+            createdAt: { $first: "$createdAt" }, // preserve createdAt
+            categoryName: { $first: "$categoryName" },
+            subCategoryName: { $first: "$subCategoryName" },
+            totalQuantity: { $first: "$quantity" },
+            sizesArray: {
+              $push: {
                 $concat: [
-                  { $cond: [{ $eq: ["$$value", ""] }, "", { $concat: ["$$value", ", "] }] },
-                  "$$this"
-                ]
-              }
-            }
-          }
-        }
-      },
+                  { $toString: "$sizeValue" },
+                  " ",
+                  "$unit",
+                  " (",
+                  { $toString: "$sizeQuantity" },
+                  ")",
+                ],
+              },
+            },
+          },
+        },
 
-      {
-        $project: {
-          _id: 0,
-          productId: "$_id",
-          product_name: 1,
-          sku: 1,
-          categoryName: 1,
-          subCategoryName: 1,
-          totalQuantity: 1,
-          sizes: 1,
-          createdAt: 1    // MUST be kept here!
-        }
-      },
+        {
+          $addFields: {
+            sizes: {
+              $reduce: {
+                input: "$sizesArray",
+                initialValue: "",
+                in: {
+                  $concat: [
+                    {
+                      $cond: [
+                        { $eq: ["$$value", ""] },
+                        "",
+                        { $concat: ["$$value", ", "] },
+                      ],
+                    },
+                    "$$this",
+                  ],
+                },
+              },
+            },
+          },
+        },
 
-      // Final stable sorting
-      { $sort: { createdAt: -1, product_name: 1 } },
+        {
+          $project: {
+            _id: 0,
+            productId: "$_id",
+            product_name: 1,
+            sku: 1,
+            categoryName: 1,
+            subCategoryName: 1,
+            totalQuantity: 1,
+            sizes: 1,
+            createdAt: 1, // MUST be kept here!
+          },
+        },
 
-      { $skip: skip },
-      { $limit: limit }
-    ]);
+        // Final stable sorting
+        { $sort: { createdAt: -1, product_name: 1 } },
 
-    return {
-      success: true,
-      totalCount,
-      totalPages,
-      currentPage: page,
-      hasNext,
-      hasPrev,
-      count: products.length,
-      data: products
-    };
-  } catch (error) {
-    console.error("Error in getProductStockReport:", error);
-    throw error;
+        { $skip: skip },
+        { $limit: limit },
+      ]);
+
+      return {
+        success: true,
+        totalCount,
+        totalPages,
+        currentPage: page,
+        hasNext,
+        hasPrev,
+        count: products.length,
+        data: products,
+      };
+    } catch (error) {
+      console.error("Error in getProductStockReport:", error);
+      throw error;
+    }
   }
-}
 
   async getProductLowStockReport(page, limit, filter = {}) {
     try {
@@ -3021,7 +2728,7 @@ class ProductRepository {
     try {
       const updateStatus = await ProductModel.updateOne(
         { _id: id },
-        { bestSeller: !currentstatus }
+        { bestSeller: !currentstatus },
       );
       if (updateStatus.modifiedCount == 1) {
         return updateStatus;
@@ -3229,6 +2936,8 @@ class ProductRepository {
   //       console.error(err);
   //     }
   //   }
+
+
   async allProductsData(filter, skip, limit, searchOptions, customerId = null) {
     try {
       console.log("Filter received in allProductsData:", filter, searchOptions);
@@ -3352,7 +3061,7 @@ class ProductRepository {
 
         const searchRegex = new RegExp(
           searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-          "i"
+          "i",
         );
 
         const numericSearch = !isNaN(searchTerm)
@@ -3416,7 +3125,7 @@ class ProductRepository {
               ],
             },
           },
-        }
+        },
       );
 
       const products = await ProductModel.aggregate(pipeline);
@@ -3440,7 +3149,7 @@ class ProductRepository {
             quantity: -quantityToReduce,
             "availableSizes.values.$.quantity": -quantityToReduce,
           },
-        }
+        },
       );
 
       if (result.modifiedCount === 0) {
@@ -3455,7 +3164,7 @@ class ProductRepository {
     } catch (error) {
       console.error("Error reducing product quantity:", error);
       throw new Error(
-        "Database error occurred while reducing product quantity."
+        "Database error occurred while reducing product quantity.",
       );
     }
   }
@@ -3498,7 +3207,7 @@ class ProductRepository {
       const hasActiveOrder = result.some(
         (item) =>
           item.onlineProduct === ORDER_TYPE.OFFLINE_ORDER &&
-          item.orderStatus === ORDER_STATUS_NO.PROCESSING
+          item.orderStatus === ORDER_STATUS_NO.PROCESSING,
       );
       // If has active order → user already ordered → return true
       return {
@@ -3507,7 +3216,7 @@ class ProductRepository {
           ? result.find(
               (r) =>
                 r.onlineProduct === ORDER_TYPE.OFFLINE_ORDER &&
-                r.orderStatus === ORDER_STATUS_NO.PROCESSING
+                r.orderStatus === ORDER_STATUS_NO.PROCESSING,
             )?.orderId
           : null,
       };
@@ -3525,14 +3234,14 @@ class ProductRepository {
 
       // 1️⃣ Extract product IDs
       const productIds = productData.map(
-        (item) => new mongoose.Types.ObjectId(item.productId)
+        (item) => new mongoose.Types.ObjectId(item.productId),
       );
       console.log("1234567890-", productIds);
 
       // 2️⃣ Fetch products (only needed fields)
       const products = await ProductModel.find(
         { _id: { $in: productIds } },
-        { product_name: 1, availableSizes: 1 }
+        { product_name: 1, availableSizes: 1 },
       ).lean();
 
       // 3️⃣ Map + check stock
@@ -3550,7 +3259,7 @@ class ProductRepository {
 
           // ✅ Use availableSizes directly (no `.values`)
           const matchedSize = product.availableSizes?.values?.find(
-            (s) => s?._id?.toString() === sizeId
+            (s) => s?._id?.toString() === sizeId,
           );
           const quantityCount = Number(quantity ?? qty) || 0; // ✅ Always numeric
           console.log("quantityCount", quantityCount);
@@ -3561,7 +3270,7 @@ class ProductRepository {
               ? matchedSize.quantity >= quantityCount
               : false,
           };
-        }
+        },
       );
 
       // 4️⃣ Only return products where stock is false
@@ -3574,11 +3283,398 @@ class ProductRepository {
     }
   }
 
-  async findByField(field){
-    try{
-      return productModel.findOne(field).lean()
-    }catch(error){
-      throw new Error(error.message || "Error Find By Field"); 
+  async findByField(field) {
+    try {
+      return ProductModel.findOne(field).lean();
+    } catch (error) {
+      throw new Error(error.message || "Error Find By Field");
+    }
+  }
+
+  async getProductByCategory(category, page, limit, userId, filters = {}) {
+    try {
+      // ================= SAFE PAGINATION =================
+      page = parseInt(page) || 1;
+      limit = parseInt(limit) || 10;
+      const skip = (page - 1) * limit;
+
+      const sortOption =
+        filters?.sort === "price_low"
+          ? { discountedAmount: 1 }
+          : filters?.sort === "price_high"
+            ? { discountedAmount: -1 }
+            : { createdAt: -1 };
+
+      const aggregationPipeline = [
+        // ================= MATCH PRODUCT =================
+        {
+          $match: {
+            id_category: new mongoose.Types.ObjectId(category),
+            active: true,
+            is_deleted: false,
+          },
+        },
+
+        // ================= WISHLIST =================
+        {
+          $lookup: {
+            from: "wishlists",
+            let: { productId: "$_id" },
+            pipeline: userId
+              ? [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          {
+                            $eq: [
+                              "$id_customer",
+                              new mongoose.Types.ObjectId(userId),
+                            ],
+                          },
+                          { $eq: ["$itemId", "$$productId"] },
+                        ],
+                      },
+                    },
+                  },
+                ]
+              : [],
+            as: "wishlistInfo",
+          },
+        },
+
+        {
+          $addFields: {
+            isWishlist: userId
+              ? { $gt: [{ $size: "$wishlistInfo" }, 0] }
+              : false,
+          },
+        },
+
+        // ================= LOOKUP ITEMS =================
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                    ],
+                  },
+                },
+              },
+
+              // ================= BASE METAL VALUE =================
+              {
+                $addFields: {
+                  baseMetalValue: {
+                    $multiply: [
+                      { $ifNull: ["$currentMetalRate", 0] },
+                      { $ifNull: ["$netWeight", 0] },
+                    ],
+                  },
+                },
+              },
+
+              // ================= MAKING =================
+              {
+                $addFields: {
+                  actualMaking: {
+                    $switch: {
+                      branches: [
+                        {
+                          case: { $eq: ["$makingCharges.makingMode", 1] },
+                          then: {
+                            $ifNull: ["$makingCharges.makingActualValue", 0],
+                          },
+                        },
+                        {
+                          case: { $eq: ["$makingCharges.makingMode", 2] },
+                          then: {
+                            $multiply: [
+                              {
+                                $cond: [
+                                  {
+                                    $eq: ["$makingCharges.calculationType", 1],
+                                  },
+                                  "$grossWt",
+                                  "$netWeight",
+                                ],
+                              },
+                              {
+                                $ifNull: [
+                                  "$makingCharges.makingActualValue",
+                                  0,
+                                ],
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                      default: 0,
+                    },
+                  },
+
+                  discountedMaking: {
+                    $switch: {
+                      branches: [
+                        {
+                          case: { $eq: ["$makingCharges.makingMode", 1] },
+                          then: {
+                            $ifNull: [
+                              "$makingCharges.makingDiscountedValue",
+                              0,
+                            ],
+                          },
+                        },
+                        {
+                          case: { $eq: ["$makingCharges.makingMode", 2] },
+                          then: {
+                            $multiply: [
+                              {
+                                $cond: [
+                                  {
+                                    $eq: ["$makingCharges.calculationType", 1],
+                                  },
+                                  "$grossWt",
+                                  "$netWeight",
+                                ],
+                              },
+                              {
+                                $ifNull: [
+                                  "$makingCharges.makingDiscountedValue",
+                                  0,
+                                ],
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                      default: 0,
+                    },
+                  },
+                },
+              },
+
+              // ================= WASTAGE =================
+              {
+                $addFields: {
+                  actualWastage: {
+                    $switch: {
+                      branches: [
+                        {
+                          case: { $eq: ["$wastageCharges.wastageMode", 1] },
+                          then: {
+                            $ifNull: ["$wastageCharges.wastageActualValue", 0],
+                          },
+                        },
+                        {
+                          case: { $eq: ["$wastageCharges.wastageMode", 2] },
+                          then: {
+                            $multiply: [
+                              {
+                                $divide: [
+                                  {
+                                    $ifNull: [
+                                      "$wastageCharges.wastageActualValue",
+                                      0,
+                                    ],
+                                  },
+                                  100,
+                                ],
+                              },
+                              "$currentMetalRate",
+                              {
+                                $cond: [
+                                  {
+                                    $eq: ["$wastageCharges.calculationType", 1],
+                                  },
+                                  "$grossWt",
+                                  "$netWeight",
+                                ],
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                      default: 0,
+                    },
+                  },
+
+                  discountedWastage: {
+                    $switch: {
+                      branches: [
+                        {
+                          case: { $eq: ["$wastageCharges.wastageMode", 1] },
+                          then: {
+                            $ifNull: [
+                              "$wastageCharges.wastageDiscountedValue",
+                              0,
+                            ],
+                          },
+                        },
+                        {
+                          case: { $eq: ["$wastageCharges.wastageMode", 2] },
+                          then: {
+                            $multiply: [
+                              {
+                                $divide: [
+                                  {
+                                    $ifNull: [
+                                      "$wastageCharges.wastageDiscountedValue",
+                                      0,
+                                    ],
+                                  },
+                                  100,
+                                ],
+                              },
+                              "$currentMetalRate",
+                              {
+                                $cond: [
+                                  {
+                                    $eq: ["$wastageCharges.calculationType", 1],
+                                  },
+                                  "$grossWt",
+                                  "$netWeight",
+                                ],
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                      default: 0,
+                    },
+                  },
+                },
+              },
+
+              // ================= SUBTOTAL =================
+              {
+                $addFields: {
+                  actualSubtotal: {
+                    $add: [
+                      "$baseMetalValue",
+                      "$actualMaking",
+                      "$actualWastage",
+                    ],
+                  },
+                  discountedSubtotal: {
+                    $add: [
+                      "$baseMetalValue",
+                      "$discountedMaking",
+                      "$discountedWastage",
+                    ],
+                  },
+                },
+              },
+
+              // ================= GST =================
+              {
+                $addFields: {
+                  actualFinalPrice: {
+                    $add: [
+                      "$actualSubtotal",
+                      {
+                        $multiply: [
+                          "$actualSubtotal",
+                          { $divide: ["$gst", 100] },
+                        ],
+                      },
+                    ],
+                  },
+                  discountedFinalPrice: {
+                    $add: [
+                      "$discountedSubtotal",
+                      {
+                        $multiply: [
+                          "$discountedSubtotal",
+                          { $divide: ["$gst", 100] },
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+
+              {
+                $project: {
+                  actualFinalPrice: 1,
+                  discountedFinalPrice: 1,
+                },
+              },
+            ],
+            as: "items",
+          },
+        },
+
+        // Remove products without items
+        {
+          $match: {
+            "items.0": { $exists: true },
+          },
+        },
+
+        // ================= PICK MIN VARIANT PRICE =================
+        {
+          $addFields: {
+            totalAmount: { $min: "$items.actualFinalPrice" },
+            discountedAmount: { $min: "$items.discountedFinalPrice" },
+          },
+        },
+
+        // ================= SORT =================
+        { $sort: sortOption },
+
+        // ================= PAGINATION =================
+        {
+          $facet: {
+            metadata: [{ $count: "totalCount" }],
+            products: [
+              { $skip: skip },
+              { $limit: limit },
+              {
+                $project: {
+                  _id: 1,
+                  product_name: 1,
+                  product_image: 1,
+                  bestSeller: 1,
+                  isWishlist: 1,
+                  discountedAmount: 1,
+                  totalAmount: 1,
+                },
+              },
+            ],
+          },
+        },
+
+        {
+          $unwind: {
+            path: "$metadata",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+      ];
+
+      const result = await ProductModel.aggregate(aggregationPipeline);
+
+      const products = result[0]?.products || [];
+      const totalCount = result[0]?.metadata?.totalCount || 0;
+
+      return {
+        products,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        currentPage: page,
+        hasNext: page < Math.ceil(totalCount / limit),
+        hasPrev: page > 1,
+      };
+    } catch (error) {
+      console.error("Item-based pricing aggregation error:", error);
+      throw new Error("Failed to fetch products with item pricing");
     }
   }
 }

@@ -44,6 +44,8 @@ class ItemUseCase {
         const itemPayload = {
           productId: data.productId,
           size: data.size || null,
+          unit:data.unit||"",
+          sizeValue:data.sizeValue||0,
           id_purity: data.id_purity,
           currentMetalRate: Number(data.currentMetalRate || 0),
           tagNo: data.tagNo,
@@ -123,46 +125,55 @@ class ItemUseCase {
   }
 
   async findByProductId(params) {
-  try {
-    const {
-      productId,
-      page = 1,
-      limit = 10,
-      search = "",
-      sort = "createdAt",
-      order = "desc",
-    } = params;
+    try {
+      const {
+        productId,
+        page = 1,
+        limit = 10,
+        search = "",
+        sort = "createdAt",
+        order = "desc",
+      } = params;
 
-    if (!productId) {
+      if (!productId) {
+        return {
+          success: false,
+          message: "Product ID is required",
+        };
+      }
+
+      const findProduct = await this.productRepository.findById(productId);
+      if (!findProduct) {
+        return {
+          success: false,
+          message: "Product Not Found",
+        };
+      }
+      const pageNumber = Number(page);
+      const limitNumber = Number(limit);
+
+      const result = await this.itemRepository.findByProductId({
+        productId,
+        page: pageNumber,
+        limit: limitNumber,
+        search,
+        sort,
+        order,
+      });
+
       return {
-        success: false,
-        message: "Product ID is required",
+        success: true,
+        message: "Items fetched successfully",
+        data: {
+          items: result.data,
+          pagination: result.pagination,
+          productData: findProduct,
+        },
       };
+    } catch (error) {
+      throw new Error(`Failed to fetch items: ${error.message}`);
     }
-
-    const pageNumber = Number(page);
-    const limitNumber = Number(limit);
-
-    const result = await this.itemRepository.findByProductId({
-      productId,
-      page: pageNumber,
-      limit: limitNumber,
-      search,
-      sort,
-      order,
-    });
-
-    return {
-      success: true,
-      message: "Items fetched successfully",
-      ...result,
-    };
-
-  } catch (error) {
-    throw new Error(`Failed to fetch items: ${error.message}`);
   }
-}
-
 
   async verifyItem(tagId) {
     try {
@@ -179,6 +190,88 @@ class ItemUseCase {
     } catch (error) {
       throw new Error(`Failed To Verify Tag No: ${error.message}`);
     }
+  }
+
+  async toggleItemStatus(itemId) {
+    try {
+      if (!itemId) return { success: false, message: "Item ID required" };
+
+      const item = await this.itemRepository.findById(itemId);
+
+      if (!item) return { success: false, message: "Item not found" };
+
+      // ✅ NEW VALIDATION
+      if (item.status === 2) {
+        return {
+          success: false,
+          message: "This item has already been sold and cannot be modified.",
+        };
+      }
+
+      const updatedItem = await this.itemRepository.updateStatus(
+        itemId,
+        !item.active,
+      );
+
+      return {
+        success: true,
+        message: updatedItem.active
+          ? "Item activated successfully"
+          : "Item deactivated successfully",
+        data: {
+          _id: updatedItem._id,
+          active: updatedItem.active,
+        },
+      };
+    } catch (error) {
+      throw new Error(`Toggle Item Status Failed: ${error.message}`);
+    }
+  }
+
+  async editItem(itemId, payload) {
+   try{
+ const item = await this.itemRepository.findById(itemId);
+
+    if (!item) {
+      throw new Error("Item not found");
+    }
+
+    // 🔒 Prevent editing sold items
+    if (item.status === 2) {
+      throw new Error(
+        "This item has already been sold and cannot be modified.",
+      );
+    }
+
+    // 🔒 Remove non-editable fields if someone tries to send them
+    const forbiddenFields = [
+      "productId",
+      "size",
+      "tagNo",
+      "stonewt",
+      "diamondcts",
+      "diamondwt",
+      "active",
+      "status",
+      "_id",
+    ];
+
+    forbiddenFields.forEach((field) => {
+      if (payload[field] !== undefined) {
+        delete payload[field];
+      }
+    });
+
+    const updatedItem = await this.itemRepository.updateItem(itemId, payload);
+
+    return {
+      success: true,
+      message: "Item updated successfully",
+      data: updatedItem,
+    };
+   }catch(error){
+    console.log(error)
+   }
   }
 }
 

@@ -36,6 +36,7 @@ class ItemRepository {
       const [items, total] = await Promise.all([
         itemModel
           .find(query)
+          .populate('id_purity')
           .sort({ [sort]: sortOrder })
           .skip(skip)
           .limit(limit)
@@ -61,6 +62,26 @@ class ItemRepository {
 
   async findByTag(tagNo) {
     return await itemModel.findOne({ tagNo });
+  }
+
+  async findById(id) {
+    return await itemModel.findById(id);
+  }
+
+  async updateStatus(id, status) {
+    return await itemModel.findByIdAndUpdate(
+      id,
+      { active: status },
+      { new: true },
+    );
+  }
+
+  async updateItem(id, updateData) {
+    return await itemModel.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true },
+    );
   }
 }
 

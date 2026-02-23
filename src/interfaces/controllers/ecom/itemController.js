@@ -73,6 +73,44 @@ async findByProductId(req, res) {
       });
     }
   }
+
+  async toggleItemStatus(req, res) {
+  try {
+    const { id } = req.params;
+
+    const result = await this.itemUseCase.toggleItemStatus(id);
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json(result);
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
+async updateItem(req, res) {
+    try {
+      const { id } = req.params;
+      const payload = req.body;
+
+      const result = await this.itemUseCase.editItem(id, payload);
+
+      return res.status(200).json(result);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message || "Failed to update item",
+      });
+    }
+  }
+
 }
 
 export default ItemController;

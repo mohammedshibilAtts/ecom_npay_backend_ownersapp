@@ -483,229 +483,229 @@ class ProductUseCase {
 
 
 
-  async editProduct(id, productData, images) {
-    try {
-      const idValidation = this.validateObjectId(id, "Product");
-      if (idValidation) return idValidation;
+  // async editProduct(id, productData, images) {
+  //   try {
+  //     const idValidation = this.validateObjectId(id, "Product");
+  //     if (idValidation) return idValidation;
 
-      const existingProduct = await this.productRepository.findById(id);
-      if (!existingProduct) {
-        return { success: false, message: "Product not found" };
-      }
+  //     const existingProduct = await this.productRepository.findById(id);
+  //     if (!existingProduct) {
+  //       return { success: false, message: "Product not found" };
+  //     }
 
-       const checkProductCode = await this.productRepository.findByField({_id:{$ne:id},code:productData.code})
-      const checkProductSku = await this.productRepository.findByField({_id:{$ne:id},sku:productData.sku})
-      if(checkProductCode&&Object.entries(checkProductCode).length>=0){
-        return { success: false, message: "Product Code already exisit" };
-      }
-      if(checkProductSku&&Object.entries(checkProductSku).length>=0){
-        return { success: false, message: "Product SKU already exisit" };
-      }
+  //      const checkProductCode = await this.productRepository.findByField({_id:{$ne:id},code:productData.code})
+  //     const checkProductSku = await this.productRepository.findByField({_id:{$ne:id},sku:productData.sku})
+  //     if(checkProductCode&&Object.entries(checkProductCode).length>=0){
+  //       return { success: false, message: "Product Code already exisit" };
+  //     }
+  //     if(checkProductSku&&Object.entries(checkProductSku).length>=0){
+  //       return { success: false, message: "Product SKU already exisit" };
+  //     }
 
-      const objectIdValidationErrors = [
-        this.validateObjectId(productData.id_branch, "Branch"),
-        this.validateObjectId(productData.id_category, "Category"),
-      ].filter(Boolean);
+  //     const objectIdValidationErrors = [
+  //       this.validateObjectId(productData.id_branch, "Branch"),
+  //       this.validateObjectId(productData.id_category, "Category"),
+  //     ].filter(Boolean);
 
-      if (objectIdValidationErrors.length) {
-        return { success: false, message: objectIdValidationErrors[0].message };
-      }
+  //     if (objectIdValidationErrors.length) {
+  //       return { success: false, message: objectIdValidationErrors[0].message };
+  //     }
 
-      const checkName = await this.productRepository.findByName(
-        productData.product_name,
-        productData.id_branch,
-        id
-      );
-      if (checkName) {
-        return { success: false, message: "Product already existing" };
-      }
+  //     const checkName = await this.productRepository.findByName(
+  //       productData.product_name,
+  //       productData.id_branch,
+  //       id
+  //     );
+  //     if (checkName) {
+  //       return { success: false, message: "Product already existing" };
+  //     }
 
-      if (
-        productData.availableSizes &&
-        typeof productData.availableSizes === "string"
-      ) {
-        productData.availableSizes = JSON.parse(productData.availableSizes);
-      }
+  //     if (
+  //       productData.availableSizes &&
+  //       typeof productData.availableSizes === "string"
+  //     ) {
+  //       productData.availableSizes = JSON.parse(productData.availableSizes);
+  //     }
 
-      if (
-        productData.makingCharges &&
-        typeof productData.makingCharges === "string"
-      ) {
-        productData.makingCharges = JSON.parse(productData.makingCharges);
-      }
+  //     if (
+  //       productData.makingCharges &&
+  //       typeof productData.makingCharges === "string"
+  //     ) {
+  //       productData.makingCharges = JSON.parse(productData.makingCharges);
+  //     }
 
-      if (
-        productData.wastageCharges &&
-        typeof productData.wastageCharges === "string"
-      ) {
-        productData.wastageCharges = JSON.parse(productData.wastageCharges);
-      }
+  //     if (
+  //       productData.wastageCharges &&
+  //       typeof productData.wastageCharges === "string"
+  //     ) {
+  //       productData.wastageCharges = JSON.parse(productData.wastageCharges);
+  //     }
 
-      if (
-        productData.collection &&
-        typeof productData.collection === "string"
-      ) {
-        try {
-          productData.collection = JSON.parse(productData.collection);
-        } catch (error) {
-          if (productData.collection.includes(",")) {
-            productData.collection = productData.collection
-              .split(",")
-              .map((id) => id.trim());
-          } else if (
-            productData.collection.startsWith("[") &&
-            productData.collection.endsWith("]")
-          ) {
-            const cleanedString = productData.collection
-              .replace(/'/g, '"')
-              .replace(/\[|\]/g, "");
-            productData.collection = JSON.parse(`[${cleanedString}]`);
-          } else {
-            productData.collection = [productData.collection];
-          }
-        }
-      }
+  //     if (
+  //       productData.collection &&
+  //       typeof productData.collection === "string"
+  //     ) {
+  //       try {
+  //         productData.collection = JSON.parse(productData.collection);
+  //       } catch (error) {
+  //         if (productData.collection.includes(",")) {
+  //           productData.collection = productData.collection
+  //             .split(",")
+  //             .map((id) => id.trim());
+  //         } else if (
+  //           productData.collection.startsWith("[") &&
+  //           productData.collection.endsWith("]")
+  //         ) {
+  //           const cleanedString = productData.collection
+  //             .replace(/'/g, '"')
+  //             .replace(/\[|\]/g, "");
+  //           productData.collection = JSON.parse(`[${cleanedString}]`);
+  //         } else {
+  //           productData.collection = [productData.collection];
+  //         }
+  //       }
+  //     }
 
-      if (Array.isArray(productData.collection)) {
-        productData.collection = productData.collection.filter((id) => {
-          const isValid = this.validateObjectId(id, "Collection item");
-          return isValid === null;
-        });
-      }
+  //     if (Array.isArray(productData.collection)) {
+  //       productData.collection = productData.collection.filter((id) => {
+  //         const isValid = this.validateObjectId(id, "Collection item");
+  //         return isValid === null;
+  //       });
+  //     }
 
-      const updateFields = {};
+  //     const updateFields = {};
 
-      for (let key in productData) {
-        if (key === "showprice" || key === "sell") {
-          const newValue =
-            productData[key] === "true" || productData[key] === true;
-          updateFields[key] = newValue;
-        } else if (
-          key === "modified_by" ||
-          key === "id_branch" ||
-          key === "id_metal" ||
-          key === "id_purity" ||
-          key === "id_category"
-        ) {
-          updateFields[key] = productData[key];
-        } else if (productData[key] !== undefined) {
-          updateFields[key] = productData[key];
-        }
-      }
+  //     for (let key in productData) {
+  //       if (key === "showprice" || key === "sell") {
+  //         const newValue =
+  //           productData[key] === "true" || productData[key] === true;
+  //         updateFields[key] = newValue;
+  //       } else if (
+  //         key === "modified_by" ||
+  //         key === "id_branch" ||
+  //         key === "id_metal" ||
+  //         key === "id_purity" ||
+  //         key === "id_category"
+  //       ) {
+  //         updateFields[key] = productData[key];
+  //       } else if (productData[key] !== undefined) {
+  //         updateFields[key] = productData[key];
+  //       }
+  //     }
 
-      if (
-        updateFields.id_metal ||
-        updateFields.id_branch ||
-        updateFields.id_category ||
-        updateFields.id_purity
-      ) {
-        const [checkBranchId, checkCategoryId] = await Promise.all([
-          updateFields.id_branch
-            ? this.branchRepository.findById(updateFields.id_branch)
-            : null,
-          updateFields.id_category
-            ? this.categoryRepository.findById(updateFields.id_category)
-            : null,
-        ]);
+  //     if (
+  //       updateFields.id_metal ||
+  //       updateFields.id_branch ||
+  //       updateFields.id_category ||
+  //       updateFields.id_purity
+  //     ) {
+  //       const [checkBranchId, checkCategoryId] = await Promise.all([
+  //         updateFields.id_branch
+  //           ? this.branchRepository.findById(updateFields.id_branch)
+  //           : null,
+  //         updateFields.id_category
+  //           ? this.categoryRepository.findById(updateFields.id_category)
+  //           : null,
+  //       ]);
 
-        if (updateFields.id_branch && !checkBranchId) {
-          return { success: false, message: "Branch not found" };
-        }
-        if (updateFields.id_category && !checkCategoryId) {
-          return { success: false, message: "Category not found" };
-        }
-      }
+  //       if (updateFields.id_branch && !checkBranchId) {
+  //         return { success: false, message: "Branch not found" };
+  //       }
+  //       if (updateFields.id_category && !checkCategoryId) {
+  //         return { success: false, message: "Category not found" };
+  //       }
+  //     }
 
-      if (images.product_image || productData.existing_images) {
-        const s3configs = await this.s3Helper(productData.id_branch);
+  //     if (images.product_image || productData.existing_images) {
+  //       const s3configs = await this.s3Helper(productData.id_branch);
 
-        let existingImages = [];
-        if (productData.existing_images) {
-          try {
-            existingImages = JSON.parse(productData.existing_images);
-          } catch (error) {
-            existingImages = Array.isArray(productData.existing_images)
-              ? productData.existing_images
-              : [productData.existing_images];
-          }
-        }
+  //       let existingImages = [];
+  //       if (productData.existing_images) {
+  //         try {
+  //           existingImages = JSON.parse(productData.existing_images);
+  //         } catch (error) {
+  //           existingImages = Array.isArray(productData.existing_images)
+  //             ? productData.existing_images
+  //             : [productData.existing_images];
+  //         }
+  //       }
 
-        const newImages = images.product_image || [];
+  //       const newImages = images.product_image || [];
 
-        const allImages = [...existingImages];
+  //       const allImages = [...existingImages];
 
-        if (newImages.length > 0) {
-          const uploadPromises = newImages.map((image) =>
-            this.s3Service.uploadToS3(image, "products", s3configs)
-          );
-          const uploadedImages = await Promise.all(uploadPromises);
-          allImages.push(...uploadedImages);
-        }
+  //       if (newImages.length > 0) {
+  //         const uploadPromises = newImages.map((image) =>
+  //           this.s3Service.uploadToS3(image, "products", s3configs)
+  //         );
+  //         const uploadedImages = await Promise.all(uploadPromises);
+  //         allImages.push(...uploadedImages);
+  //       }
 
-        productData.product_image = allImages;
-      }
+  //       productData.product_image = allImages;
+  //     }
 
-          // Process stone and diamond data
-      const stoneDiamondData = [];
+  //         // Process stone and diamond data
+  //     const stoneDiamondData = [];
 
-      if (productData.stone && productData.stones) {
-        productData.stones.forEach((stone) => {
-          stoneDiamondData.push({
-            _id:stone._id,
-            type: "stone",
-            itemId: stone.itemId || stone.stoneId,
-            weight: Number(stone.weight || stone.stoneWeight || 0),
-            cost: Number(stone.cost || stone.stoneCost || 0),
-            price: Number(stone.price || stone.stonePrice || 0),
-          });
-        });
-      }
+  //     if (productData.stone && productData.stones) {
+  //       productData.stones.forEach((stone) => {
+  //         stoneDiamondData.push({
+  //           _id:stone._id,
+  //           type: "stone",
+  //           itemId: stone.itemId || stone.stoneId,
+  //           weight: Number(stone.weight || stone.stoneWeight || 0),
+  //           cost: Number(stone.cost || stone.stoneCost || 0),
+  //           price: Number(stone.price || stone.stonePrice || 0),
+  //         });
+  //       });
+  //     }
 
-      if (productData.diamond && productData.diamonds) {
-        productData.diamonds.forEach((diamond) => {
-          stoneDiamondData.push({
-            _id:diamond._id,
-            type: "diamond",
-            itemId: diamond.itemId || diamond.diamondId,
-            weight: Number(diamond.weight || diamond.diamondWeight || 0),
-            cost: Number(diamond.cost || diamond.diamondCost || 0),
-            price: Number(diamond.price || diamond.diamondPrice || 0),
-          });
-        });
-      }
+  //     if (productData.diamond && productData.diamonds) {
+  //       productData.diamonds.forEach((diamond) => {
+  //         stoneDiamondData.push({
+  //           _id:diamond._id,
+  //           type: "diamond",
+  //           itemId: diamond.itemId || diamond.diamondId,
+  //           weight: Number(diamond.weight || diamond.diamondWeight || 0),
+  //           cost: Number(diamond.cost || diamond.diamondCost || 0),
+  //           price: Number(diamond.price || diamond.diamondPrice || 0),
+  //         });
+  //       });
+  //     }
 
-      let savedDetails = [];
-      if (stoneDiamondData.length > 0) {
-        savedDetails = await this.stoneDetailsRepo.updateStoneDetails(id,stoneDiamondData);
-      }
+  //     let savedDetails = [];
+  //     if (stoneDiamondData.length > 0) {
+  //       savedDetails = await this.stoneDetailsRepo.updateStoneDetails(id,stoneDiamondData);
+  //     }
 
-      // Only set stoneDetails if we have valid details
-      if (savedDetails.length > 0) {
-        productData.stoneDetails = savedDetails.map((s) => s._id);
-      } else {
-        productData.stoneDetails = [];
-      }
+  //     // Only set stoneDetails if we have valid details
+  //     if (savedDetails.length > 0) {
+  //       productData.stoneDetails = savedDetails.map((s) => s._id);
+  //     } else {
+  //       productData.stoneDetails = [];
+  //     }
 
-      const updateProduct = await this.productRepository.editProduct(
-        productData,
-        id
-      );
-      if (updateProduct) {
-        return { success: true, message: "Product edited successfully" };
-      }
-      return {
-        success: false,
-        message: "Failed to edit product. Please try again",
-      };
-    } catch (err) {
-      console.error(err);
-      return {
-        success: false,
-        message: "An error occurred while editing Product.",
-        error: err.message,
-      };
-    }
-  }
+  //     const updateProduct = await this.productRepository.editProduct(
+  //       productData,
+  //       id
+  //     );
+  //     if (updateProduct) {
+  //       return { success: true, message: "Product edited successfully" };
+  //     }
+  //     return {
+  //       success: false,
+  //       message: "Failed to edit product. Please try again",
+  //     };
+  //   } catch (err) {
+  //     console.error(err);
+  //     return {
+  //       success: false,
+  //       message: "An error occurred while editing Product.",
+  //       error: err.message,
+  //     };
+  //   }
+  // }
 
   async deleteProduct(id) {
     try {
@@ -1693,6 +1693,119 @@ class ProductUseCase {
   }
 }
 
+
+
+async editProduct(id, productData, images) {
+  try {
+    // ✅ Validate Product ID
+    const idValidation = this.validateObjectId(id, "Product");
+    if (idValidation) return idValidation;
+
+    const existingProduct = await this.productRepository.findById(id);
+    if (!existingProduct) {
+      return { success: false, message: "Product not found" };
+    }
+
+    // ✅ Validate Category & Subcategory
+    if (productData.id_category) {
+      const categoryValidation = this.validateObjectId(
+        productData.id_category,
+        "Category"
+      );
+      if (categoryValidation) return categoryValidation;
+
+      const categoryExists = await this.categoryRepository.findById(
+        productData.id_category
+      );
+      if (!categoryExists) {
+        return { success: false, message: "Category not found" };
+      }
+    }
+
+    if (productData.id_subcategory) {
+      const subCategoryValidation = this.validateObjectId(
+        productData.id_subcategory,
+        "Subcategory"
+      );
+      if (subCategoryValidation) return subCategoryValidation;
+
+      const subCategoryExists = await this.subCategoryRepository.findById(
+        productData.id_subcategory
+      );
+      if (!subCategoryExists) {
+        return { success: false, message: "Subcategory not found" };
+      }
+    }
+
+    // ================= IMAGE HANDLING =================
+    let updatedImages = existingProduct.product_image || [];
+
+    if (images?.product_image || productData.existing_images) {
+      const s3configs = await this.s3Helper(existingProduct.id_branch);
+
+      let existingImages = [];
+
+      if (productData.existing_images) {
+        try {
+          existingImages = JSON.parse(productData.existing_images);
+        } catch {
+          existingImages = Array.isArray(productData.existing_images)
+            ? productData.existing_images
+            : [productData.existing_images];
+        }
+      }
+
+      updatedImages = [...existingImages];
+
+      if (images?.product_image?.length > 0) {
+        const uploadPromises = images.product_image.map((image) =>
+          this.s3Service.uploadToS3(image, "products", s3configs)
+        );
+
+        const uploadedImages = await Promise.all(uploadPromises);
+        updatedImages.push(...uploadedImages);
+      }
+    }
+
+    // ================= FINAL UPDATE OBJECT =================
+    const updateFields = {
+      product_name: productData.product_name,
+      id_category: productData.id_category,
+      id_subcategory: productData.id_subcategory,
+      collection: productData.collection,
+      description: productData.description,
+      product_image: updatedImages,
+      modified_by: productData.modified_by,
+      modified_at: new Date(),
+    };
+
+    // Remove undefined fields
+    Object.keys(updateFields).forEach(
+      (key) => updateFields[key] === undefined && delete updateFields[key]
+    );
+
+    const updatedProduct = await this.productRepository.editProduct(
+      updateFields,
+      id
+    );
+
+    if (updatedProduct) {
+      return { success: true, message: "Product edited successfully" };
+    }
+
+    return {
+      success: false,
+      message: "Failed to edit product. Please try again",
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      success: false,
+      message: "An error occurred while editing Product.",
+      error: err.message,
+    };
+  }
+}
 
 
 

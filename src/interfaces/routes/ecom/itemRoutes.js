@@ -22,4 +22,11 @@ router.get("/product/:productId", (req, res) =>
 
 router.get("/check/:tagId", (req, res) => itemController.verifyItem(req, res));
 
+router.patch(
+  "/toggle-status/:id",
+  (req, res) => itemController.toggleItemStatus(req, res)
+);
+
+router.put("/:id", (req, res) =>  itemController.updateItem(req,res));
+
 export default router;
