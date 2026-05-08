@@ -45,7 +45,6 @@ const closeaccbillSchema = new mongoose.Schema(
     },
     closed_by: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: "Employee",
     },
     active:{

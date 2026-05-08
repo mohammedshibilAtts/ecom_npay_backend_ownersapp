@@ -26,8 +26,44 @@ const organisationController = new OrganisationController(
   validator
 );
 
+/**
+ * @swagger
+ * tags:
+ *   name: Organisation
+ *   description: Management of organization global settings and branding
+ */
+
 router.use(authMiddleware.protect);
 
+/**
+ * @swagger
+ * /api/client/organisation:
+ *   get:
+ *     summary: Get organization details
+ *     tags: [Organisation]
+ *     security:
+ *       - bearerAuth: []
+ *   post:
+ *     summary: Update organization details with branding assets
+ *     tags: [Organisation]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               logo:
+ *                 type: string
+ *                 format: binary
+ *               small_logo:
+ *                 type: string
+ *                 format: binary
+ *               favicon:
+ *                 type: string
+ *                 format: binary
+ */
 router.post(
   "/",
   upload.handleUpload([

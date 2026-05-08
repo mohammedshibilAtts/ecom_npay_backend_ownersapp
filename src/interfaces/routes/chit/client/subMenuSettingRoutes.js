@@ -22,12 +22,69 @@ const subMenuUseCase= new SubMenuUseCase(subMenuRepository);
 const subMenuController= new SubMenuController(subMenuUseCase,validator);
 
 
+/**
+ * @swagger
+ * tags:
+ *   name: SubMenu
+ *   description: Management of application sub-menus
+ */
+
 router.use(authMiddleware.protect);
+
+/**
+ * @swagger
+ * /api/client/submenusetting:
+ *   post:
+ *     summary: Add new sub-menu setting
+ *     tags: [SubMenu]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/',(req,res)=>subMenuController.addSubMenuSetting(req,res));
+
+/**
+ * @swagger
+ * /api/client/submenusetting/submenu:
+ *   post:
+ *     summary: Get all active sub-menu settings
+ *     tags: [SubMenu]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/submenu',(req,res)=>subMenuController.getAllActiveSubMenuSettings(req,res));
+
+/**
+ * @swagger
+ * /api/client/submenusetting/{id}:
+ *   get:
+ *     summary: Get sub-menu by ID
+ *     tags: [SubMenu]
+ *     security:
+ *       - bearerAuth: []
+ *   patch:
+ *     summary: Edit sub-menu setting
+ *     tags: [SubMenu]
+ *     security:
+ *       - bearerAuth: []
+ *   delete:
+ *     summary: Delete sub-menu setting
+ *     tags: [SubMenu]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/:id',(req,res)=>subMenuController.getSubMenuById(req,res));
 router.patch('/:id',(req,res)=>subMenuController.editSubMenuSetting(req,res));
 router.delete('/:id',(req,res)=>subMenuController.deleteSubMenuSetting(req,res));
+
+/**
+ * @swagger
+ * /api/client/submenusetting/{id}/active:
+ *   patch:
+ *     summary: Toggle sub-menu active status
+ *     tags: [SubMenu]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.patch('/:id/active',(req,res)=>subMenuController.changeSubMenuActiveStatus(req,res));
 
 export default router;

@@ -2,6 +2,7 @@ import { isValidObjectId } from "mongoose";
 import mongoose from "mongoose";
 import config from "../../../../config/chit/env.js";
 import { generateReferralCode } from "../../../../utils/cryptoGenerator.js";
+import s3Helper from "../../../../utils/s3Helper.js";
 
 class EmployeeUseCase {
   constructor(employeeRepository, s3service,branchRepository,s3Repo) {
@@ -9,26 +10,6 @@ class EmployeeUseCase {
     this.s3service = s3service;
     this.branchRepository= branchRepository;
     this.s3Repo= s3Repo;
-  }
-
-  async s3Helper(){
-    try {
-      const s3settings = await this.s3Repo.getSetting();
-
-      // const configData = s3settings[0]
-
-      const configuration = {
-        s3key: s3settings?.s3key,
-        s3secret: s3settings?.s3secret,
-        s3bucket_name: s3settings?.s3bucket_name,
-        s3display_url: s3settings?.s3display_url,
-        region: s3settings?.region,
-      };
-
-      return configuration
-    } catch (error) {
-      console.error(error)
-    }
   }
 
   async addEmployee(data, uploads,token) {
@@ -42,7 +23,7 @@ class EmployeeUseCase {
       }
 
       if (uploads) {
-        const s3Configs = await this.s3Helper(token.id_client);
+        const s3Configs = await s3Helper();
         const uploadFields = ["image", "resume"];
       
         for (const field of uploadFields) {
@@ -100,7 +81,7 @@ class EmployeeUseCase {
 
       const fieldsToUpdate = {};
       if (uploads && uploads.image || uploads.resume) {
-        const s3Configs = await this.s3Helper(token.id_client)
+        const s3Configs = await s3Helper()
 
         try {
           if(uploads && uploads.image){

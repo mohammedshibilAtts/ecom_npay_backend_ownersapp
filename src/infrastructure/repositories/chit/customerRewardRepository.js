@@ -1,4 +1,4 @@
-import customerRewardModel from "../../models/chit/customerRewardModel.js";
+// import customerRewardModel from "../../models/chit/customerRewardModel.js";
 
 class CustomerRewardRepository{
     async findOne(id){

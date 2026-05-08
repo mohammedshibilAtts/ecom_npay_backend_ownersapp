@@ -55,7 +55,6 @@ class SchemeAccountRepository {
 
   async getSchemeAccountById(id) {
     try {
-      console.log("kd")
       const data = await schemeAccountModel
         .findById(id)
         .populate({
@@ -287,7 +286,6 @@ class SchemeAccountRepository {
           }
         }
       ]);
-      console.log(data,"kd")
   
       return data;
   
@@ -296,97 +294,6 @@ class SchemeAccountRepository {
       throw error;
     }
   }
-// async getCustomerAccount(query) {
-//   try {
-//     const data = await schemeAccountModel.aggregate([
-//       { $match: query },
-//       { $sort: { _id: -1 } },
-//       {
-//         $lookup: {
-//           from: "schemes",
-//           localField: "id_scheme",
-//           foreignField: "_id",
-//           as: "id_scheme"
-//         }
-//       },
-//       { $unwind: { path: "$id_scheme", preserveNullAndEmptyArrays: false } },
-//       // Modified metal rate lookup to get only the most recent rate
-//       {
-//         $lookup: {
-//           from: "metalrates",
-//           let: { metalId: "$id_scheme.id_metal" },
-//           pipeline: [
-//             { 
-//               $match: { 
-//                 $expr: { $eq: ["$material_type_id", "$$metalId"] } 
-//               } 
-//             },
-//             { $sort: { createdAt: -1 } },
-//             { $limit: 1 }
-//           ],
-//           as: "metalrate"
-//         }
-//       },
-//       { $unwind: { path: "$metalrate", preserveNullAndEmptyArrays: true } },
-//       {
-//         $lookup: {
-//           from: "payments",
-//           localField: "_id",
-//           foreignField: "id_scheme_account",
-//           as: "payments"
-//         }
-//       },
-//       {
-//         $addFields: {
-//           total_metal_weight: {
-//             $sum: {
-//               $map: {
-//                 input: "$payments",
-//                 as: "p",
-//                 in: { $ifNull: ["$$p.metal_weight", 0] }
-//               }
-//             }
-//           }
-//         }
-//       },
-//       {
-//         $lookup: {
-//           from: "schemestatuses",
-//           localField: "status",
-//           foreignField: "id_status",
-//           as: "schemestatuses"
-//         }
-//       },
-//       { $unwind: { path: "$schemestatuses", preserveNullAndEmptyArrays: true } },
-//       {
-//         $addFields: {
-//           statusName: "$schemestatuses",
-//         }
-//       },
-//       {
-//         $project: {
-//           _id: 1,
-//           scheme_acc_number: 1,
-//           id_scheme: 1,
-//           total_metal_weight: 1,
-//           status: 1,
-//           statusName: 1,
-//           metalRate: "$metalrate.rate",
-//           createdAt: 1,
-//           updatedAt: 1
-//         }
-//       }
-//     ]);
-
-
-//     return data.length > 0 ? data : null;
-//   } catch (error) {
-//     console.error(error);
-//     throw error; // Don't swallow the error
-//   }
-// }
-
-  
 
   async editSchemeAccount(id, data) {
     try {
@@ -543,7 +450,6 @@ class SchemeAccountRepository {
     try {
       const newSchemeAcc = await schemeAccountModel.aggregate(pipeline);
 
-
       if(newSchemeAcc.length > 0){
         return newSchemeAcc
       }
@@ -579,42 +485,42 @@ class SchemeAccountRepository {
     }
   }
 
-  async getSchemeAccountTable(query, skip, limit) {
-    try {
-      const { scheme_type, ...mainQuery } = query;
+  // async getSchemeAccountTable(query, skip, limit) {
+  //   try {
+  //     const { scheme_type, ...mainQuery } = query;
     
-      const schemeAcc = await schemeAccountModel
-        .find(mainQuery)
-        .populate({
-          path: "id_scheme",
-          match: scheme_type && scheme_type !== "0" ? { scheme_type } : {},
-          select:
-            "scheme_name amount total_installments min_amount max_amount min_weight max_weight scheme_type id_metal id_purity min_fund max_fund no_of_gifts",
-        })
-        .populate("id_customer")
-        .populate("id_branch", "branch_name")
-        .populate("id_classification")
-        .skip(skip)
-        .limit(parseInt(limit))
-        .sort({ _id: -1 });
+  //     const schemeAcc = await schemeAccountModel
+  //       .find(mainQuery)
+  //       .populate({
+  //         path: "id_scheme",
+  //         match: scheme_type && scheme_type !== "0" ? { scheme_type } : {},
+  //         select:
+  //           "scheme_name amount total_installments min_amount max_amount min_weight max_weight scheme_type id_metal id_purity min_fund max_fund no_of_gifts",
+  //       })
+  //       .populate("id_customer")
+  //       .populate("id_branch", "branch_name")
+  //       .populate("id_classification")
+  //       .skip(skip)
+  //       .limit(parseInt(limit))
+  //       .sort({ _id: -1 });
 
-      const totalCount = await schemeAccountModel.countDocuments(mainQuery);
+  //     const totalCount = await schemeAccountModel.countDocuments(mainQuery);
 
-      const filteredSchemeAcc =
-        scheme_type && scheme_type !== "0"
-          ? schemeAcc.filter((doc) => doc.id_scheme)
-          : schemeAcc;
+  //     const filteredSchemeAcc =
+  //       scheme_type && scheme_type !== "0"
+  //         ? schemeAcc.filter((doc) => doc.id_scheme)
+  //         : schemeAcc;
 
-      return {
-        schemeAcc: filteredSchemeAcc,
-        filteredCount: filteredSchemeAcc.length,
-        totalCount,
-      };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }
+  //     return {
+  //       schemeAcc: filteredSchemeAcc,
+  //       filteredCount: filteredSchemeAcc.length,
+  //       totalCount,
+  //     };
+  //   } catch (error) {
+  //     console.error(error);
+  //     throw error;
+  //   }
+  // }
 
   async findInfo(id) {
     try {
@@ -1892,7 +1798,228 @@ class SchemeAccountRepository {
     }
   }
   
+  async hardDelete(id) {
+    try {
+      const deletedData = await schemeAccountModel.deleteOne({ _id: id });
   
+      if (deletedData.deletedCount === 0) {
+        return null;
+      }
+  
+      return true;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async customMobileSearchAggregation(query) {
+    try {
+      const pipeline = [
+        { $match: query },
+        {
+          $lookup: {
+            from: "customers",
+            localField: "id_customer",
+            foreignField: "_id",
+            as: "customer_details",
+          },
+        },
+        { $unwind: { path: "$customer_details", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "schemes",
+            localField: "id_scheme",
+            foreignField: "_id",
+            as: "scheme_details",
+          },
+        },
+        { $unwind: { path: "$scheme_details", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "branches",
+            localField: "id_branch",
+            foreignField: "_id",
+            as: "branch_details",
+          },
+        },
+        { $unwind: { path: "$branch_details", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "schemetypes",
+            localField: "scheme_details.scheme_type",
+            foreignField: "scheme_type",
+            as: "schemetype_details",
+          },
+        },
+        { $unwind: { path: "$schemetype_details", preserveNullAndEmptyArrays: true } },
+        // {
+        //   $lookup: {
+        //     from: "metals",
+        //     localField: "scheme_details.id_metal",
+        //     foreignField: "_id",
+        //     as: "metal_details",
+        //   },
+        // },
+        // { $unwind: { path: "$metal_details", preserveNullAndEmptyArrays: true } },
+        // {
+        //   $lookup: {
+        //     from: "purities",
+        //     localField: "scheme_details.id_purity",
+        //     foreignField: "_id",
+        //     as: "purity_details",
+        //   },
+        // },
+        // { $unwind: { path: "$purity_details", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "payments",
+            let: { accountId: { $toObjectId: "$_id" } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$id_scheme_account", "$$accountId"] },
+                      { $eq: ["$active", true] },
+                      { $eq: ["$payment_status", 1] },
+                    ],
+                  },
+                },
+              },
+              { $sort: { createdAt: -1 } },
+            ],
+            as: "all_payments",
+          },
+        },
+        {
+          $addFields: {
+            calcpayment: {
+              $reduce: {
+                input: "$all_payments",
+                initialValue: { amount: 0, total_weight: 0, fine_amount: 0, total_installments: 0 },
+                in: {
+                  amount: { $add: ["$$value.amount", { $ifNull: ["$$this.payment_amount", 0] }] },
+                  total_weight: { $add: ["$$value.total_weight", { $toDouble: { $ifNull: ["$$this.metal_weight", 0] } }] },
+                  fine_amount: { $add: ["$$value.fine_amount", { $ifNull: ["$$this.fine_amount", 0] }] },
+                  total_installments: { $add: ["$$value.total_installments", { $ifNull: ["$$this.paid_installments", 0] }] },
+                },
+              },
+            },
+            lastpayment: { $arrayElemAt: ["$all_payments", 0] },
+          },
+        },
+        {
+          $addFields: {
+            id_scheme_account: "$_id",
+            mobile: "$customer_details.mobile",
+            branch_name: "$branch_details.branch_name",
+            scheme_typename: "$schemetype_details.scheme_typename",
+            metal_name: "$metal_details.metal_name",
+            purity_name: "$purity_details.purity_name",
+            total_paidamount: { $ifNull: ["$calcpayment.amount", "$amount"] },
+            total_weight: "$calcpayment.total_weight",
+            fine_amount: "$calcpayment.fine_amount",
+            total_paidinstallments: "$paid_installments",
+            last_paid_installment: { $ifNull: ["$lastpayment.paid_installments", 0] },
+            last_paid_amount: { $ifNull: ["$lastpayment.payment_amount", 0] },
+            last_paid_weight: { $ifNull: ["$lastpayment.metal_weight", 0] },
+            // created_through: {
+            //   $switch: {
+            //     branches: [
+            //       { case: { $eq: ["$added_by", 3] }, then: "Admin" },
+            //       { case: { $eq: ["$added_by", 1] }, then: "Android" },
+            //       { case: { $eq: ["$added_by", 2] }, then: "IOS" }
+            //     ],
+            //     default: "Web"
+            //   }
+            // },
+            id_customer: {
+              _id: "$customer_details._id",
+              address: "$customer_details.address",
+            },
+            id_scheme: {
+              _id: "$scheme_details._id",
+              scheme_name: "$scheme_details.scheme_name",
+              scheme_type: "$scheme_details.scheme_type",
+              amount: "$scheme_details.amount",
+              total_installments: "$scheme_details.total_installments",
+              min_amount: "$scheme_details.min_amount",
+              max_amount: "$scheme_details.max_amount",
+              min_weight: "$scheme_details.min_weight",
+              max_weight: "$scheme_details.max_weight",
+              id_metal: "$scheme_details.id_metal",
+              id_purity: "$scheme_details.id_purity",
+              no_of_gifts: "$scheme_details.no_of_gifts",
+              bonus_amount: "$scheme_details.bonus_amount",
+              bonus_percent: "$scheme_details.bonus_percent",
+              bonus_type: "$scheme_details.bonus_type",
+            },
+            scheme_type: "$scheme_details.scheme_type",
+            scheme_name: {
+              $switch: {
+                branches: [
+                  {
+                    case: { $in: ["$scheme_details.scheme_type", [0, 1, 2, 5, 6, 7, 8, 9, 10, 11]] },
+                    then: { $concat: ["$scheme_details.scheme_name", " (Rs. ", { $toString: { $ifNull: ["$scheme_details.min_amount", "0"] } }, " - ", { $toString: { $ifNull: ["$scheme_details.max_amount", "0"] } }, ")"] }
+                  },
+                  {
+                    case: { $in: ["$scheme_details.scheme_type", [12, 3, 4]] },
+                    then: { $concat: ["$scheme_details.scheme_name", " (Gm ", { $toString: { $ifNull: ["$scheme_details.min_weight", "0"] } }, " - ", { $toString: { $ifNull: ["$scheme_details.max_weight", "0"] } }, ")"] }
+                  }
+                ],
+                default: { $concat: ["$scheme_details.scheme_name", " (Rs. ", { $toString: { $ifNull: ["$scheme_details.amount", "0"] } }, ")"] }
+              }
+            },
+            status_name: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$status", 0] }, then: "Open" },
+                  { case: { $eq: ["$status", 1] }, then: "Closed" },
+                  { case: { $eq: ["$status", 2] }, then: "Completed" },
+                  { case: { $eq: ["$status", 3] }, then: "Preclose" },
+                  { case: { $eq: ["$status", 4] }, then: "Refund" }
+                ],
+                default: "Unknown"
+              }
+            }
+          },
+        },
+        {
+          $project: {
+            all_payments: 0,
+            calcpayment: 0,
+            lastpayment: 0,
+            customer_details: 0,
+            scheme_details: 0,
+            branch_details: 0,
+            schemetype_details: 0,
+            metal_details: 0,
+            purity_details: 0,
+            added_by: 0,
+            closed_date: 0,
+            referral_id: 0,
+            referral_type: 0,
+            referralpaid: 0,
+            referral_code: 0,
+            createdAt: 0,
+            updatedAt: 0,
+            __v: 0,
+            date_added: 0,
+            date_updated: 0,
+            active:0,
+            is_deleted:0,
+          },
+        },
+        { $sort: { last_paid_date: -1 } },
+      ];
+
+      return await schemeAccountModel.aggregate(pipeline);
+    } catch (error) {
+      console.error("Aggregation Error:", error);
+      throw error;
+    }
+  }
 }
 
 export default SchemeAccountRepository;

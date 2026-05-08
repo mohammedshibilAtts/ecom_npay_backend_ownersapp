@@ -1,11 +1,6 @@
 import mongoose from 'mongoose';
 
 const submenusettingSchema = new mongoose.Schema({
-    id_project: {
-        type: mongoose.Schema.Types.ObjectId,
-        // required: [true, 'Project access is required'],
-        ref: "Project"
-    },
     submenu_name: {
         type: String,
         required: true

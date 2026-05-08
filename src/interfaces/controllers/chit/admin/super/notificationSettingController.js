@@ -7,8 +7,6 @@ class NotificationSettingController {
     try {
       const {
         id_branch,
-        id_project,
-        id_client,
         notifyappid,
         notifyauthirization,
         notify_sent,
@@ -17,7 +15,7 @@ class NotificationSettingController {
         offers_sent,
       } = req.body;
 
-      const requiredFields = ["id_client", "id_branch", "id_project"];
+      const requiredFields = ["id_branch"];
       for (const field of requiredFields) {
         if (!req.body[field] || req.body[field] === "") {
           return res
@@ -31,8 +29,6 @@ class NotificationSettingController {
 
       const result = await this.notificationUseCase.addOrUpdateNotificationSetting({
         id_branch,
-        id_project,
-        id_client,
         notifyappid,
         notifyauthirization,
         notify_sent,

@@ -1,19 +1,13 @@
-import projectAccessModel from './projectAccessRepository.js';
-import Branch from '../brachRepository.js';
+import projectAccessModel from "./projectAccessRepository.js";
+import Branch from "../brachRepository.js";
 
 class ConfigurationRepository {
   async getFilteredAccess(filter, skip, limit) {
-    return await projectAccessModel.find(filter)
+    return await projectAccessModel
+      .find(filter)
       .skip(skip)
       .limit(limit)
-      .populate('id_branch')
-      .populate({
-        path: 'id_client',
-        populate: {
-          path: 'id_project',
-          model: 'Project'
-        }
-      })
+      .populate("id_branch")
       .exec();
   }
 

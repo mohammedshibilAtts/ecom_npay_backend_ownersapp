@@ -47,7 +47,7 @@ class PrintRepository {
       const result = await paymentModel.aggregate(pipeline);
       return result;
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return {
         success: false,
         message: "Failed to get",
@@ -117,7 +117,7 @@ class PrintRepository {
 
       return result;
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return {
         success: false,
         message: "Failed to get payments",
@@ -189,7 +189,7 @@ class PrintRepository {
       ]);
       return result[0];
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return {
         success: false,
         message: "Failed to get payments",
@@ -225,7 +225,7 @@ class PrintRepository {
     }
   }
 
- async getPassbookData(filter) {
+  async getPassbookData(filter) {
     try {
       const page = parseInt(filter?.page) || 1;
       const limit = parseInt(filter?.limit) || 10;
@@ -345,7 +345,7 @@ class PrintRepository {
               index: { $documentNumber: {} },
             },
           },
-        }
+        },
       );
 
       const countPipeline = [...pipeline, { $count: "totalItems" }];
@@ -479,7 +479,7 @@ class PrintRepository {
         },
       };
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return {
         success: false,
         message: "Failed to get passbook data",

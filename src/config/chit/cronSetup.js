@@ -11,8 +11,9 @@ const TIMEZONE = "Asia/Kolkata";
 
 
 const PREPARE_CRON = "0 2 * * *";
-// const PREPARE_CRON = "8 14 * * *";
+// const PREPARE_CRON = "4 12 * * *";
 const SEND_CRON = "0 8 * * *";
+// const SEND_CRON = "6 12 * * *";
 
 const CUSTOMER_BATCH = 500;
 const SEND_BATCH = 50;
@@ -30,7 +31,6 @@ class NotificationScheduler {
     console.log("✅ Scheduler Started");
   }
 
-  // ✅ Cron #1 → Runs at 2 AM
   async prepareMessages() {
     console.log("⏳ [2 AM] Preparing messages...");
 
@@ -81,7 +81,6 @@ class NotificationScheduler {
         new Date(c.date_of_birth).getMonth() + 1 === month &&
         new Date(c.date_of_birth).getDate() === day
       ) {
-        console.log(c)
         queueEntries.push({
           insertOne: {
             document: {

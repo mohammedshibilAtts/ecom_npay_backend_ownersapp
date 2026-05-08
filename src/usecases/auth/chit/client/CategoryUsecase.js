@@ -15,62 +15,6 @@ class CategoryUseCase {
     return null;
   }
 
-  // async addCategory(categoryData,files,token) {
-  //   try {
-  //     console.log(categoryData)
-  //     const branchValidation = this.validateObjectId(
-  //       categoryData.id_branch,
-  //       "Branch"
-  //     );
-  //     if (branchValidation) return branchValidation;
-
-  //     const metalValidation = this.validateObjectId(
-  //       categoryData.id_metal,
-  //       "Metal"
-  //     );
-  //     if (metalValidation) return metalValidation;
-
-  //     const existingCategory = await this.categoryRepository.findByName(
-  //       categoryData.category_name
-  //     );
-
-  //     let imageUrlFinal = null;
-  //     if(files && files.image){
-  //       imageUrlFinal=await this.handleImageUpload(files,null,token);
-  //     }
-  //     if(imageUrlFinal){  
-  //       categoryData.image=imageUrlFinal
-  //     }
-
-  //     if (existingCategory) {
-  //       return { success: false, message: "Category already exists." };
-  //     }
-
-  //     const categoryResult = await this.categoryRepository.addCategory(
-  //       categoryData
-  //     );
-
-  //     if (categoryResult) {
-  //       return { success: true, message: "Category created successfully." };
-  //     }
-
-  //     return {
-  //       success: false,
-  //       message: "Failed to create category. Please try again later.",
-  //     };
-  //   } catch (err) {
-  //     console.error(
-  //       "Error occurred while adding category:",
-  //       err.stack || err.message
-  //     );
-  //     return {
-  //       success: false,
-  //       message: "An error occurred while adding  category.",
-  //       error: err.message,
-  //     };
-  //   }
-  // }
-
   async addCategory(categoryData, files, token) {
   try {
     
@@ -107,7 +51,6 @@ class CategoryUseCase {
     let categoryBannerUrlFinal = null;
     if (files && files.categoryBanner) {
       categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null, token);
-      console.log("....................................",categoryBannerUrlFinal)
       if (categoryBannerUrlFinal) {
         categoryData.categoryBanner = categoryBannerUrlFinal;
       }
@@ -210,7 +153,14 @@ class CategoryUseCase {
         }
       }
 
-      
+      // Handle category banner upload
+      let categoryBannerUrlFinal = null;
+      if (files && files.categoryBanner) {
+        categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null);
+        if (categoryBannerUrlFinal) {
+          updateFields.categoryBanner = categoryBannerUrlFinal;
+        }
+      }
       } catch (error) {
         console.error("Error uploading category image:", error);
         return {
@@ -220,18 +170,6 @@ class CategoryUseCase {
       }
     }
 
-    if(files && files.categoryBanner){
-    // Handle category banner upload
-      let categoryBannerUrlFinal = null;
-      if (files && files.categoryBanner) {
-        categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null);
-        if (categoryBannerUrlFinal) {
-          updateFields.categoryBanner = categoryBannerUrlFinal;
-        }
-      }
-
-    }
-    
       const updateCategory = await this.categoryRepository.editCategory(
         id,
         updateFields

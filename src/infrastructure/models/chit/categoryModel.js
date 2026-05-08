@@ -25,7 +25,6 @@ const categorySchema= new mongoose.Schema({
     },
     created_by:{
         type:mongoose.Schema.Types.ObjectId,
-        required:true,
         ref:"Employee"
     },
     is_deleted:{

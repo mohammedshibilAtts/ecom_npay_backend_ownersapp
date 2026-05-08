@@ -9,8 +9,6 @@ class NotificationSettingUseCase {
     try {
       const {
         id_branch,
-        id_project,
-        id_client,
         notifyappid,
         notifyauthirization,
         notify_sent,
@@ -21,12 +19,10 @@ class NotificationSettingUseCase {
 
       const existingSetting = await this.notificationSettingRepository.findOne(
         id_branch,
-        id_project
       );
 
       if (existingSetting) {
         const updateFields = {};
-        if (id_client) updateFields.id_client = id_client;
         if (notifyappid) updateFields.notifyappid = notifyappid;
         if (notifyauthirization)
           updateFields.notifyauthirization = notifyauthirization;
@@ -52,8 +48,6 @@ class NotificationSettingUseCase {
       } else {
         const newSetting = await this.notificationSettingRepository.create({
           id_branch,
-          id_project,
-          id_client,
           notifyappid,
           notifyauthirization,
           notify_sent,

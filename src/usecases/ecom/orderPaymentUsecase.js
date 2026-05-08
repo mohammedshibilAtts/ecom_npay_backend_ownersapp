@@ -293,8 +293,6 @@ class OrderPaymentUsecase {
     this.paymentOrderRepo = new EcomPaymentOrderRepository();
     this.productRepo = new ProductRepository();
     this.orderRepo = new OrderRepository();
-    this.baseUrl = config.CASH_FREE_URL || "https://sandbox.cashfree.com";
-    this.url = `${this.baseUrl}/pg/orders`;
   }
 
   async orderPaymentCreation(orderData, token = null, extraData = null) {
@@ -463,7 +461,7 @@ class OrderPaymentUsecase {
 
   async createOrder(data) {
     try {
-      const url = `${this.url}`;
+      const url = "https://sandbox.cashfree.com/pg/orders";
       const headers = {
         "Content-Type": "application/json",
         "x-client-id": config.CASHFREE_CLIENT_ID,

@@ -1,32 +1,11 @@
 import mongoose, { isValidObjectId } from "mongoose";
+import s3Helper from "../../../../utils/s3Helper.js";
 
 class TicketRaiseUseCase {
   constructor(ticketRaiseRepository, s3Service, s3rRepo) {
     this.ticketRaiseRepository = ticketRaiseRepository;
     this.s3Service = s3Service;
     this.s3Respo = s3rRepo;
-  }
-
-  async s3Helper(id_branch) {
-    try {
-      const s3settings = await this.s3Respo.getSettingByBranch(id_branch);
-
-      if (!s3settings) {
-        return { success: false, message: "S3 configuration not found" };
-      }
-
-      const configuration = {
-        s3key: s3settings[0].s3key,
-        s3secret: s3settings[0].s3secret,
-        s3bucket_name: s3settings[0].s3bucket_name,
-        s3display_url: s3settings[0].s3display_url,
-        region: s3settings[0].region,
-      };
-
-      return configuration;
-    } catch (error) {
-      console.error(error);
-    }
   }
 
   async addTicket(data, ticket_img) {
@@ -40,7 +19,7 @@ class TicketRaiseUseCase {
 
       data.id_ticketNo = ticketNumber;
       if (ticket_img) {
-        const s3configs = await this.s3Helper(data.id_branch);
+        const s3configs = await s3Helper()
         const uploadPromises = ticket_img.map(async (image, index) => {
           if (!image.buffer || !image.mimetype || !image.originalname) {
             console.warn(`Skipping invalid image at index ${index}:`, image);

@@ -3,6 +3,7 @@ import PromotionCustomer from '../../models/chit/notify/promotionCustomersModel.
 import pushNotificationModel from "../../models/chit/notify/pushNotificationModel.js";
 import mongoose from "mongoose";
 import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
+import customerModel from "../../models/chit/customerModel.js";
  
 class PushNotificationRepository { 
   
@@ -80,14 +81,13 @@ class PushNotificationRepository {
         {
           $lookup: {
             from: "s3bucketsettings",
-            localField: "id_branch",
-            foreignField: "id_branch",
-            as: "bucketSettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
           },
         },
         {
           $unwind: {
-            path: "$bucketSettings",
+            path: "$s3Details",
             preserveNullAndEmptyArrays: true,
           },
         },
@@ -300,6 +300,102 @@ class PushNotificationRepository {
     }
   }
 
+    async getCustomers(search = "", skip = 0, limit = 10) {
+    try {
+      skip = Number(skip) || 0;
+      limit = Number(limit) || 10;
+
+      const searchStr =
+        search !== null && search !== undefined ? String(search).trim() : "";
+
+      const hasSearch = searchStr.length > 0;
+
+      const pipeline = [
+        {
+          $match: {
+            active: true,
+            is_deleted: false,
+          },
+        },
+        {
+          $addFields: {
+            mobileStr: { $toString: "$mobile" },
+          },
+        },
+
+        ...(hasSearch
+          ? [
+              {
+                $match: {
+                  mobileStr: {
+                    $regex: `^${searchStr}`,
+                    $options: "i",
+                  },
+                },
+              },
+            ]
+          : []),
+
+        {
+          $project: {
+            _id: 1,
+            firstname: 1,
+            mobile: 1,
+          },
+        },
+        { $skip: skip },
+        { $limit: limit },
+      ];
+
+      const countPipeline = pipeline.filter(
+        (stage) => !stage.$skip && !stage.$limit,
+      );
+
+      const [results, totalCount] = await Promise.all([
+        customerModel.aggregate(pipeline),
+        customerModel.aggregate([...countPipeline, { $count: "total" }]),
+      ]);
+
+      return {
+        data: results,
+        totalDocuments: totalCount[0]?.total || 0,
+        skip,
+        limit,
+      };
+    } catch (error) {
+      console.error("Error in getSchemeCustomers:", error);
+      throw error;
+    }
+  }
+  
+  getAllCustomerCursor() {
+    const CURSOR_BATCH_SIZE = 500;
+    return customerModel
+      .find({ active: true, is_deleted: false }, { _id: 1 })
+      .lean()
+      .cursor({ batchSize: CURSOR_BATCH_SIZE });
+  }
+
+  async bulkInsertPromotionCustomers(
+    promotionId,
+    customerIds,
+    CHUNK_SIZE = 500,
+  ) {
+    const chunks = [];
+    for (let i = 0; i < customerIds.length; i += CHUNK_SIZE) {
+      chunks.push(customerIds.slice(i, i + CHUNK_SIZE));
+    }
+    for (const chunk of chunks) {
+      const docs = chunk.map((id) => ({ promotionId, customerId: id }));
+      await PromotionCustomer.insertMany(docs, { ordered: false });
+    }
+  }
+
+  async getPromotionCustomers(promotionId) {
+    return await PromotionCustomer.find({ promotionId })
+      .select("customerId")
+      .lean();
+  }
 }
 
 export default PushNotificationRepository;

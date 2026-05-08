@@ -115,7 +115,7 @@ class userRoleUseCase{
         }
     }
 
-    async getUserRoleById(id){
+    async getUserRoleById(id){ 
         try {
             if(!isValidObjectId(id)){
                 return {success:false,message:'Provide a valid object id'}
@@ -200,10 +200,14 @@ class userRoleUseCase{
         }
       }
 
-      async getAllUserRoles(){
-        try {
-            const roleData = await this.userRoleRepository.find({active:true})
-            
+      async getAllUserRoles(token){
+        try { 
+            let roleData
+            if(token.id_role.id_role === 1){
+                roleData = await this.userRoleRepository.find({})
+            }else{
+                roleData = await this.userRoleRepository.find({active:true,is_deleted:false})
+            }
             if(!roleData){
                 return {success:false,message:"No user roles found"}
             }
@@ -217,17 +221,10 @@ class userRoleUseCase{
 
     async getAllUserRoleSetting(data){
         try {
-            const {id_project, id_client, id_branch}= data;
+            const {id_branch}= data;
 
             let filter = {};
-            if (id_project) {
-              filter.id_project = id_project;
-            }
-          
-            if (id_client) {
-              filter.id_client = id_client;
-            }
-          
+            
             if (id_branch) {
               filter.id_branch = id_branch;
             }

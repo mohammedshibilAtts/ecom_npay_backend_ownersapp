@@ -14,7 +14,29 @@ const wishlistUsecase = new WishlistUsecase(wishlistRepo)
 const wishlistController = new WishlistController(wishlistUsecase)
 
 
+/**
+ * @swagger
+ * tags:
+ *   name: Wishlist
+ *   description: Customer product wishlist management
+ */
+
 router.use(authMiddleware.protect)
+
+/**
+ * @swagger
+ * /api/client/wishlist:
+ *   get:
+ *     summary: Get customer wishlist
+ *     tags: [Wishlist]
+ *     security:
+ *       - bearerAuth: []
+ *   post:
+ *     summary: Toggle item in wishlist (Add/Remove)
+ *     tags: [Wishlist]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/',(req,res)=>wishlistController.toggleWishlistItem(req,res))
 router.get('/',(req,res)=>wishlistController.getWishlist(req,res))
 

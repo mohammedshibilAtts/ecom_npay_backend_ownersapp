@@ -26,7 +26,6 @@ const newarrivalsSchema = new mongoose.Schema({
     created_by: {
         type: mongoose.Schema.Types.ObjectId,
         ref:"Employee",
-        required: true
     },
     is_deleted:{
         type:Boolean,

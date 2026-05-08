@@ -128,7 +128,6 @@ const OrderItemSchema = new Schema(
 );
 
 // Indexes for fast lookups
-OrderItemSchema.index({ orderId: 1 });
 OrderItemSchema.index({ productId: 1 });
 OrderItemSchema.index({ categoryId: 1, subCategoryId: 1 });
 

@@ -161,8 +161,7 @@ class CategoryRepository {
         {
           $lookup: {
             from: "s3bucketsettings",
-            localField: "id_branch._id",
-            foreignField: "id_branch",
+            pipeline: [{ $limit: 1 }],
             as: "s3Details",
           },
         },
@@ -222,13 +221,12 @@ async getAllCategories(branch) {
         },
       },
       {
-        $lookup: {
-          from: "s3bucketsettings",
-          localField: "id_branch",
-          foreignField: "id_branch",
-          as: "s3Details",
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
+          },
         },
-      },
       {
         $unwind: {
           path: "$s3Details",

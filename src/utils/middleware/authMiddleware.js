@@ -47,6 +47,28 @@ bypassProtect = asyncHandler(async (req, res, next) => {
   next();
 });
 
+  bypassProtect = asyncHandler(async (req, res, next) => {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.startsWith('Bearer ')
+          ? authHeader.split(' ')[1]
+          : null;
+     
+        if (!token) {
+          req.user = null;
+          return next();
+        }
+     
+        try {
+          const decoded = await this.tokenService.verifyToken(token);
+          req.user = decoded;
+        } catch (error) {
+          console.warn('Invalid token in bypassProtect:', error.message);
+          req.user = null;
+        }
+     
+        next();
+      });
+
   restrictTo(...roles) {
     return (req, res, next) => {
       if (!roles.includes(req.user.role)) {

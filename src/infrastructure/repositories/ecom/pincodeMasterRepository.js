@@ -12,7 +12,6 @@ class pincodeMasterRepository {
 
   async getAllPincodes(filters = {}, skip = 0, limit = 10) {
     try {
-      console.log("dkkd");
       const pipeline = [
         {
           $lookup: {

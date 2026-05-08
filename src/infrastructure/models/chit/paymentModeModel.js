@@ -1,11 +1,6 @@
 import mongoose from 'mongoose';
 
 const paymentModeSchema = new mongoose.Schema({
-    id_project: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: [true, 'Project is required'],
-        ref: "Project"
-    },
     id_mode:{
         type:Number,
     },

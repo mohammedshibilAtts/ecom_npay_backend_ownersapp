@@ -1,8 +1,7 @@
 import { isValidObjectId } from "mongoose";
-import mongoose from "mongoose";
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,73 +11,47 @@ class MenuUseCase {
     this.menuRepository = menuRepository;
   }
 
-  // async saveImage(image) {
-  //   if (!image || !image.path) return null;
-
-  //   // const uploadDir = path.resolve(__dirname, "../../../../public/uploads/icons"); 
-  //   fs.mkdirSync(uploadDir, { recursive: true });
-
-  //   const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-  //   const safeFileName = image.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
-  //   const fileName = `${path.parse(safeFileName).name}-${uniqueSuffix}.svg`;
-
-  //   const fullPath = path.join(uploadDir, fileName);
-  //   const iconPath = `uploads/icons/${fileName}`;
-
-  //   try {
-  //       await fs.promises.rename(image.path, fullPath); 
-  //       return iconPath; 
-  //   } catch (error) {
-  //       console.error("Error saving file:", error);
-  //       return null;
-  //   }
-  // }
-
-async addMenuSetting(data, image) {
-  try {
+  async addMenuSetting(data, image) {
+    try {
       const exists = await this.menuRepository.findByName(data.menu_name);
       if (exists) return { success: false, message: "Menu already exists" };
 
       let iconPath = null;
 
       if (image && image.path) {
-          const uploadDir = path.join(__dirname, '../../../../public/uploads/icons');
-          fs.mkdirSync(uploadDir, { recursive: true });
+        const uploadDir = path.join(
+          __dirname,
+          "../../../../public/uploads/icons",
+        );
+        fs.mkdirSync(uploadDir, { recursive: true });
 
-          // const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          // const safeFileName = image.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
-          // const fileName = `${path.parse(safeFileName).name}-${uniqueSuffix}.svg`;
+        const safeFileName = `${data.display_order}.svg`;
+        const fullPath = path.join(uploadDir, safeFileName);
 
-          // const fullPath = path.join(uploadDir, fileName);
-          // iconPath = `uploads/icons/${fileName}`;
+        iconPath = `uploads/icons/${safeFileName}`;
 
-          // await fs.promises.rename(image.path, fullPath);
-          const safeFileName = `${data.display_order}.svg`;
-            const fullPath = path.join(uploadDir, safeFileName);
-
-            iconPath = `uploads/icons/${safeFileName}`;
-
-            await fs.promises.rename(image.path, fullPath);
+        await fs.promises.rename(image.path, fullPath);
       }
 
       const menuData = {
-          ...data,
-          menu_icon: iconPath,
+        ...data,
+        menu_icon: iconPath,
       };
 
       const savedData = await this.menuRepository.addMenuSetting(menuData);
       return savedData
-          ? { success: true, message: "Menu created successfully" }
-          : { success: false, message: "Failed to create menu" };
-  } catch (error) {
+        ? { success: true, message: "Menu created successfully" }
+        : { success: false, message: "Failed to create menu" };
+    } catch (error) {
       console.error("Error in addMenuSetting:", error);
       return { success: false, message: "An error occurred while adding menu" };
+    }
   }
-}
 
-async editMenuSetting(id, data, image) {
-  try {
-      if (!isValidObjectId(id)) return { success: false, message: "Provide a valid object ID" };
+  async editMenuSetting(id, data, image) {
+    try {
+      if (!isValidObjectId(id))
+        return { success: false, message: "Provide a valid object ID" };
 
       const existing = await this.menuRepository.findById(id);
       if (!existing) return { success: false, message: "Menu not found" };
@@ -86,46 +59,51 @@ async editMenuSetting(id, data, image) {
       let iconPath = existing.menu_icon;
 
       if (image && image.path) {
-        const uploadDir = path.join(__dirname, '../../../../public/uploads/icons');
-          fs.mkdirSync(uploadDir, { recursive: true });
+        const uploadDir = path.join(
+          __dirname,
+          "../../../../public/uploads/icons",
+        );
+        fs.mkdirSync(uploadDir, { recursive: true });
 
-          // const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          // const safeFileName = image.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
-          // const fileName = `${path.parse(safeFileName).name}-${uniqueSuffix}.svg`;
+        const safeFileName = `${data.display_order}.svg`;
+        const fullPath = path.join(uploadDir, safeFileName);
 
-          // const fullPath = path.join(uploadDir, fileName);
-          // iconPath = `uploads/icons/${fileName}`;
+        iconPath = `uploads/icons/${safeFileName}`;
 
-          // await fs.promises.rename(image.path, fullPath);
-          const safeFileName = `${data.display_order}.svg`;
-          const fullPath = path.join(uploadDir, safeFileName);
+        await fs.promises.rename(image.path, fullPath);
 
-          iconPath = `uploads/icons/${safeFileName}`;
-
-          await fs.promises.rename(image.path, fullPath);
-
-          if (existing.menu_icon) {
-              const oldImagePath = path.join(__dirname, '../../public', existing.menu_icon);
-              if (fs.existsSync(oldImagePath)) {
-                  fs.unlinkSync(oldImagePath);
-              }
+        if (existing.menu_icon) {
+          const oldImagePath = path.join(
+            __dirname,
+            "../../public",
+            existing.menu_icon,
+          );
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
           }
+        }
       }
 
       const fieldsToUpdate = {
-          ...data,
-          menu_icon: iconPath,
+        ...data,
+        menu_icon: iconPath,
       };
 
-      const updatedData = await this.menuRepository.editMenuSetting(id, fieldsToUpdate);
+      const updatedData = await this.menuRepository.editMenuSetting(
+        id,
+        fieldsToUpdate,
+      );
       return updatedData
-          ? { success: true, message: "Menu updated successfully" }
-          : { success: false, message: "Failed to edit menu" };
-  } catch (error) {
+        ? { success: true, message: "Menu updated successfully" }
+        : { success: false, message: "Failed to edit menu" };
+    } catch (error) {
       console.error("Error in editMenuSetting:", error);
-      return { success: false, message: "An error occurred while editing menu" };
+      return {
+        success: false,
+        message: "An error occurred while editing menu",
+      };
+    }
   }
-}
 
   async deleteMenuSetting(id) {
     try {
@@ -180,7 +158,7 @@ async editMenuSetting(id, data, image) {
 
       const updatedData = await this.menuRepository.changeModeActiveStatus(
         id,
-        exists.active
+        exists.active,
       );
 
       if (!updatedData) {
@@ -220,7 +198,10 @@ async editMenuSetting(id, data, image) {
       };
     } catch (error) {
       console.error(error);
-      return { success: false, message: "An error occured while fetching data" };
+      return {
+        success: false,
+        message: "An error occured while fetching data",
+      };
     }
   }
 
@@ -239,7 +220,10 @@ async editMenuSetting(id, data, image) {
       };
     } catch (error) {
       console.error(error);
-      return { success: false, message: "An error occured while fetching data" };
+      return {
+        success: false,
+        message: "An error occured while fetching data",
+      };
     }
   }
 
@@ -257,7 +241,7 @@ async editMenuSetting(id, data, image) {
         : {};
 
       const query = {
-        is_deleted:false,
+        is_deleted: false,
         ...searchCriteria,
       };
 

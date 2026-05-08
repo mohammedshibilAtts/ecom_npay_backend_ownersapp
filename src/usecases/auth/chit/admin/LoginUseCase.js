@@ -1,10 +1,11 @@
 class LoginUseCase {
-  constructor(userRepository,hashingService,tokenService,layoutRepository,userAccessRepo) {
+  constructor(userRepository,hashingService,tokenService,layoutRepository,userAccessRepo,employeeRepo) {
     this.userRepository = userRepository;
     this.hashingService = hashingService;
     this.tokenService= tokenService;
     this.layoutRepository= layoutRepository;
     this.userAccessRepo=userAccessRepo;
+    this.employeeRepo=employeeRepo;
   }
 
   async findByUsername(username, password) {
@@ -19,7 +20,7 @@ class LoginUseCase {
       return { success: false, message: 'Invalid password'};
     }
 
-    if (user.active !== true) {
+    if (user.active !== true && user.id_role.id_role !== 1) {
       return { success: false, message: 'User is deactivated'};
     }
 
@@ -30,18 +31,32 @@ class LoginUseCase {
     if(layoutsetting && layoutsetting.length> 0){
       color = layoutsetting[0].layout_color
     }
+
     let payload = {
-      id_employee: user.id_employee,
-      id_client:user.id_client,
-      id_project:user.id_project,
-      branch:user.access_branch,
-      id_branch:user.id_branch,
+      id:user._id,
+      id_employee: user?.id_employee,
+      branch:user?.access_branch,
+      id_branch:user?.id_branch,
       layoutcolor:color,
       id_role:{
-        _id:user.id_role._id,
-        id_role:user.id_role.id_role
+        _id:user?.id_role?._id,
+        id_role:user?.id_role?.id_role
       }
     }
+
+     if(user.username === "admin"){
+      payload.roleNumber = 2;
+    }else if(user.username === "superadmin"){
+      payload.roleNumber = 1;
+    }else{
+      payload.roleNumber = 3;
+    }
+
+    if(user?.id_employee){
+      const employee = await this.employeeRepo.findOne({_id:user.id_employee});
+      payload.employee = employee?.firstname || 'Admin';
+    }
+
     const token = this.tokenService.generateToken(payload);
     return { success: true, message: 'Login successful', token,menuData};
   }

@@ -5,55 +5,51 @@ class ItemController {
     this.itemUseCase = itemUseCase;
   }
 
-async createBulkItems(req, res) {
-  try {
-    const result = await this.itemUseCase.createBulkItems(req.body);
+  async createBulkItems(req, res) {
+    try {
+      const result = await this.itemUseCase.createBulkItems(req.body);
 
-    if (!result.success) {
-      return res.status(400).json(result);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
     }
-
-    return res.status(200).json(result);
-
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-}
 
+  async findByProductId(req, res) {
+    try {
+      const { productId } = req.params;
+      const { page, limit, search, sort, order } = req.query;
 
-async findByProductId(req, res) {
-  try {
-    const { productId } = req.params;
-    const { page, limit, search, sort, order } = req.query;
+      const result = await this.itemUseCase.findByProductId({
+        productId,
+        page,
+        limit,
+        search,
+        sort,
+        order,
+      });
 
-    const result = await this.itemUseCase.findByProductId({
-      productId,
-      page,
-      limit,
-      search,
-      sort,
-      order,
-    });
+      if (!result.success) {
+        return res.status(404).json(result);
+      }
 
-    if (!result.success) {
-      return res.status(404).json(result);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
     }
-
-    return res.status(200).json(result);
-
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-}
-
 
   async verifyItem(req, res) {
     try {
@@ -64,53 +60,52 @@ async findByProductId(req, res) {
       }
 
       return res.status(200).json(result);
-
     } catch (error) {
       console.error(error);
       return res.status(500).json({
         success: false,
-        message: error.message
+        message: error.message,
       });
     }
   }
 
   async toggleItemStatus(req, res) {
-  try {
-    const { id } = req.params;
-
-    const result = await this.itemUseCase.toggleItemStatus(id);
-
-    if (!result.success) {
-      return res.status(400).json(result);
-    }
-
-    return res.status(200).json(result);
-
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-}
-
-async updateItem(req, res) {
     try {
       const { id } = req.params;
-      const payload = req.body;
+      const result = await this.itemUseCase.toggleItemStatus(id);
 
-      const result = await this.itemUseCase.editItem(id, payload);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
 
       return res.status(200).json(result);
     } catch (error) {
-      return res.status(400).json({
+      console.error(error);
+      return res.status(500).json({
         success: false,
-        message: error.message || "Failed to update item",
+        message: error.message,
       });
     }
   }
 
+  async updateItem(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await this.itemUseCase.editItem(id, req.body);
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }
 
 export default ItemController;

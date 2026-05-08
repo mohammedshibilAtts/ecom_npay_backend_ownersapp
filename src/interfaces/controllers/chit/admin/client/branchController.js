@@ -6,7 +6,8 @@ class BranchController {
 
   async addBranch(req, res) {
     const { error } = this.validator.branchValidationSchemas.addBranch.validate(
-      req.body
+      req.body,
+      { abortEarly: false,allowUnknown: true }
     );
 
     if (error) {
@@ -25,7 +26,6 @@ class BranchController {
   }
 
   async branchTable(req, res) {
-
     try {
       const allBranches = await this.branchUsecase.branchTable(
         req.body
@@ -49,9 +49,6 @@ class BranchController {
 
   async updateBranch(req, res) {
     try {
-      // const validationResult =
-      //   this.validator.branchValidationSchemas.addBranch.validate(req.body);
-
       const { id } = req.params;
 
       const baseSchema = this.validator.branchValidationSchemas.addBranch;
@@ -61,7 +58,7 @@ class BranchController {
 
       if (!id) return res.status(400).json({ message: "Branch id required" });
 
-      const validationResult = updateSchema.validate(req.body);
+      const validationResult = updateSchema.validate(req.body, { allowUnknown: true });
 
       if (validationResult.error) {
         return res
@@ -145,26 +142,6 @@ class BranchController {
           .json({ message: result.message, data: result.data });
       }
       return res.status(400).json({ message: result.message });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
-  }
-  async getBranchByClientId(req, res) {
-    try {
-      const { id } = req.params;
-
-      if (!id) {
-        return res.status(400).json({ message: "Branch Id required" });
-      }
-
-      const result = await this.branchUsecase.getBranchByClientId(id);
-      if (result.success) {
-        return res
-          .status(200)
-          .json({ message: result.message, data: result.data });
-      }
-      return res.status(400).json({ message: result.message,data:[]});
     } catch (err) {
       console.error(err);
       return res.status(500).json({ message: "Internal Server Error" });

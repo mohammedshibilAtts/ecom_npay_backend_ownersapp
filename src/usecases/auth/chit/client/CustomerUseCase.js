@@ -1,15 +1,16 @@
- import { isValidObjectId } from "mongoose";
+import { isValidObjectId } from "mongoose";
 import mongoose from "mongoose";
 import config from "../../../../config/chit/env.js";
 import crypto from "crypto";
 import { generateReferralCode } from "../../../../utils/cryptoGenerator.js";
 import smsService from "../../../../config/chit/smsService.js";
-import SchemeAccountRepository from '../../../../infrastructure/repositories/chit/schemeAccountRepository.js'
+import SchemeAccountRepository from "../../../../infrastructure/repositories/chit/schemeAccountRepository.js";
 import EmployeeRepository from "../../../../infrastructure/repositories/chit/EmployeeRepository.js";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
-
+import s3Helper from "../../../../utils/s3Helper.js";
+import TopupRepository from "../../../../infrastructure/repositories/chit/topupRepository.js";
 
 class CustomerUseCase {
   constructor(
@@ -20,7 +21,7 @@ class CustomerUseCase {
     smsRepo,
     otpRepo,
     hashingService,
-    tokenService
+    tokenService,
   ) {
     this.customerRepository = customerRepository;
     this.s3service = s3service;
@@ -30,36 +31,9 @@ class CustomerUseCase {
     this.otpRepo = otpRepo;
     this.hashingService = hashingService;
     this.tokenService = tokenService;
-    this.schemeAccountRepo = new SchemeAccountRepository()
-    this.employeeRepo = new EmployeeRepository()
-  }
-
-  
-  async s3Helper(id_clientId) {
-    try {
-      let s3settings
-      if(!id_clientId){
-         s3settings = await this.s3Repo.getSetting();
-      }else{
-        s3settings = await this.s3Repo.getSettingByClient(id_clientId);
-      }
-
-      if (!s3settings && s3settings.length < 0) {
-        return { success: false, message: "S3 configuration not found" };
-      }
-
-      const configuration = {
-        s3key: s3settings?.s3key,
-        s3secret: s3settings?.s3secret,
-        s3bucket_name: s3settings?.s3bucket_name,
-        s3display_url: s3settings?.s3display_url,
-        region: s3settings?.region,
-      };
-
-      return configuration;
-    } catch (error) {
-      console.error(error);
-    }
+    this.schemeAccountRepo = new SchemeAccountRepository();
+    this.employeeRepo = new EmployeeRepository();
+    this.topupRepo = new TopupRepository()
   }
 
   async generateOtp() {
@@ -70,8 +44,8 @@ class CustomerUseCase {
   async urlConstructor(url, content, replacements) {
     try {
       const constructedUrl = url
-      .replace(/xxxmobilexxx/g, replacements.mobile)
-      .replace(/xxxmessagexxx/g, content);
+        .replace(/xxxmobilexxx/g, replacements.mobile)
+        .replace(/xxxmessagexxx/g, content);
 
       return constructedUrl;
     } catch (error) {
@@ -83,7 +57,7 @@ class CustomerUseCase {
   async addCustomer(data, uploads, token) {
     try {
       const existingUser = await this.customerRepository.existingUser(
-        data.mobile
+        data.mobile,
       );
 
       if (existingUser) {
@@ -92,7 +66,7 @@ class CustomerUseCase {
           message: "User already exists with same mobile number",
         };
       }
-      
+
       let dataToSave = {};
       dataToSave = {
         ...data,
@@ -111,10 +85,10 @@ class CustomerUseCase {
         whatsapp: data?.whatsapp || data.mobile || null,
         added_by: data?.added_by || 0,
         address: data?.address || "",
-        email:data?.email || null
+        email: data?.email || null,
       };
 
-      const s3Configs = await this.s3Helper(token.id_client);
+      const s3Configs = await s3Helper();
 
       if (!s3Configs) {
         return { success: false, messsage: "No s3bucket configuraiton found" };
@@ -127,14 +101,14 @@ class CustomerUseCase {
               dataToSave.cus_img = await this.s3service.uploadToS3(
                 uploads.cus_img[0],
                 "customer",
-                s3Configs
+                s3Configs,
               );
             }
             if (uploads.id_proof[0]) {
               dataToSave.id_proof = await this.s3service.uploadToS3(
                 uploads.id_proof[0],
                 "customer",
-                s3Configs
+                s3Configs,
               );
             }
           } catch (error) {
@@ -145,21 +119,22 @@ class CustomerUseCase {
 
       const referralCode = generateReferralCode(data.mobile);
       dataToSave.referral_code = `Cus-${referralCode}`;
+      
       if (data.password) {
         const hashPassword = await this.hashingService.hashPassword(
-          data.password
+          data.password,
         );
         dataToSave.password = hashPassword;
       }
-      
-      const empCode = generateReferralCode(data.mobile,new Date())
-      data.employeeId = `CUS${empCode}`
+
+      const empCode = generateReferralCode(data.mobile, new Date());
+      data.employeeId = `CUS${empCode}`;
       const savedData = await this.customerRepository.addCustomer(dataToSave);
 
       if (!savedData) {
         return { success: false, message: "Failed to add customer" };
       }
-      
+
       const smsInfo = await this.smsRepo.findOne({
         id_branch: data.id_branch,
         customer_sent: 1,
@@ -172,16 +147,17 @@ class CustomerUseCase {
         const replacements = {
           mobile: userInfo.mobile,
         };
-        
+
         const urlToSend = await this.urlConstructor(
           smsurl,
           smsContent,
-          replacements
+          replacements,
         );
-        
+
         const smsSendStatus = await this.smsSender.sendSms(urlToSend);
         
         if (smsSendStatus) {
+          await this.topupRepo.decrementField({}, "SMS", 1)
           return {
             success: true,
             message: "Customer added successfully, Message delivered",
@@ -202,135 +178,156 @@ class CustomerUseCase {
   }
 
   async editCustomer(id, data, uploads, token) {
-    const genderImages = [null,'1749878256269.webp',"1749878753243.webp", '1749878926644.webp', ]; //null,male,female, other
-    
+    const genderImages = [
+      null,
+      "1749878256269.webp",
+      "1749878753243.webp",
+      "1749878926644.webp",
+    ]; //null,male,female, other
+
     try {
-        if (!isValidObjectId(id)) {
-            return { success: false, message: "Provide a valid object id" };
-        }
+      if (!isValidObjectId(id)) {
+        return { success: false, message: "Provide a valid object id" };
+      }
 
-        const userExists = await this.customerRepository.findById(id);
-        if (!userExists) {
-            return { success: false, message: "No user found" };
-        }
+      const userExists = await this.customerRepository.findById(id);
+      if (!userExists) {
+        return { success: false, message: "No user found" };
+      }
 
-        const existingUser = await this.customerRepository.checkUser(id, data.mobile);
-        if (existingUser) {
-            return {
-                success: false,
-                message: "User already exists with same mobile number",
-            };
-        }
-
-        const normalizeValue = (key, value) => {
-            if (["gender", "mobile", "pincode", "notification"].includes(key)) {
-                return Number(value);
-            }
-            if (value instanceof mongoose.Types.ObjectId) {
-                return value.toString();
-            }
-            if (value instanceof Date) {
-                return value.toISOString();
-            }
-            return value;
-        };
-
-        const fieldsToUpdate = {};
-
-        Object.keys(data).forEach((key) => {
-            const newValue = data[key];
-
-            if (
-                ["_id", "createdAt", "updatedAt", "__v", "is_deleted"].includes(key) ||
-                normalizeValue(key, userExists[key]) === normalizeValue(key, newValue) ||
-                newValue === "" || newValue === null
-            ) {
-                return;
-            }
-        
-            fieldsToUpdate[key] = newValue;
-        });
-
-        if (Object.keys(fieldsToUpdate).length === 0) {
-            return { success: false, message: "No fields to update" };
-        } else {
-            fieldsToUpdate.date_upd = Date.now();
-        }
-
-        const s3Configs = await this.s3Helper(token.id_client);
-        if (!s3Configs) {
-            return { success: false, messsage: "No s3bucket configuration found" };
-        }
-
-        if (uploads) {
-            try {
-                if (uploads.cus_img && uploads.cus_img[0]) {
-                    if (
-                        userExists.cus_img &&
-                        userExists.cus_img !== uploads.cus_img[0].filename &&
-                        !genderImages.includes(userExists.cus_img)
-                    ) {
-                        const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.cus_img}`;
-                        await this.s3service.deleteFromS3(keyPath, s3Configs);
-                    }
-                    fieldsToUpdate.cus_img = await this.s3service.uploadToS3(
-                        uploads.cus_img[0],
-                        "customer",
-                        s3Configs
-                    );
-                } else if (data.gender !== undefined && data.gender !== null) {
-                    const genderIndex = Number(data.gender);
-                    if (!isNaN(genderIndex) && (!userExists.cus_img || genderImages.includes(userExists.cus_img))) {
-                        const selectedImage = genderImages[genderIndex % genderImages.length];
-                        fieldsToUpdate.cus_img = selectedImage;
-                    }
-                }
-
-                if (uploads.id_proof && uploads.id_proof[0]) {
-                    if (
-                        userExists.id_proof &&
-                        userExists.id_proof !== uploads.id_proof[0].filename
-                    ) {
-                        const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.id_proof}`;
-                        await this.s3service.deleteFromS3(keyPath, s3Configs);
-                    }
-                    fieldsToUpdate.id_proof = await this.s3service.uploadToS3(
-                        uploads.id_proof[0],
-                        "customer",
-                        s3Configs
-                    );
-                }
-            } catch (error) {
-                console.error(error);
-                return { success: false, message: "Error uploading files" };
-            }
-        } else if (data.gender !== undefined && data.gender !== null) {
-            const genderIndex = Number(data.gender);
-            if (!isNaN(genderIndex)) {
-                const currentImage = userExists.cus_img;
-                if (!currentImage || genderImages.includes(currentImage)) {
-                    // const selectedImage = genderImages[genderIndex % genderImages.length];
-                    const selectedImage = genderImages[genderIndex];
-                    fieldsToUpdate.cus_img = selectedImage;
-                }
-            }
-        }
-
-        const updatedCustomer = await this.customerRepository.findByIdAndUpdate(
-            id,
-            fieldsToUpdate
-        );
-
+      const existingUser = await this.customerRepository.checkUser(
+        id,
+        data.mobile,
+      );
+      if (existingUser) {
         return {
-            success: true,
-            message: "Customer updated successfully",
-            data: updatedCustomer,
+          success: false,
+          message: "User already exists with same mobile number",
         };
+      }
+
+      const normalizeValue = (key, value) => {
+        if (["gender", "mobile", "pincode", "notification"].includes(key)) {
+          return Number(value);
+        }
+        if (value instanceof mongoose.Types.ObjectId) {
+          return value.toString();
+        }
+        if (value instanceof Date) {
+          return value.toISOString();
+        }
+        return value;
+      };
+
+      const fieldsToUpdate = {};
+
+      Object.keys(data).forEach((key) => {
+        const newValue = data[key];
+
+        if (
+          ["_id", "createdAt", "updatedAt", "__v", "is_deleted"].includes(
+            key,
+          ) ||
+          normalizeValue(key, userExists[key]) ===
+            normalizeValue(key, newValue) ||
+          newValue === "" ||
+          newValue === null
+        ) {
+          return;
+        }
+
+        fieldsToUpdate[key] = newValue;
+      });
+
+      if (Object.keys(fieldsToUpdate).length === 0) {
+        return { success: false, message: "No fields to update" };
+      } else {
+        fieldsToUpdate.date_upd = Date.now();
+      }
+
+      const s3Configs = await s3Helper();
+      if (!s3Configs) {
+        return { success: false, messsage: "No s3bucket configuration found" };
+      }
+
+      if (uploads) {
+        try {
+          if (uploads.cus_img && uploads.cus_img[0]) {
+            if (
+              userExists.cus_img &&
+              userExists.cus_img !== uploads.cus_img[0].filename &&
+              !genderImages.includes(userExists.cus_img)
+            ) {
+              const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.cus_img}`;
+              await this.s3service.deleteFromS3(keyPath, s3Configs);
+            }
+            fieldsToUpdate.cus_img = await this.s3service.uploadToS3(
+              uploads.cus_img[0],
+              "customer",
+              s3Configs,
+            );
+          } else if (data.gender !== undefined && data.gender !== null) {
+            const genderIndex = Number(data.gender);
+            if (
+              !isNaN(genderIndex) &&
+              (!userExists.cus_img || genderImages.includes(userExists.cus_img))
+            ) {
+              const selectedImage =
+                genderImages[genderIndex % genderImages.length];
+              fieldsToUpdate.cus_img = selectedImage;
+            }
+          }
+
+          if (uploads.id_proof && uploads.id_proof[0]) {
+            if (
+              userExists.id_proof &&
+              userExists.id_proof !== uploads.id_proof[0].filename
+            ) {
+              const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.id_proof}`;
+              await this.s3service.deleteFromS3(keyPath, s3Configs);
+            }
+            fieldsToUpdate.id_proof = await this.s3service.uploadToS3(
+              uploads.id_proof[0],
+              "customer",
+              s3Configs,
+            );
+          }
+        } catch (error) {
+          console.error(error);
+          return { success: false, message: "Error uploading files" };
+        }
+      } else if (data.gender !== undefined && data.gender !== null) {
+        const genderIndex = Number(data.gender);
+        if (!isNaN(genderIndex)) {
+          const currentImage = userExists.cus_img;
+          if (!currentImage || genderImages.includes(currentImage)) {
+            const selectedImage = genderImages[genderIndex];
+            fieldsToUpdate.cus_img = selectedImage;
+          }
+        }
+      }
+
+      if (data.password) {
+        fieldsToUpdate.password = await this.hashingService.hashPassword(
+          data.password,
+        );
+      }
+
+      const updatedCustomer = await this.customerRepository.findByIdAndUpdate(
+        id,
+        fieldsToUpdate,
+      );
+
+      return {
+        success: true,
+        message: "Customer updated successfully",
+        data: updatedCustomer,
+      };
     } catch (error) {
-        console.error(error);
-        return { success: false, message: "Error updating customer" };
+      console.error(error);
+      return { success: false, message: "Error updating customer" };
     }
-}
+  }
 
   async deleteCustomer(id) {
     try {
@@ -382,7 +379,7 @@ class CustomerUseCase {
 
       const newData = await this.customerRepository.activateCustomer(
         id,
-        existsData.active
+        existsData.active,
       );
 
       if (!newData) {
@@ -406,10 +403,9 @@ class CustomerUseCase {
   async getCustomersByBranch(branchId) {
     if (!branchId) throw new Error("Branch ID is required");
 
-    const customers = await this.customerRepository.getCustomersByBranch(
-      branchId
-    );
-    
+    const customers =
+      await this.customerRepository.getCustomersByBranch(branchId);
+
     return customers.length > 0 ? customers : [];
   }
 
@@ -425,11 +421,11 @@ class CustomerUseCase {
         return { success: false, message: "No customer found" };
       }
 
-     if(existsData.mpin){
-       existsData.mpinStatus = true
-     }else{
-      existsData.mpinStatus = false
-     }
+      if (existsData.mpin) {
+        existsData.mpinStatus = true;
+      } else {
+        existsData.mpinStatus = false;
+      }
 
       return {
         success: true,
@@ -450,69 +446,71 @@ class CustomerUseCase {
           message: "Please provide search text.",
         };
       }
- 
+
       let customerMobile = customers;
- 
+
       if (isValidObjectId(customers)) {
-        const currentCustomer = await this.customerRepository.findById(customers);
+        const currentCustomer =
+          await this.customerRepository.findById(customers);
         customerMobile = currentCustomer?.mobile?.toString() || null;
       }
- 
+
       const searchTerm = search.trim();
       let result = null;
- 
+
       if (customerMobile && customerMobile.toString() === searchTerm) {
         return {
           success: false,
-          message: "Self referring is not allowed.",
+          message: "Please provide search text.",
         };
       }
- 
+
       if (`Cus-${customerMobile}` === `Cus-${searchTerm}`) {
         return {
           success: false,
           message: "Self referring is not allowed.",
         };
       }
- 
+
       if (/^\d{10}$/.test(searchTerm)) {
-        result = await this.customerRepository.searchCustomerByMobile(searchTerm);
+        result =
+          await this.customerRepository.searchCustomerByMobile(searchTerm);
       } else {
-        result = await this.customerRepository.finByReferralCode(`Cus-${searchTerm}`);
+        result = await this.customerRepository.finByReferralCode(
+          `Cus-${searchTerm}`,
+        );
       }
- 
+
       if (!result) {
         result = await this.employeeRepo.findOne({ mobile: searchTerm });
       }
- 
+
       if (!result) {
         return {
           success: false,
           message: "No customer or employee found with given details.",
         };
       }
- 
       if (result?.mobile?.toString() === customerMobile?.toString()) {
         return {
           success: false,
           message: "Self referring is not allowed.",
         };
       }
- 
-      if (`Cus-${result?.referral_code?.split('-')[1]}` === `Cus-${searchTerm}`) {
+
+      if (
+        `Cus-${result?.referral_code?.split("-")[1]}` === `Cus-${searchTerm}`
+      ) {
         return {
           success: false,
           message: "Self referring is not allowed.",
         };
       }
- 
- 
       return {
         success: true,
         message: "Data fetched successfully.",
         data: result,
       };
- 
     } catch (error) {
       console.error("Error in searchCustomerByMobile:", error);
       return {
@@ -530,7 +528,7 @@ class CustomerUseCase {
     fromDate,
     toDate,
     id_branch,
-    active
+    active,
   ) {
     try {
       const pageNum = parseInt(page) || 1;
@@ -538,16 +536,19 @@ class CustomerUseCase {
       const searchTerm = search?.trim() || "";
 
       const searchConditions = [];
-      const isNumericSearch = !isNaN(searchTerm) && searchTerm !== "";
+      // const isNumericSearch = !isNaN(searchTerm) && searchTerm !== "";
 
       if (searchTerm) {
         searchConditions.push({
           firstname: { $regex: searchTerm, $options: "i" },
         });
+        searchConditions.push({
+          mobile: { $regex: searchTerm, $options: "i" },
+        });
 
-        if (isNumericSearch) {
-          searchConditions.push({ mobile: Number(searchTerm) });
-        }
+        // if (isNumericSearch) {
+        //   searchConditions.push({ mobile: searchTerm });
+        // }
       }
 
       const searchQuery =
@@ -562,7 +563,7 @@ class CustomerUseCase {
       }
 
       const query = {
-        is_deleted: { $ne: true },
+        is_deleted: false,
         ...searchQuery,
         ...dateFilter,
       };
@@ -574,12 +575,11 @@ class CustomerUseCase {
       if (active === undefined || active === null || active === "") {
         query.active = { $in: [true, false] };
       } else {
-        query.active = { $in: active };
+        query.active = active;
       }
 
       const documentskip = (pageNum - 1) * pageSize;
       const documentlimit = pageSize;
-
       const Data = await this.customerRepository.getAllCustomers({
         query,
         documentskip,
@@ -670,9 +670,8 @@ class CustomerUseCase {
   async sendOtp(data, userCheck) {
     try {
       const { mobile, type } = data;
-      const checkAlready = await this.customerRepository.searchCustomerByMobile(
-        mobile
-      );
+      const checkAlready =
+        await this.customerRepository.searchCustomerByMobile(mobile);
 
       if (userCheck && checkAlready) {
         return {
@@ -710,19 +709,28 @@ class CustomerUseCase {
           customUrl: smsUrl,
         };
 
-        const otpSent = await smsService._sendSMS(data.numbers, data.message, null, data.type, data.customUrl);
+        const otpSent = await smsService._sendSMS(
+          data.numbers,
+          data.message,
+          null,
+          data.type,
+          data.customUrl,
+        );
 
         if (!otpSent) {
           return { success: false, message: "Failed to sent OTP" };
         }
+
         const saveOtp = await this.otpRepo.saveOtp({
           otp_code: otp,
           mobile: mobile,
-          channel:"sms",
+          channel: "sms",
           send_otptime: new Date(),
           type,
         });
+
         if (saveOtp) {
+         await this.topupRepo.decrementField({}, "SMS", 1);
           return { success: true, message: "Otp sent successfully" };
         }
 
@@ -772,7 +780,7 @@ class CustomerUseCase {
       }
       const comparePassword = await this.hashingService.comparePassword(
         loginData.password,
-        checkCusmoter.password
+        checkCusmoter.password,
       );
       if (!comparePassword) {
         return { success: false, message: "Incorrect password." };
@@ -794,9 +802,8 @@ class CustomerUseCase {
 
   async signup(userData) {
     try {
-
       const existingUser = await this.customerRepository.existingUser(
-        userData.mobile
+        userData.mobile,
       );
 
       if (existingUser) {
@@ -808,19 +815,19 @@ class CustomerUseCase {
 
       const isOtpVerify = await this.otpRepo.checkStatus(
         userData.mobile,
-        "signup"
+        "signup",
       );
 
       if (!isOtpVerify) {
         return { success: false, message: "Otp not verified" };
       }
       const hashPassword = await this.hashingService.hashPassword(
-        userData.password
+        userData.password,
       );
       userData.password = hashPassword;
       const referralCode = generateReferralCode(userData.mobile);
       userData.referral_code = `Cus-${referralCode}`;
-      
+
       const savedUser = await this.customerRepository.addCustomer(userData);
       if (!savedUser) {
         return { success: false, message: "Failed to create user" };
@@ -834,7 +841,7 @@ class CustomerUseCase {
     }
   }
 
-    async forgetPassword(mobile, newPassword) {
+  async forgetPassword(mobile, newPassword) {
     try {
       const user = await this.customerRepository.existingUser(mobile);
 
@@ -847,18 +854,18 @@ class CustomerUseCase {
 
       const isOtpVerify = await this.otpRepo.checkStatus(
         mobile,
-        "forgotpassword"
+        "forgotpassword",
       );
 
       if (!isOtpVerify) {
         return { success: false, message: "Otp not verified" };
       }
 
-      let checkOldPassword = ""
-      if(user.password){
-        checkOldPassword=  await this.hashingService.comparePassword(
+      let checkOldPassword = "";
+      if (user.password) {
+        checkOldPassword = await this.hashingService.comparePassword(
           newPassword,
-          user.password
+          user.password,
         );
 
         if (checkOldPassword) {
@@ -874,7 +881,7 @@ class CustomerUseCase {
 
       const updatePassword = await this.customerRepository.editCustomer(
         user._id,
-        { password }
+        { password },
       );
       if (updatePassword) {
         await this.otpRepo.deleteOtpByMobile(user.mobile, "signup");
@@ -933,12 +940,12 @@ class CustomerUseCase {
 
       const updateMpin = await this.customerRepository.editCustomer(
         checkCusmoter._id,
-        { mpin }
+        { mpin },
       );
       if (updateMpin) {
         await this.otpRepo.deleteOtpByMobile(
           checkCusmoter.mobile,
-          "forgotmpin"
+          "forgotmpin",
         );
         return { success: true, message: "MPIN changed successfully" };
       }
@@ -975,7 +982,7 @@ class CustomerUseCase {
 
       const updateMpin = await this.customerRepository.editCustomer(
         checkCusmoter._id,
-        { mpin }
+        { mpin },
       );
       if (updateMpin) {
         return { success: true, message: "MPIN changed successfully" };
@@ -989,11 +996,16 @@ class CustomerUseCase {
 
   async getReferralDetals(customerId) {
     try {
-      if(!isValidObjectId(customerId)){
-        return {status:false,message:"Customer id is not a valid object id"}
+      if (!isValidObjectId(customerId)) {
+        return {
+          status: false,
+          message: "Customer id is not a valid object id",
+        };
       }
 
-      const checkCusmoter = await this.customerRepository.findOne({_id:customerId});
+      const checkCusmoter = await this.customerRepository.findOne({
+        _id: customerId,
+      });
       if (!checkCusmoter) {
         return {
           success: false,
@@ -1001,143 +1013,208 @@ class CustomerUseCase {
         };
       }
 
-      let code=''
-      if(checkCusmoter.referral_code == "0" || checkCusmoter.referral_code == null){
+      let code = "";
+      if (
+        checkCusmoter.referral_code == "0" ||
+        checkCusmoter.referral_code == null
+      ) {
         const referralCode = generateReferralCode(checkCusmoter.mobile);
-       code = `Cus-${referralCode}`;
-        await this.customerRepository.updateUniversal(customerId,{referral_code:code})
+        code = `Cus-${referralCode}`;
+        await this.customerRepository.updateUniversal(customerId, {
+          referral_code: code,
+        });
       }
 
-       const referralData = await this.customerRepository.getReferrlMessage();
+      const referralData = await this.customerRepository.getReferrlMessage();
 
       if (referralData) {
-        const outputData ={
+        const outputData = {
           referralCode: checkCusmoter?.referral_code || code,
-          referralMessage:referralData?.message || "",
+          referralMessage: referralData?.message || "",
           applink: referralData?.appLink || "",
-          faq: referralData?.faq || ""
-         }
+          faq: referralData?.faq || "",
+        };
 
-        return { success: true, message: "Referral details fetched successfully" ,data:outputData};
+        return {
+          success: true,
+          message: "Referral details fetched successfully",
+          data: outputData,
+        };
       }
 
-      const outputdata={
-        referralData:checkCusmoter?.referral_code || code,
-      }
+      const outputdata = {
+        referralData: checkCusmoter?.referral_code || code,
+      };
 
-      return { success: false, message: "Failed to get referral details" ,data:outputdata};
+      return {
+        success: false,
+        message: "Failed to get referral details",
+        data: outputdata,
+      };
     } catch (error) {
       console.error(error);
       return { success: false, message: "Error while getting referral data" };
     }
   }
 
-  async customerOverview(branch,mobile,idCustomer) {
+  async customerOverview(branch, mobile, idCustomer) {
     try {
-      if(!isValidObjectId(idCustomer) && idCustomer){
-        return {success:false,message:"Customer id is not valid object id"}
+      if (!isValidObjectId(idCustomer) && idCustomer) {
+        return {
+          success: false,
+          message: "Customer id is not valid object id",
+        };
       }
 
-      if(!isValidObjectId(branch) && !idCustomer){
-        return {success:false,message:"Branch id is not valid object id"}
+      if (!isValidObjectId(branch) && !idCustomer) {
+        return { success: false, message: "Branch id is not valid object id" };
       }
 
-      const customerData= await this.customerRepository.customerOverview({branch,mobile,idCustomer})
+      const customerData = await this.customerRepository.customerOverview({
+        branch,
+        mobile,
+        idCustomer,
+      });
 
-      if(customerData){
-        const s3Configs = await this.s3Helper();
+      if (customerData) {
+        const s3Configs = await s3Helper();
         customerData.customerDetails.pathUrl = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/`;
       }
-      
-      if(!customerData){
-        return {success:false,message:"No customer details found"}
+
+      if (!customerData) {
+        return { success: false, message: "No customer details found" };
       }
 
-      const overdueData = await this.schemeAccountRepo.overdueCalculation(customerData.customerDetails._id)
+      const overdueData = await this.schemeAccountRepo.overdueCalculation(
+        customerData.customerDetails._id,
+      );
 
       customerData.overDueData = {
-        overdueSchemes:overdueData?.totalOverdueSchemes,
-        overdueCount:overdueData?.totalOverdueAccounts,
-        overdueAmount:overdueData?.totalFlexFixedOverdue
-      }
+        overdueSchemes: overdueData?.totalOverdueSchemes,
+        overdueCount: overdueData?.totalOverdueAccounts,
+        overdueAmount: overdueData?.totalFlexFixedOverdue,
+      };
 
-      return { success: true, message: "Customer details fetched successfully",data:customerData};
+      return {
+        success: true,
+        message: "Customer details fetched successfully",
+        data: customerData,
+      };
     } catch (error) {
       console.error(error);
       return { success: false, message: "Error while getting referral data" };
     }
   }
 
-  async findUsersBySchema (data){
-    try{
-      const result = await this.customerRepository.findUsersBySchema(data)
-       if(!result){
-        return {success:false,message:"No customers found"}
+  async findUsersBySchema(data) {
+    try {
+      const result = await this.customerRepository.findUsersBySchema(data);
+      if (!result) {
+        return { success: false, message: "No customers found" };
       }
-      return { success: true, message: "Customers fetched successfully",data:result};
-    }catch(error){
+      return {
+        success: true,
+        message: "Customers fetched successfully",
+        data: result,
+      };
+    } catch (error) {
       console.error(error);
-      return { success: false, message: "Error while getting customers by scheme" };
+      return {
+        success: false,
+        message: "Error while getting customers by scheme",
+      };
     }
   }
 
-  async changePassword ({idCustomer,newPass,oldPass}){
-    try{
-      const existingCustomer = await this.customerRepository.getCustomerDataLess(idCustomer)
+  async changePassword({ idCustomer, newPass, oldPass }) {
+    try {
+      const existingCustomer =
+        await this.customerRepository.getCustomerDataLess(idCustomer);
 
-      if(existingCustomer.is_deleted){
-        return {success:false,message:"Deleted customer operation not allowed"}
+      if (existingCustomer.is_deleted) {
+        return {
+          success: false,
+          message: "Deleted customer operation not allowed",
+        };
       }
 
-      if(!existingCustomer.active){
-        return {success:false,message:"Customer not active opetation not allowed,Contact admin"}
+      if (!existingCustomer.active) {
+        return {
+          success: false,
+          message: "Customer not active opetation not allowed,Contact admin",
+        };
       }
 
-      const comparePass = await this.hashingService.comparePassword(oldPass,existingCustomer.password)
+      const comparePass = await this.hashingService.comparePassword(
+        oldPass,
+        existingCustomer.password,
+      );
 
-      if(!comparePass){
-        return {success:false,message:"Current password is wrong"}
+      if (!comparePass) {
+        return { success: false, message: "Current password is wrong" };
       }
 
-      const newPassCompare = await this.hashingService.comparePassword(newPass,existingCustomer.password)
+      const newPassCompare = await this.hashingService.comparePassword(
+        newPass,
+        existingCustomer.password,
+      );
 
-      if(newPassCompare){
-        return {success:false,message:"New password cannot be same as your old password"}
+      if (newPassCompare) {
+        return {
+          success: false,
+          message: "New password cannot be same as your old password",
+        };
       }
 
-      const updatedPassword = await this.customerRepository.updatePassword(existingCustomer._id,newPass)
+      const updatedPassword = await this.customerRepository.updatePassword(
+        existingCustomer._id,
+        newPass,
+      );
 
-      if(updatedPassword){
-        return {success:true,message:"Password successfully updated"}
+      if (updatedPassword) {
+        return { success: true, message: "Password successfully updated" };
       }
 
-      return {scuccess:false,message:"Failed to update password,try again"}
-    }catch(error){
+      return {
+        scuccess: false,
+        message: "Failed to update password,try again",
+      };
+    } catch (error) {
       console.error(error);
       return { success: false, message: "Error while changing password" };
     }
   }
 
-  async verfiyPassword ({password,idCustomer}){
-    try{
-      const existingCustomer = await this.customerRepository.getCustomerDataLess(idCustomer)
+  async verfiyPassword({ password, idCustomer }) {
+    try {
+      const existingCustomer =
+        await this.customerRepository.getCustomerDataLess(idCustomer);
 
-      if(existingCustomer.is_deleted){
-        return {success:false,message:"Deleted customer,operation not allowed"}
+      if (existingCustomer.is_deleted) {
+        return {
+          success: false,
+          message: "Deleted customer,operation not allowed",
+        };
       }
 
-      if(!existingCustomer.active){
-        return {success:false,message:"Customer not active opetation not allowed,Contact admin"}
+      if (!existingCustomer.active) {
+        return {
+          success: false,
+          message: "Customer not active opetation not allowed,Contact admin",
+        };
       }
 
-      const comparePass = await this.hashingService.comparePassword(password,existingCustomer.password)
+      const comparePass = await this.hashingService.comparePassword(
+        password,
+        existingCustomer.password,
+      );
 
-      if(!comparePass){
-        return {success:false,message:"Wrong password"}
+      if (!comparePass) {
+        return { success: false, message: "Wrong password" };
       }
 
-      return {success:true,message:"Password verified successfully"}
-    }catch(error){
+      return { success: true, message: "Password verified successfully" };
+    } catch (error) {
       console.error(error);
       return { success: false, message: "Error while changing password" };
     }
@@ -1146,29 +1223,40 @@ class CustomerUseCase {
   async exportCustomers(startDate, endDate, search) {
     try {
       const exportDir = path.join(process.cwd(), "public", "exports");
-      if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+      if (!fs.existsSync(exportDir))
+        fs.mkdirSync(exportDir, { recursive: true });
 
       const files = fs.readdirSync(exportDir);
-    for (const file of files) {
-      if (file.endsWith(".xlsx")) {
-        fs.unlinkSync(path.join(exportDir, file));
+      for (const file of files) {
+        if (file.endsWith(".xlsx")) {
+          fs.unlinkSync(path.join(exportDir, file));
+        }
       }
-    }
-  
+
       const filename = `customers_${Date.now()}.xlsx`;
       const filePath = path.join(exportDir, filename);
-  
-      const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ filename: filePath });
+
+      const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
+        filename: filePath,
+      });
       const sheet = workbook.addWorksheet("Customers");
-  
-      sheet.addRow(["Firstname", "LastName", "Mobile", "Joined Date", "Scheme Accounts"]).commit();
-  
+
+      sheet
+        .addRow([
+          "Firstname",
+          "LastName",
+          "Mobile",
+          "Joined Date",
+          "Scheme Accounts",
+        ])
+        .commit();
+
       let skip = 0;
       const limit = 10000;
       let hasMore = true;
-  
+
       const filterQuery = {};
-      
+
       if (startDate || endDate) {
         filterQuery.createdAt = {};
         if (startDate) {
@@ -1180,60 +1268,66 @@ class CustomerUseCase {
           filterQuery.createdAt.$lte = endDateObj;
         }
       }
-  
-      if (search && search.trim() !== '') {
+
+      if (search && search.trim() !== "") {
         filterQuery.$or = [
-          { firstname: { $regex: search, $options: 'i' } },
-          { lastname: { $regex: search, $options: 'i' } },
+          { firstname: { $regex: search, $options: "i" } },
+          { lastname: { $regex: search, $options: "i" } },
         ];
 
         if (!isNaN(search)) {
           filterQuery.$or.push({ mobile: Number(search) });
         }
       }
-  
+
       let totalExported = 0;
-  
+
       while (hasMore) {
-        const customers = await this.customerRepository.getCustomersBatch(skip, limit, filterQuery);
+        const customers = await this.customerRepository.getCustomersBatch(
+          skip,
+          limit,
+          filterQuery,
+        );
         if (!customers.length) break;
-  
+
         for (const c of customers) {
           const schemeAccounts = await this.schemeAccountRepo.countDocuments({
             id_customer: c._id,
             active: true,
-            status: 0
+            status: 0,
           });
-  
+
           const formattedDate = c.createdAt
-            ? new Date(c.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
+            ? new Date(c.createdAt)
+                .toLocaleDateString("en-GB")
+                .replace(/\//g, "-")
             : "";
-  
-          sheet.addRow([
-            c.firstname,
-            c.lastname,
-            c.mobile,
-            formattedDate,
-            schemeAccounts || 0
-          ]).commit();
+
+          sheet
+            .addRow([
+              c.firstname,
+              c.lastname,
+              c.mobile,
+              formattedDate,
+              schemeAccounts || 0,
+            ])
+            .commit();
         }
-  
+
         totalExported += customers.length;
         skip += limit;
         hasMore = customers.length === limit;
       }
-  
+
       await workbook.commit();
-  
-      console.log(`Exported ${totalExported} customers with filters:`, { startDate, endDate, search });
-  
+
       return {
         success: true,
         message: "Customers exported successfully",
         data: {
           filename,
           fileUrl: `/exports/${filename}`,
-          count: totalExported
+          count: totalExported,
         },
       };
     } catch (err) {

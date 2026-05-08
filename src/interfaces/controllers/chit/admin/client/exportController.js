@@ -1,5 +1,5 @@
 import express from "express";
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { parse } from "csv-parse/sync";
 import multer from "multer";
 import processUploadedData from "../../../../../services/importLogics.js";
@@ -18,47 +18,38 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage: multer.memoryStorage(), fileFilter });
 
-// Helper function to create error Excel file
-const createErrorExcelFile = (skippedRecords, originalHeaders = []) => {
+const createErrorExcelFile = async (skippedRecords, originalHeaders = []) => {
   try {
-    // Create workbook
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Error Records');
     
-    // Prepare error data
-    const errorData = skippedRecords.map(record => {
-      const errorRow = {
-        'Line Number': record.line,
-        'Original Data': JSON.stringify(record.originalData),
-        'Error Field': record.errors[0]?.field || 'Unknown',
-        'Error Value': record.errors[0]?.value || 'N/A',
-        'Error Message': record.errors[0]?.message || 'Unknown error',
-        'All Errors': record.errors.map(err => 
+    const columns = [
+      { header: 'Line Number', key: 'lineNumber', width: 15 },
+      { header: 'Original Data', key: 'originalData', width: 40 },
+      { header: 'Error Field', key: 'errorField', width: 20 },
+      { header: 'Error Value', key: 'errorValue', width: 20 },
+      { header: 'Error Message', key: 'errorMessage', width: 40 },
+      { header: 'All Errors', key: 'allErrors', width: 60 }
+    ];
+
+    worksheet.columns = columns;
+
+    skippedRecords.forEach(record => {
+      worksheet.addRow({
+        lineNumber: record.line,
+        originalData: JSON.stringify(record.originalData),
+        errorField: record.errors[0]?.field || 'Unknown',
+        errorValue: record.errors[0]?.value || 'N/A',
+        errorMessage: record.errors[0]?.message || 'Unknown error',
+        allErrors: record.errors.map(err => 
           `${err.field || 'General'}: ${err.message}`
         ).join('; ')
-      };
-      
-      // Add original data fields if available
-      if (record.originalData && typeof record.originalData === 'object') {
-        Object.keys(record.originalData).forEach(key => {
-          errorRow[`Original_${key}`] = record.originalData[key];
-        });
-      }
-      
-      return errorRow;
+      });
     });
 
-    // Create worksheet
-    const worksheet = XLSX.utils.json_to_sheet(errorData);
+    worksheet.getRow(1).font = { bold: true };
     
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Error Records');
-    
-    // Generate buffer
-    const excelBuffer = XLSX.write(workbook, { 
-      type: 'buffer', 
-      bookType: 'xlsx' 
-    });
-    
+    const excelBuffer = await workbook.xlsx.writeBuffer();
     return excelBuffer;
   } catch (error) {
     console.error('Error creating Excel file:', error);
@@ -66,7 +57,6 @@ const createErrorExcelFile = (skippedRecords, originalHeaders = []) => {
   }
 };
 
-// Helper function to get original headers from data
 const getHeadersFromData = (data) => {
   if (data.length === 0) return [];
   return Object.keys(data[0]);
@@ -98,28 +88,36 @@ router.post("/", upload.single("file"), async (req, res) => {
           trim: true,
         });
       } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-        const workbook = XLSX.read(fileBuffer, { type: "buffer" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-
-        const rawData = XLSX.utils.sheet_to_json(sheet, { raw: true });
-        data = rawData.map((row) => {
-          const newRow = { ...row };
-
-          for (const key in newRow) {
-            const value = newRow[key];
-
-            if (typeof value === "number" && value > 10000 && value < 60000) {
-              const parsedDate = XLSX.SSF.parse_date_code(value);
-              if (parsedDate) {
-                const jsDate = new Date(Date.UTC(parsedDate.y, parsedDate.m - 1, parsedDate.d));
-                newRow[key] = jsDate.toISOString().split("T")[0];
-              }
-            }
-          }
-
-          return newRow;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(fileBuffer);
+        const worksheet = workbook.getWorksheet(1);
+        const rows = [];
+        
+        const headers = [];
+        worksheet.getRow(1).eachCell((cell) => {
+          headers.push(cell.value);
         });
+
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const rowData = {};
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const header = headers[colNumber - 1];
+            let value = cell.value;
+            
+            if (value && typeof value === 'object' && value.result !== undefined) {
+              value = value.result;
+            }
+            
+            if (value instanceof Date) {
+              rowData[header] = value.toISOString().split("T")[0];
+            } else {
+              rowData[header] = value;
+            }
+          });
+          rows.push(rowData);
+        });
+        data = rows;
       } else {
         return res.status(400).json({ success: false, message: "Unsupported file format." });
       }
@@ -132,7 +130,6 @@ router.post("/", upload.single("file"), async (req, res) => {
       });
     }
 
-    // Store original data and headers for error reporting
     originalData = data;
     originalHeaders = getHeadersFromData(data);
 
@@ -153,10 +150,8 @@ router.post("/", upload.single("file"), async (req, res) => {
       if (result.skippedRecords && result.skippedRecords.length > 0) {
         response.skippedRecords = result.skippedRecords;
         
-        // Generate and send error Excel file if there are skipped records
-        const errorExcelBuffer = createErrorExcelFile(result.skippedRecords, originalHeaders);
+        const errorExcelBuffer = await createErrorExcelFile(result.skippedRecords, originalHeaders);
         
-        // Set headers for file download
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="import_errors_${Date.now()}.xlsx"`);
         res.setHeader('Content-Length', errorExcelBuffer.length);
@@ -167,10 +162,8 @@ router.post("/", upload.single("file"), async (req, res) => {
       return res.status(200).json(response);
     } else {
       if (result.skippedRecords && result.skippedRecords.length > 0) {
-        // Generate and send error Excel file
-        const errorExcelBuffer = createErrorExcelFile(result.skippedRecords, originalHeaders);
+        const errorExcelBuffer = await createErrorExcelFile(result.skippedRecords, originalHeaders);
         
-        // Set headers for file download
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="import_errors_${Date.now()}.xlsx"`);
         res.setHeader('Content-Length', errorExcelBuffer.length);

@@ -97,7 +97,8 @@ const itemSchema = new mongoose.Schema(
     status:{
       type:Number,
       default:1   // 1 In 2 Out 
-    }
+    },
+    stoneDetails: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoneDetails" }]
   },
   { timestamps: true },
 );

@@ -4,7 +4,6 @@ class stonedetailsController {
   }
 
     async getById(req, res) {
-        console.log("ertyu",req.query)
     try {
         const { id }=req.params
       const data = await this.usecase.getById(id);
@@ -16,11 +15,8 @@ class stonedetailsController {
   }
 
  async getManyByIds(req, res) {
-
   try {
     const { ids,type } = req.body;
-
-    console.log("ertyu",ids,type)
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ success: false, message: "ids must be a non-empty array" });
     }

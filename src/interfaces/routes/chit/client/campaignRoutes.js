@@ -17,12 +17,64 @@ const campaignTypeUseCase= new CampaignTypeUseCase(campaignTypeRepository);
 
 const campaignTypeController= new CampaignTypeController(campaignTypeUseCase,validator);
 
+/**
+ * @swagger
+ * tags:
+ *   name: Campaign
+ *   description: Management of marketing and promotional campaigns
+ */
+
 router.use(authMiddleware.protect);
+
+/**
+ * @swagger
+ * /api/client/campaigntype:
+ *   get:
+ *     summary: Get all campaign settings
+ *     tags: [Campaign]
+ *     security:
+ *       - bearerAuth: []
+ *   post:
+ *     summary: Add a new campaign setting
+ *     tags: [Campaign]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/allcampaigntype',(req,res)=>campaignTypeController.getAllActiveCampaignTypeSettings(req,res));
+
+/**
+ * @swagger
+ * /api/client/campaigntype/{id}:
+ *   get:
+ *     summary: Get campaign by ID
+ *     tags: [Campaign]
+ *     security:
+ *       - bearerAuth: []
+ *   patch:
+ *     summary: Edit campaign setting
+ *     tags: [Campaign]
+ *     security:
+ *       - bearerAuth: []
+ *   delete:
+ *     summary: Delete campaign setting
+ *     tags: [Campaign]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/:id',(req,res)=>campaignTypeController.getCampaignTypeById(req,res));
 router.post('/',(req,res)=>campaignTypeController.addCampaignTypeSetting(req,res));
 router.patch('/:id',authMiddleware.protect,(req,res)=>campaignTypeController.editCampaignTypeSetting(req,res));
 router.delete('/:id',authMiddleware.protect,(req,res)=>campaignTypeController.deleteCampaignTypeSetting(req,res));
+
+/**
+ * @swagger
+ * /api/client/campaigntype/{id}/active:
+ *   patch:
+ *     summary: Toggle campaign active status
+ *     tags: [Campaign]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.patch('/:id/active',authMiddleware.protect,(req,res)=>campaignTypeController.changeCampaignTypeActiveStatus(req,res));
 router.get('/',(req,res)=>campaignTypeController.getAllCampaignType(req,res));
 

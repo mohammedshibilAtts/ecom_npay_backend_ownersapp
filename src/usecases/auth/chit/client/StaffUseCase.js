@@ -1,21 +1,28 @@
 import { isValidObjectId } from "mongoose";
+import HashingService from "../../../../utils/bcrypt.js";
 
 class StaffUseCase {
-  constructor(staffRepository,hashingService) {
+  constructor(staffRepository) {
     this.staffRepository = staffRepository;
-    this.hashingService= hashingService;
+    this.hashingService= new HashingService;
   }
   
   async addStaff(data) {
-      const staffData = await this.staffRepository.findOne({id_employee:data.id_employee});
+  try { 
+    const staffData = await this.staffRepository.findById(data?.id_employee);
+
 
     if (staffData) {
-      return { success: false, message: "Staff already exisits" };
+      return { success: false, message: "Staff already exists" };
     }
 
-    const hashedPassword = await this.hashingService.hashPassword(data.password, 12);
-    data.password = hashedPassword;
+    const hashedPassword = await this.hashingService.hashPassword(
+      data?.password,
+      12
+    );
 
+    data.password = hashedPassword;
+    
     const savedStaff = await this.staffRepository.addStaff(data);
 
     if (!savedStaff) {
@@ -23,7 +30,18 @@ class StaffUseCase {
     }
 
     return { success: true, message: "Staff created successfully" };
+
+  } catch (error) {
+    console.error("Error in addStaff:", error);
+
+    return {
+      success: false,
+      message: "Internal server error while creating staff",
+      error: error.message
+    };
   }
+}
+
 
   async editStaff(id, data) {
     const stafftData = await this.staffRepository.findById(id);
@@ -75,9 +93,11 @@ class StaffUseCase {
     return { success: true, message: message };
   }
 
-  async getAllStaffs(page, limit, search,active) {
+  async getAllStaffs(page, limit, search,active,user) {
     const pageNum = page ? parseInt(page) : 1;
     const pageSize = limit ? parseInt(limit) : 10;
+
+    const roleData = await this.staffRepository.findOne({_id:user.id_role})
 
     const searchTerm = search || "";
 
@@ -99,6 +119,12 @@ class StaffUseCase {
 
     const documentskip = (pageNum - 1) * pageSize;
     const documentlimit = pageSize;
+
+    if (user?.roleNumber == 2) {
+      query.username = { ...query.username, $ne: "superadmin" };
+    } else if (user?.roleNumber == 3) {
+      query.username = { ...query.username, $nin: ["superadmin", "admin"] };
+    }
 
     const sataffData = await this.staffRepository.getAllStaffs({
       query,

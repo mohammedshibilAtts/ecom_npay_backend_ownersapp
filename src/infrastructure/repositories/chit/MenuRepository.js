@@ -66,11 +66,7 @@ class MenuRepository{
                 .skip(documentskip)
                 .limit(documentlimit)
                 .select('menu_name _id menu_icon menu_path component_name active  display_order')
-                .populate({
-                    path: 'id_project',
-                    select:('name _id')
-                });
-
+                
             if (!data || data.length === 0) return null;
 
             return { data, totalCount };

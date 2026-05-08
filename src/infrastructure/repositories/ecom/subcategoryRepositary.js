@@ -129,13 +129,12 @@ class SubCategoryRepository {
           },
             { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
           {
-            $lookup: {
-              from: "s3bucketsettings",
-              localField: "category.id_branch",
-              foreignField: "id_branch",
-              as: "s3Details",
-            },
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
           },
+        },
           { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
   
           { $sort: { _id: -1 } },

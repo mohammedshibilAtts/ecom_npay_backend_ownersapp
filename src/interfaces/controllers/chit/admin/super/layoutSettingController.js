@@ -5,7 +5,7 @@ class LayoutSettingController {
   
     async addSetting(req, res) {
       try {
-        const requiredFields = ["id_client", "id_branch", "id_project"];
+        const requiredFields = ["id_branch"];
         for (const field of requiredFields) {
           if (!req.body[field] || req.body[field] === "") {
             return res

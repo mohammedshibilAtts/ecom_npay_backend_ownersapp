@@ -1,33 +1,11 @@
 import mongoose, { isValidObjectId } from "mongoose";
-import config from "../../../../config/chit/env.js";
+import s3Helper from "../../../../utils/s3Helper.js";
 
 class OfferUseCase {
   constructor(offerRepository, s3service,s3rRepo) {
     this.offerRepository = offerRepository;
     this.s3service = s3service;
     this.s3rRepo=s3rRepo;
-  }
-
-  async s3Helper(id_branch){
-    try {
-      const s3settings = await this.s3rRepo.getSettingByBranch(id_branch);
-
-      if (!s3settings) {
-        return { success: false, message: "S3 configuration not found" };
-      }
-
-      const configuration = {
-        s3key: s3settings[0].s3key,
-        s3secret: s3settings[0].s3secret,
-        s3bucket_name: s3settings[0].s3bucket_name,
-        s3display_url: s3settings[0].s3display_url,
-        region: s3settings[0].region,
-      };
-
-      return configuration
-    } catch (error) {
-      console.error(error)
-    }
   }
 
   async addOffer(offerData, offer_images) {
@@ -51,7 +29,7 @@ class OfferUseCase {
         offerData.type == 'Banner' ||
         offerData.type == 'Popup'
       ) {
-        const s3configs= await this.s3Helper(offerData.id_branch)
+        const s3configs= await s3Helper()
 
         const uploadPromises = offer_image.map((image) =>
           this.s3service
@@ -102,7 +80,7 @@ class OfferUseCase {
           offerData.type == 'Banner' || 
           offerData.type == 'Popup'
         ) {
-          const s3configs= await this.s3Helper(offerData.id_branch)
+          const s3configs= await s3Helper()
           const uploadPromises = offer_image.map((image) =>
             this.s3service
               .uploadToS3(image, "offers",s3configs)

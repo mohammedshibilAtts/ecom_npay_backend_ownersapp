@@ -25,6 +25,25 @@ class topupController {
             return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
         }
     }
+
+    async addTopUp(req, res) {
+        try {
+            const data = req.body;
+            const token = req.user;
+
+            const result = await this.topupUsecase.addTopUp(data, token);
+
+            if (!result.success) {
+                return res.status(400).json({ success: false, message: result.message, error: result.error });
+            }
+    
+            return res.status(200).json({ success: true, message: result.message, data: result.data });
+    
+        } catch (error) {
+            console.error("Error in addTopupHistory:", error);
+            return res.status(500).json({ success: false, message: "Internal server error", error: error.message });
+        }
+    }
     
 
     async UpdateTopup(req, res) {
@@ -51,17 +70,8 @@ class topupController {
 
     async getTopupByClientId(req, res) {
         try {
-
-            const id = req.user.id_client;
-            
-      
-            if (!id) {
-                return res.status(400).json({ success: false, message: "id is required" });
-            }
-    
-            const result = await this.topupUsecase.getTopupByClientId(id);
+            const result = await this.topupUsecase.getTopupByClientId();
            
-        
             if (!result.success) {
                 return res.status(404).json({ success: false, message: result.message, data: null });
             }

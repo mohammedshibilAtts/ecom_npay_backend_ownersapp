@@ -23,14 +23,99 @@ const authMiddleware = new AuthMiddleware(tokenService);
 
 const notifyController = new NotifyController(pushnotificaitonUsecase)
 
+/**
+ * @swagger
+ * tags:
+ *   name: Notify
+ *   description: Special notifications, promotions, and customer alerts
+ */
+
 router.use(authMiddleware.protect)
 
+/**
+ * @swagger
+ * /api/client/notify:
+ *   post:
+ *     summary: Add a general notification
+ *     tags: [Notify]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ */
 router.post('/',upload.handleUpload([{ name: "image", maxCount: 1 }]),(req,res)=>notifyController.addNotification(req,res))
+
+/**
+ * @swagger
+ * /api/client/notify/promotion:
+ *   post:
+ *     summary: Add a promotional notification
+ *     tags: [Notify]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ */
 router.post('/promotion',upload.handleUpload([{ name: "image", maxCount: 1 }]),(req,res)=>notifyController.addPromotion(req,res))
+
+/**
+ * @swagger
+ * /api/client/notify/push-notify-table:
+ *   post:
+ *     summary: Get push notifications list table
+ *     tags: [Notify]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/push-notify-table',(req,res)=>notifyController.pushnotificationTable(req,res));
-router.post('/pormotion-table',(req,res)=>notifyController.promotionTable(req,res)); // spelling mistake
+
+/**
+ * @swagger
+ * /api/client/notify/pormotion-table:
+ *   post:
+ *     summary: Get promotion notifications list table
+ *     tags: [Notify]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/pormotion-table',(req,res)=>notifyController.promotionTable(req,res)); // spelling mistake in code: pormotion
+
+/**
+ * @swagger
+ * /api/client/notify/{id}:
+ *   get:
+ *     summary: Get notification details by ID
+ *     tags: [Notify]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/:id',(req,res)=>notifyController.getNotificationById(req,res));
+
+/**
+ * @swagger
+ * /api/client/notify/schemecustomers:
+ *   post:
+ *     summary: Get customers associated with a scheme for notification
+ *     tags: [Notify]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post("/schemecustomers",(req,res)=>notifyController.getSchemeCustomers(req,res))
+router.post("/customers",(req,res)=>notifyController.getCustomers(req,res))
 // router.post('/table',(req,res)=>notifyController.getNotificationList(req,res));
 
 // router.get('/type',(req,res)=>notifyController.getWeddingBirthday(re,res));

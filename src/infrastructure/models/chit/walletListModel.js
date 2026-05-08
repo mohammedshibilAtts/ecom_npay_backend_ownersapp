@@ -2,28 +2,10 @@ import mongoose from "mongoose";
 
 const walletListSchema = new mongoose.Schema(
   {
-    // id_customer: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "Customer",
-    // },
-    // id_scheme_account: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "SchemeAccount",
-    // },
-    // wallet_id: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   default: null,
-    // },
     wallet_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref:"Wallet"
     },
-    // wallet_type: {
-    //   type: String,
-    //   enum: ["Employee", "Customer"],
-    //   default: "",
-    // },
-
     credited_point: {
       type: Number,
     },

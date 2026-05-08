@@ -1,9 +1,9 @@
 import generalSettingModel from "../../../models/chit/generalSettingModel.js";
 
 class GeneralSettingRepository {
-  async exists(id_branch, id_project, id_client) {
+  async exists(id_branch) {
     try {
-      return !!(await generalSettingModel.findOne({ id_branch, id_project, id_client }));
+      return !!(await generalSettingModel.findOne({ id_branch }));
     } catch (error) {
       console.error("Error checking existence:", error);
       return false;
@@ -20,15 +20,15 @@ class GeneralSettingRepository {
     }
   }
 
-  async updateOne(id,data) {
+  async updateOne(id, data) {
     try {
       const newSetting = await generalSettingModel.updateOne(
-        {_id:id},
-        {$set:data}
-      )
+        { _id: id },
+        { $set: data },
+      );
 
-      if(!newSetting){
-        return null
+      if (!newSetting) {
+        return null;
       }
 
       return newSetting;
@@ -40,9 +40,11 @@ class GeneralSettingRepository {
 
   async getSettingByBranch(branchId) {
     try {
-      const generaltData = await generalSettingModel.findOne({ id_branch: branchId });
+      const generaltData = await generalSettingModel.findOne({
+        id_branch: branchId,
+      });
 
-      if(!generaltData){
+      if (!generaltData) {
         return null;
       }
 
@@ -55,34 +57,27 @@ class GeneralSettingRepository {
 
   async getByProjectAndBranch(projectId, branchId) {
     try {
-      return await generalSettingModel.findOne({ id_project: projectId, id_branch: branchId });
+      return await generalSettingModel.findOne({ id_branch: branchId });
     } catch (error) {
-      console.error("Error fetching settings by project and branch:", error);
+      console.error("Error fetching settings by branch:", error);
       return null;
     }
   }
 
   async findOne(branchId) {
     try {
-      const generalData = await generalSettingModel.findOne({
-        id_branch: branchId,
-      })
+      const generalData = await generalSettingModel
+        .findOne({
+          id_branch: branchId,
+        })
         .populate([
           {
-            path: 'id_branch',
-            select: '_id branch_name',
-          },
-          {
-            path: 'id_project',
-            select: '_id name', 
-          },
-          {
-            path: 'id_client',
-            select: '_id company_name', 
+            path: "id_branch",
+            select: "_id branch_name",
           },
         ])
         .select(
-          'referral_calc print_type account_number close_print purity display_agent display_receiptno digi_gold scheme_amount'
+          "referral_calc print_type account_number close_print purity display_agent display_receiptno digi_gold scheme_amount",
         )
         .lean()
         .exec();

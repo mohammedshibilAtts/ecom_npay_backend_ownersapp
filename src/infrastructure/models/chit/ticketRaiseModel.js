@@ -14,7 +14,6 @@ const TiceketRaiseSchema = new mongoose.Schema(
     },
     id_employee: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: "Employee",
     },
     option: {

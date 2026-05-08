@@ -1,4 +1,5 @@
 import config from "../../../../config/chit/env.js";
+import s3Helper from "../../../../utils/s3Helper.js";
 
 class OrganisationUsecase {
     constructor(organisationRepo,s3Service,s3Repo){
@@ -7,35 +8,12 @@ class OrganisationUsecase {
         this.s3Repo = s3Repo;
     }
 
-    async s3Helper(clientId){
-        try {
-          const s3settings = await this.s3Repo.getSetting();
-    
-          if (!s3settings) {
-            return { success: false, message: "S3 configuration not found" };
-          }
-
-          const configuration = {
-            s3key: s3settings.s3key,
-            s3secret: s3settings.s3secret,
-            s3bucket_name: s3settings.s3bucket_name,
-            s3display_url: s3settings.s3display_url,
-            region: s3settings.region,
-          };
-    
-          return configuration
-        } catch (error) {
-          console.error(error)
-        }
-      }
-
       async addOrgDetails(data, token, files) {
         try {
             const existing = await this.organisationRepo.findOne();
     
             if (files) {
-                const clientId = token.id_client;
-                const s3Configs = await this.s3Helper(clientId);
+                const s3Configs = await s3Helper()
                 const imageKeys = ["logo", "small_logo", "favicon", "login", "background", "bottom_logo"];
     
                 for (const key of imageKeys) {
@@ -86,7 +64,7 @@ class OrganisationUsecase {
 
             if(existsing){
                existsing.whatsapp_no = `+91${existsing?.whatsapp_no}` || ""
-               existsing.pathurl =  `https://aupay-img.s3.eu-north-1.amazonaws.com/${config.AWS_LOCAL_PATH}organisation/`
+               existsing.pathurl =  `${config.DISPLAY_IMG_URL}${config.AWS_LOCAL_PATH}organisation/`
                return {success:true,message:"Organisation detials fetched successfully",data:existsing}
             }
 

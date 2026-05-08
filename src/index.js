@@ -2,11 +2,11 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import config from './config/chit/env.js';
+import logger from './utils/logger.js';
 import connectDB from './config/chit/database.js';
 import authRoutes from './interfaces/routes/chit/admin/authRoutes.js';
 import adminRoutes from './interfaces/routes/chit/admin/adminRoutes.js';
 import clientRoutes from './interfaces/routes/chit/client/indexRoute.js';
-import paymentHook from './config/chit/paymentService.js'
 import otpRoutes from './interfaces/routes/chit/client/otpRoutes.js'
 // import ausaleRoutes from './interfaces/routes/chit/admin/ausleRoutes.js'
 import AppError from './utils/errors/AppError.js';
@@ -14,27 +14,24 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
-import notificationRoutes from './notification-routes.js'
 import './config/chit/cronSetup.js'
 import './cron/digigoldAutoCron.js'
 import './cron/overdueAutoCron.js'
 import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
 import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
+import './cron/promotionCronSetup.js'
+import { setupSwagger } from './config/swaggerConfig.js';
+import "./config/chit/cronSetup.js"
+import rateLimit from "express-rate-limit";
 
 (function setupGlobalErrorLogger() {
   if (typeof process !== 'undefined' && process.on) {
     process.on('uncaughtException', function (err) {
-      console.error('[Uncaught Exception]');
-      console.error('Message:', err.message);
-      console.error('Stack Trace:', err.stack);
+      logger.error('[Uncaught Exception]', { message: err.message, stack: err.stack });
     });
 
     process.on('unhandledRejection', function (reason, promise) {
-      console.error('[Unhandled Promise Rejection]');
-      console.error('Reason:', reason);
-      if (reason && reason.stack) {
-        console.error('Stack Trace:', reason.stack);
-      }
+      logger.error('[Unhandled Promise Rejection]', { reason, stack: reason && reason.stack });
     });
   }
 })();
@@ -42,6 +39,7 @@ import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
 
 const app = express();
 
+app.set("trust proxy", 1);
 
 (async () => {
   await connectDB();
@@ -56,27 +54,56 @@ app.use(
     },
   })
 );
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
 app.use(cookieParser());
-app.use(morgan('dev'));
-// app.use(
-//   cors({
-//     origin: [config.FRONT_URL],
-//     credentials: true,
-//   })
-// );
+const morganFormat = config.NODE_ENV === "production" ? "combined" : "dev";
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      callback(null, true);
-    },
-    credentials: true,
+  morgan(morganFormat, {
+    stream: { write: (message) => logger.info(message.trim()) },
   })
 );
+if (config.NODE_ENV === "production") {
+  app.use(
+    cors({
+      origin: [config.FRONT_URL],
+      credentials: true,
+    })
+  );
+  console.log("CORS enabled (production mode)");
+} else {
+  app.use(
+    cors({
+      origin: true,
+      credentials: true,
+    })
+  );
+  console.log("CORS disabled (development mode)");
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const globalRateLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 800,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: "error",
+    message: "Too many requests. Please try again later.",
+  },
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  message: {
+    status: "error",
+    message: "Too many OTP requests. Try again later.",
+  },
+});
+
+app.use(globalRateLimiter);
 
 // Routes
 app.get('/e-product/:id', (req, res) => {
@@ -86,18 +113,21 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
 app.use('/api/otp',otpRoutes)
-app.use('/api/webhook',paymentHook);
-app.use('/api/push', notificationRoutes);
-//api to import excel data
-app.use('/api/import',exportRoutes)
+
+// Setup Swagger Documentation at /api-docs
+setupSwagger(app);
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    env: config.NODE_ENV,
+  });
+});
 
 //aupay ecom routes
 app.use('/api/shop',shopRoutes)
-
-//aupay-ausale support api
-// app.use('/api/sales',ausaleRoutes)
-
-// Serve static files
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")));
@@ -112,6 +142,14 @@ app.use((err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
+  logger.error(`[Error Handler] ${err.message}`, {
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+    body: req.body,
+    ip: req.ip
+  });
+
   res.status(err.statusCode).json({
     status: err.status,
     message: err.message,
@@ -121,7 +159,7 @@ app.use((err, req, res, next) => {
 // Start the server
 const PORT = config.PORT;
 app.listen(PORT, () => {
-  console.info(`Server running in ${config.NODE_ENV} mode on port ${PORT}`);
+  logger.info(`Server running in ${config.NODE_ENV} mode on port ${PORT}`);
 });
 
 export default app;

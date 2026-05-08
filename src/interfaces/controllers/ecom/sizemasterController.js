@@ -47,7 +47,6 @@ class SizemasterController {
   }
 
   async delete(req, res) {
-    console.log("retyui",req.body)
     try {
       const data = await this.usecase.delete(req.params.id);
       if (!data) return res.status(404).json({ success: false, message: "Not found" });

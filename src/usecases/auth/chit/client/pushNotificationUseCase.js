@@ -55,7 +55,7 @@ class PushNotificationUseCase {
         return { success: false, message: "No active customers found" };
       }
 
-      const s3settings = await this.s3Respo.getSettingByBranch(id_branch);
+      const s3settings = await this.s3Respo.getsetting();
 
       if (!s3settings) {
         return { success: false, message: "S3 configuration not found" };
@@ -87,6 +87,8 @@ class PushNotificationUseCase {
 
       const result = await this.pushNotificationRepo.addPushNotification(data);
 
+      /*
+      // ---------------- OLD SEQUENTIAL LOOP LOGIC ----------------
       for (let val of customers) {
           const notifyContent = {
             en: noti_desc,
@@ -122,6 +124,48 @@ class PushNotificationUseCase {
 
             total_sent = total_sent + 1;
           }
+      }
+      */
+
+      // ---------------- NEW OPTIMIZED CONCURRENT BATCH LOGIC ----------------
+      const validSubscriptionIds = customers
+        .map(c => c.subscription_id)
+        .filter(id => id && id.trim() !== "");
+
+      if (validSubscriptionIds.length > 0) {
+        const notifyContent = { en: noti_desc };
+        const headings = { en: noti_name };
+        const notifyImage = `${configuration.s3display_url}webadmin/assets/pushnotificaiton/${result.noti_image}`;
+        const iosImage = { id1: notifyImage };
+
+        // OneSignal limits batch size to 2000 per request, chunking into 1000s
+        const chunkSize = 1000;
+        const chunks = [];
+        for (let i = 0; i < validSubscriptionIds.length; i += chunkSize) {
+          chunks.push(validSubscriptionIds.slice(i, i + chunkSize));
+        }
+
+        await Promise.all(
+          chunks.map(chunkIds => {
+            const fields = {
+              app_id: notifysetting.notifyappid,
+              include_player_ids: chunkIds,
+              data: { foo: "bar" },
+              contents: notifyContent,
+              headings: headings,
+              ios_attachments: iosImage,
+              small_icon: notifyImage,
+              large_icon: notifyImage,
+              big_picture: notifyImage,
+            };
+
+            return this.sendToOneSignal(fields, notifysetting.notifyauthirization)
+              // Log error but do not fail the entire batch
+              .catch(err => console.error("Batch sendToOneSignal failed:", err));
+          })
+        );
+
+        total_sent = validSubscriptionIds.length;
       }
       const updateTotalSent  = await this.pushNotificationRepo.updateTotalSent(result._id,total_sent)
 

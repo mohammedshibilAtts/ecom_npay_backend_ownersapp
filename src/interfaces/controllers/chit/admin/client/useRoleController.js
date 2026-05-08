@@ -164,7 +164,7 @@ class UserRoleController{
 
       async getAllUserRoles(req,res){
         try {
-            const result = await  this.userRoleUseCase.getAllUserRoles();
+            const result = await  this.userRoleUseCase.getAllUserRoles(req.user);
 
             if(!result.success){
                 return res.status(200).json({message:result.message,data:[]})

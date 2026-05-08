@@ -1,11 +1,6 @@
 import mongoose from 'mongoose';
 
 const menuSchema = new mongoose.Schema({
-    id_project: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: [true, 'Project access is required'],
-        ref: "Project"
-    },
     menu_name: {
         type: String,
         required: true

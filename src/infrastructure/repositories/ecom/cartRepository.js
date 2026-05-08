@@ -964,7 +964,6 @@ class CartRepository {
         },
       ]);
 
-      console.log(findProduct);
       return findProduct;
     } catch (error) {
       console.error("Error in findProductByBranch:", error);

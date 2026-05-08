@@ -59,38 +59,6 @@ function convertToISOString(dateStr) {
   }
 }
 
-// function parseCustomDate(dateStr) {
-//   if (!dateStr) return null;
-
-//   if (dateStr instanceof Date) return dateStr;
-//   if (typeof dateStr === "string" && !isNaN(new Date(dateStr).getTime())) {
-//     return new Date(dateStr);
-//   }
-
-//   if (!isNaN(dateStr)) {
-//     const excelDate = excelDateToJSDate(dateStr);
-//     if (excelDate && !isNaN(excelDate.getTime())) return excelDate;
-//   }
-
-//   if (typeof dateStr === "string") {
-//     const ddMmYyMatch = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{2}|\d{4})$/);
-//     if (ddMmYyMatch) {
-//       const [_, day, month, year] = ddMmYyMatch;
-//       const fullYear =
-//         year.length === 2 ? 2000 + parseInt(year, 10) : parseInt(year, 10);
-
-//       const date = new Date(
-//         fullYear,
-//         parseInt(month, 10) - 1,
-//         parseInt(day, 10)
-//       );
-
-//       if (!isNaN(date.getTime())) return date;
-//     }
-//   }
-
-//   return null;
-// }
 function parseCustomDate(dateStr) {
   if (!dateStr) return null;
 
@@ -137,7 +105,6 @@ const excelDateToJSDate = (excelDate) => {
 
 const handleCustomerUpload = async (data) => {
   try {
-    console.log(data, "data");
     const normalizeString = (str) =>
       str?.toString().toLowerCase().replace(/\s+/g, "").trim() || "";
     const normalizeMobile = (mobile) =>
@@ -330,15 +297,7 @@ const handleCustomerUpload = async (data) => {
   }
 };
 
-// function formatDate(dateStr) {
-//   const regex = /^(\d{2})\.(\d{2})\.(\d{2})$/;
-//   if (!regex.test(dateStr)) {
-//     throw new Error("Invalid date format, expected dd.mm.yy");
-//   }
-//   return dateStr.replace(/\./g, "-");
-// }
 function formatDate(dateStr) {
-  console.log(dateStr)
   const regex = /^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{2,4})$/;
   if (!regex.test(dateStr)) {
     throw new Error("Invalid date format, expected dd.mm.yy, dd/mm/yy, d.m.yy, or d/m/yyyy");
@@ -349,7 +308,6 @@ function formatDate(dateStr) {
 
 const handleSchemeAccountUpload = async (data) => {
   try {
-    console.log(data,"kdata")
     const normalizeString = (str) => str?.toString().toLowerCase().trim() || "";
     const normalizeScheme = normalizeString;
     const normalizeCustomer = (str) =>
@@ -510,6 +468,8 @@ const handleSchemeAccountUpload = async (data) => {
         batchCounts.set(customerSchemeKey, currentBatchCount + 1);
 
         const schemeCode = references.scheme.code;
+        /* 
+        // ---------------- OLD SEQUENTIAL LOOP LOGIC ----------------
         let schemeAccNumber;
         let attempts = 0;
         const MAX_ATTEMPTS = 10;
@@ -538,16 +498,11 @@ const handleSchemeAccountUpload = async (data) => {
             throw new Error("Account number generation failed");
           }
         }
+        */
 
-        // const startDate = excelDateToJSDate(account.start_date) || new Date();
-        // if (!startDate || isNaN(startDate.getTime())) {
-        //   validationErrors.push({
-        //     field: 'start_date',
-        //     value: account.start_date,
-        //     message: 'Invalid date format'
-        //   });
-        //   throw new Error('Invalid date');
-        // }
+        const schemeAccNumber = `${schemeCode}${Date.now().toString().slice(-4)}${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+        generatedAccountNumbers.add(schemeAccNumber);
+
         const startDate = parseCustomDate(account.start_date);
         const maturityDate = parseCustomDate(account.maturity_date);
         const lastPaidDate = parseCustomDate(account.last_paid_date);
@@ -570,11 +525,8 @@ const handleSchemeAccountUpload = async (data) => {
           id_classification: references.classification.id,
           scheme_acc_number: schemeAccNumber,
           scheme_count_number: nextSchemeCount,
-          // start_date: convertToISOString(account.start_date),
           maturity_date: account?.maturity_date !== "-" ? formatDate(account.maturity_date) :  null,
-          // last_paid_date: excelDateToJSDate(account.last_paid_date),
           start_date: startDate.toISOString(),
-          // maturity_date: maturityDate ? maturityDate.toISOString() : null,
           last_paid_date: lastPaidDate ? lastPaidDate.toISOString() : null,
           active: String(account.active ?? true),
           is_deleted: String(account.is_deleted ?? false),
@@ -622,7 +574,7 @@ const handleSchemeAccountUpload = async (data) => {
       batchesProcessed: 0,
       errors: [],
     };
-return console.log(validationResults)
+
     for (
       let i = 0;
       i < validationResults.validDocuments.length;

@@ -1,6 +1,5 @@
-import { DataRedundancy } from "@aws-sdk/client-s3";
 import mongoose, { isValidObjectId } from "mongoose";
-import config from "../../../../config/chit/env.js";
+import s3Helper from "../../../../utils/s3Helper.js";
 
 class NewArrivalUseCase {
   constructor(newArrivalRepository,branchRepository, s3service,s3rRepo) {
@@ -8,28 +7,6 @@ class NewArrivalUseCase {
     this.branchRepository=branchRepository
     this.s3service = s3service;
     this.s3rRepo=s3rRepo
-  }
-
-  async s3Helper(id_branch){
-    try {
-      const s3settings = await this.s3rRepo.getSettingByBranch(id_branch);
-
-      if (!s3settings) {
-        return { success: false, message: "S3 configuration not found" };
-      }
-
-      const configuration = {
-        s3key: s3settings[0].s3key,
-        s3secret: s3settings[0].s3secret,
-        s3bucket_name: s3settings[0].s3bucket_name,
-        s3display_url: s3settings[0].s3display_url,
-        region: s3settings[0].region,
-      };
-
-      return configuration
-    } catch (error) {
-      console.error(error)
-    }
   }
 
   async addNewArrivals(newArrivalData, image_files = false) {
@@ -46,16 +23,6 @@ class NewArrivalUseCase {
       if (!exisitingBranch) {
         return { success: false, message: "Branch not found" };
       }
-  
-      // const s3configs = await this.s3Helper(newArrivalData.id_branch);
-  
-      // const uploadPromises = image_files.map((image) =>
-      //   this.s3service
-      //     .uploadToS3(image, "newarrivals", s3configs)
-      //     .then((uploadedUrl) => uploadedUrl)
-      // );
-      // const uploadedImages = await Promise.all(uploadPromises);
-      // newArrivalData.images_Url = uploadedImages;
   
       const saveNewArrivals = await this.newArrivalRepository.addNewArrivals(newArrivalData);
       if (saveNewArrivals) {
@@ -119,36 +86,7 @@ class NewArrivalUseCase {
           return { success: false, message: "Branch not found" };
         }
       }
-  
-      // if (Array.isArray(image_files)) {
-      //   const s3configs = await this.s3Helper(newArrivalData.id_branch || existingNewArrival.id_branch);
-      //   const existingImages = existingNewArrival.images_Url || [];
-  
-      //   const imagesToRemove = existingImages.filter(
-      //     (img) => !image_files.includes(img)
-      //   );
-  
-      //   const removePromises = imagesToRemove.map((img) =>
-      //     this.s3service.deleteFromS3(
-      //       `${s3configs.s3display_url}${config.AWS_LOCAL_PATH}newArrivals/${img}`,
-      //       s3configs
-      //     )
-      //   );
-      //   await Promise.all(removePromises);
-  
-      //   const newImagesToUpload = image_files.filter(
-      //     (img) => !existingImages.includes(img)
-      //   );
-      //   const uploadPromises = newImagesToUpload.map((image) =>
-      //     this.s3service.uploadToS3(image, "newarrivals", s3configs)
-      //   );
-      //   const uploadedImages = await Promise.all(uploadPromises);
-  
-      //   updateFields.images_Url = [
-      //     ...image_files.filter((img) => existingImages.includes(img)),
-      //     ...uploadedImages,
-      //   ];
-      // }
+
   
       const updateNewArrivals = await this.newArrivalRepository.editNewArrivals(id, updateFields);
   

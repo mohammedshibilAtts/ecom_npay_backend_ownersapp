@@ -13,37 +13,11 @@ const walletSchema = new mongoose.Schema({
     mobile:{
         type:String
     },
-    // wallet_id: {
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     default: null,
-    //     required: true,
-    // },
-    // wallet_type: {
-    //     type: String,
-    //     enum: ["Employee", "Customer"],
-    //     default: "",
-    //     required: true,
-    // },
     bill_no: {
         type: String,
-        // required: true,
         default: 0
     },
-    // total_reward_point: {
-    //     type: Number,
-    //     // required: true,
-    //     default: 0
-    // },
-    // redeem_point: {
-    //     type: Number,
-    //     // required: true,
-    //     default: 0
-    // },
-    // balance_point: {
-    //     type: Number,
-    //     // required: true,
-    //     default: 0
-    // },
+
     total_reward_amt: {
         type: Number,
         required: true,
@@ -92,5 +66,10 @@ const walletSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+walletSchema.index(
+  { mobile: 1, is_deleted: 1 }
+);
+
 
 export default mongoose.model('Wallet', walletSchema);

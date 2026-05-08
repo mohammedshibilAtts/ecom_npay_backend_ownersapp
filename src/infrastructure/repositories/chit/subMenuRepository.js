@@ -11,7 +11,7 @@ class SubMenuRepository {
     const data = await subMenuModel
       .findOne({ _id: id, is_deleted: false })
       .select(
-        "_id id_menu pathurl is_deleted submenu_name active display_order id_project"
+        "_id id_menu pathurl is_deleted submenu_name active display_order"
       )
       .lean();
 
@@ -59,11 +59,7 @@ class SubMenuRepository {
         .find(query)
         .skip(documentskip)
         .limit(documentlimit)
-        .select("submenu_name _id active id_project id_menu display_order")
-        .populate({
-          path: "id_project",
-          select: "name",
-        })
+        .select("submenu_name _id active  id_menu display_order")
         .sort({display_order:1})
 
       if (!data || data.length === 0) return null;

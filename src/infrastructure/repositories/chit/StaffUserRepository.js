@@ -11,7 +11,7 @@ class StaffRepository {
     return staffData;
   }
 
-  async findOne(query) {
+  async findOne(query) { 
     const staffData = await StaffUserModel.findOne(query);
 
     if (!staffData) return null;
@@ -50,33 +50,10 @@ class StaffRepository {
     return updatedData;
   }
 
-//   async getAllStaffs({ query, documentskip, documentlimit }) {
-//     try {
-//       const totalCount = await StaffUserModel.countDocuments(query);
-//       const staffData = await StaffUserModel.find(query)
-//         .populate("id_branch")
-//         .populate({
-//           path: "id_employee",
-//           select: "name referral_code",
-//         })
-//         .populate('id_role')
-//         .skip(documentskip)
-//         .limit(documentlimit)
-//         .sort({_id:-1})
-  
-//       if (!staffData) return null;
-  
-//       return { data: staffData, totalCount };
-//     } catch (error) {
-//       console.error(error);
-//     }
-//   }
-
 async getAllStaffs({ query, documentskip, documentlimit }) {
     try {
       const pipeline = [];
   
-      // Optional match stage if there's a filter
       if (query && Object.keys(query).length > 0) {
         pipeline.push({ $match: query });
       }
@@ -121,17 +98,6 @@ async getAllStaffs({ query, documentskip, documentlimit }) {
         }
       });
       
-
-      pipeline.push({
-        $addFields: {
-          id_employee: {
-            _id: "$id_employee._id",
-            employeeId: "$id_employee.employeeId"
-          }
-        }
-      });
-      
-
   
       pipeline.push({
         $lookup: {
@@ -156,8 +122,27 @@ async getAllStaffs({ query, documentskip, documentlimit }) {
         }
       });
 
+
       pipeline.push({
-        $addFields: {
+        $project: {
+          username: 1,
+          active: 1,
+          roleNumber: 1,
+          id_project: 1,
+          id_client: 1,
+          id_employee: {
+            _id: "$id_employee._id",
+            employeeId: "$id_employee.employeeId",
+          },
+          id_role: {
+            _id: "$id_role._id",
+            role_name: "$id_role.role_name",
+            roleNumber:"$id_role.id_role"
+          },
+          id_branch: {
+            _id: "$id_branch._id",
+            branch_name: "$id_branch.branch_name"
+          },
           access_branch: {
             $map: {
               input: "$access_branch",
@@ -188,7 +173,7 @@ async getAllStaffs({ query, documentskip, documentlimit }) {
   
       const staffData = result[0]?.data || [];
       const totalCount = result[0]?.totalCount[0]?.count || 0;
-  
+
       return { data: staffData, totalCount };
   
     } catch (error) {
@@ -196,8 +181,6 @@ async getAllStaffs({ query, documentskip, documentlimit }) {
       throw error;
     }
   }
-
-  
 
   async deleteProject(id) {
     const updatedData = await StaffUserModel.findOneAndUpdate(

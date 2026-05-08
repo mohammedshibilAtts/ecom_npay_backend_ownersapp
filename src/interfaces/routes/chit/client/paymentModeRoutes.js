@@ -22,13 +22,68 @@ const paymentmodeUseCase= new PaymentModeUseCase(paymentmodeRepository);
 
 const paymentmodeController = new PaymentModeController(validator,paymentmodeUseCase,);
 
+/**
+ * @swagger
+ * tags:
+ *   name: PaymentMode
+ *   description: Management of supported payment modes (UPI, Cash, Bank, etc.)
+ */
+
+/**
+ * @swagger
+ * /api/client/paymentmode/table:
+ *   post:
+ *     summary: Get payment modes table data
+ *     tags: [PaymentMode]
+ */
 router.post('/table',(req,res)=>paymentmodeController.paymentModeTable(req,res));
+
+/**
+ * @swagger
+ * /api/client/paymentmode:
+ *   get:
+ *     summary: Get all active payment modes
+ *     tags: [PaymentMode]
+ *   post:
+ *     summary: Add a new payment mode
+ *     tags: [PaymentMode]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/',(req,res)=>paymentmodeController.getAllActivePaymentModes(req,res));
+
+/**
+ * @swagger
+ * /api/client/paymentmode/{id}:
+ *   get:
+ *     summary: Get payment mode by ID
+ *     tags: [PaymentMode]
+ *   patch:
+ *     summary: Edit payment mode details
+ *     tags: [PaymentMode]
+ *     security:
+ *       - bearerAuth: []
+ *   delete:
+ *     summary: Delete a payment mode
+ *     tags: [PaymentMode]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/:id',(req,res)=>paymentmodeController.getModeById(req,res));
 router.use(authMiddleware.protect);
 router.post('/',(req,res)=>paymentmodeController.addPaymentMode(req,res));
 router.patch('/:id',(req,res)=>paymentmodeController.editPaymentMode(req,res));
 router.delete('/:id',(req,res)=>paymentmodeController.deletePaymentMode(req,res));
+
+/**
+ * @swagger
+ * /api/client/paymentmode/{id}/active:
+ *   patch:
+ *     summary: Toggle payment mode active status
+ *     tags: [PaymentMode]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.patch('/:id/active',(req,res)=>paymentmodeController.changeModeActiveStatus(req,res));
 
 export default router;

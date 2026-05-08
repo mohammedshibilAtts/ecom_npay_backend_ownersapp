@@ -17,13 +17,13 @@ class AdminUseCase {
       return { success: false, message: 'Invalid password or email' };
     }
 
-    if (!data.active) {
+    if (!data.active && data.id_role !== 1) {
       return { success: false, message: 'Admin is deactivated' };
     }
 
     const payload = {
-      is_super: data.is_super,
-      id_admin:data._id
+      is_super: data?.is_super,
+      id_admin:data?._id
     };
     const token = this.tokenService.generateToken(payload);
 

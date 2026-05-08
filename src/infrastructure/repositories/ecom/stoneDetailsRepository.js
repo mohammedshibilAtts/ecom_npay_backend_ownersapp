@@ -81,7 +81,6 @@ async updateStoneDetails(productId, newStoneDetailsArray) {
     try {
       const stone = await stoneDetialsModel.findById(id)
       .populate('itemId')
-      console.log()
       return stone;
     } catch (error) {
       console.error("Error in StoneDetailsRepository.getById:", error);

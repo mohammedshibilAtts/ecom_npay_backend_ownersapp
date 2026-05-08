@@ -1,99 +1,100 @@
-import notificationModel from '../../../models/chit/notify/notificationSettingModel.js'; 
+import notificationModel from "../../../models/chit/notify/notificationSettingModel.js";
 
-class NotificationSettingRepository{
+class NotificationSettingRepository {
+  async exists(id_branch) {
+    try {
+      const data = await notificationModel.findOne({ id_branch });
 
-    async exists(id_branch, id_project, id_client) {
-        try {
-         const data= await notificationModel.findOne({ id_branch, id_project, id_client });
-
-          if(!data){
-            return false
-          }
-
-          return true;
-        } catch (error) {
-          console.error(error);
-        }
+      if (!data) {
+        return false;
       }
 
-      async findOne(id_branch, id_project) {
-        try {
-          const  data= await notificationModel.findOne({ id_branch, id_project});
+      return true;
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
-          if(!data){
-            return null
-          }
+  async findOne(id_branch) {
+    try {
+      const data = await notificationModel.findOne({ id_branch });
 
-          return data;
-        } catch (error) {
-          console.error(error);
-        }
+      if (!data) {
+        return null;
       }
 
-      // used by client while sending notificaiton to get notification enabled or not
-      async getNotificaitonSettings(id_branch) {
-        try {
-          const  data= await notificationModel.findOne({id_branch});
+      return data;
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
-          if(!data){
-            return null
-          }
+  async getNotificaitonSettings(id_branch) {
+    try {
+      const data = await notificationModel.findOne({ id_branch });
 
-          return data;
-        } catch (error) {
-          console.error(error);
-        }
+      if (!data) {
+        return null;
       }
 
-      async updateOne(id,data) {
-        try {
-          const notiificationData =  await notificationModel.updateOne({ _id:id},{$set:data});
+      return data;
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
-          if(!notiificationData){
-            return null
-          }
-          
-          return notiificationData
-        } catch (error) {
-          console.error(error);
-        }
+  async updateOne(id, data) {
+    try {
+      const notiificationData = await notificationModel.updateOne(
+        { _id: id },
+        { $set: data },
+      );
+
+      if (!notiificationData) {
+        return null;
       }
 
-      async create(data) {
-        try {
-          return !!(await notificationModel.create(data));
-        } catch (error) {
-          console.error(error);
-        }
+      return notiificationData;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async create(data) {
+    try {
+      return !!(await notificationModel.create(data));
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async findByBranchId(branchId) {
+    try {
+      const data = await notificationModel.findOne({ id_branch: branchId });
+
+      if (!data) {
+        return null;
       }
 
-      async findByBranchId(branchId) {
-        try {
-          const  data= await notificationModel.findOne({id_branch:branchId});
+      return data;
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
-          if(!data){
-            return null
-          }
+  async getByProjectAndBranch(projectId, branchId) {
+    try {
+      const data = await notificationModel.findOne({ id_branch: branchId });
 
-          return data;
-        } catch (error) {
-          console.error(error);
-        }
+      if (!data) {
+        return null;
       }
 
-      async getByProjectAndBranch(projectId,branchId) {
-        try {
-          const  data= await notificationModel.findOne({id_branch:branchId,id_project:projectId});
-
-          if(!data){
-            return null
-          }
-
-          return data;
-        } catch (error) {
-          console.error(error);
-        }
-      }
+      return data;
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }
 
 export default NotificationSettingRepository;

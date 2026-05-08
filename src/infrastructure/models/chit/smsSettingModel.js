@@ -6,17 +6,6 @@ const smssettingSchema = new mongoose.Schema({
     required: true,
      ref:"Branch"
   },
-  id_project: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref:"Project"
-  },
-  id_client: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref:"Client"
-  },
- 
   sms_access: { // 1- Both 2- App SMS 3- Admin SMS
     type: Number,
     required: true,

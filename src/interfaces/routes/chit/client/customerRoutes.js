@@ -33,19 +33,87 @@ const customerUseCase = new CustomerUseCase(customerRepository,s3service,s3Repo,
 const customerController= new CustomerController(customerUseCase,validator)
 
 
+/**
+ * @swagger
+ * tags:
+ *   name: Customer
+ *   description: Customer account management and authentication
+ */
+
+/**
+ * @swagger
+ * /api/client/customer/signup:
+ *   post:
+ *     summary: Register a new customer
+ *     tags: [Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mobile:
+ *                 type: string
+ *               firstname:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Customer registered successfully
+ */
 router.post('/signup', (req, res) => customerController.signup(req, res));
+
+/**
+ * @swagger
+ * /api/client/customer/generate-otp:
+ *   post:
+ *     summary: Generate OTP for verification
+ *     tags: [Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mobile:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP Sent successfully
+ */
 router.post('/generate-otp',(req,res)=>customerController.generateOtp(req,res) )
 router.post('/forgot-password', (req, res) => customerController.forgetPassword(req, res));
 router.post('/verify-otp', (req, res) => customerController.verifyOtp(req, res));
+
+/**
+ * @swagger
+ * /api/client/customer/login:
+ *   post:
+ *     summary: Login an existing customer
+ *     tags: [Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mobile:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Logged in successfully, returns JWT Token
+ */
 router.post('/login',(req,res)=>customerController.login(req,res))
 router.post('/forgot-mpin',(req,res)=>customerController.forgetMpin(req,res))
-
 router.use(authMiddleware.protect);
-
 router.post('/change-mpin',(req,res)=>customerController.changeMpin(req,res))
-
 router.post('/verify-mpin',(req,res)=>customerController.verifyMpin(req,res))
-
 router.post(
   '/',
   upload.handleUpload([
@@ -76,6 +144,5 @@ router.post('/scheme',(req,res)=>customerController.findUsersBySchema(req,res))
 router.post('/changepass',(req,res)=>customerController.changePassword(req,res))
 router.post('/verifypass',(req,res)=>customerController.verfiyPassword(req,res))
 router.get('/export/customers',(req,res)=>customerController.exportCustomers(req,res))
-
 
 export default router;

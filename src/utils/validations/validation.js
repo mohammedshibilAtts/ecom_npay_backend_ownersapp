@@ -3,13 +3,7 @@ import Joi from "joi";
 class Validator {
   branchValidationSchemas = {
     addBranch: Joi.object({
-      id_client: Joi.string().required(),
-      branch_name: Joi.string().trim().required().messages({
-        "any.required": "Branch name is required",
-        "string.empty": "Branch name cannot be empty",
-        "string.base": "Branch name must be a string",
-      }),
-      branch_landline: Joi.string().trim().required().messages({
+      branch_landline: Joi.string().trim().messages({
         "any.required": "Branch landline is required",
         "string.empty": "Branch landline cannot be empty",
       }),
@@ -22,7 +16,6 @@ class Validator {
         }),
       whatsapp_no: Joi.string()
         .pattern(/^\d{10}$/)
-        .required()
         .messages({
           "string.pattern.base": "Whatsapp number format is not valid",
           "any.required": "Whatsapp number is required",
@@ -62,7 +55,7 @@ class Validator {
         "any.required": "Limit is required",
       }),
       search: Joi.string().allow("").optional(),
-    }),
+    }).unknown(true),
   };
 
   metalValidations = {
@@ -80,11 +73,6 @@ class Validator {
   };
 
   paymentModeValidations = Joi.object({
-    id_project: Joi.string().trim().required().messages({
-      "any.required": "Project id is required",
-      "string.empty": "Project id cannot be empty",
-      "string.base": "Project id must be a string",
-    }),
     mode_name: Joi.string()
       .trim()
       .required()
@@ -110,11 +98,6 @@ class Validator {
   });
 
   menuSettngValidations = Joi.object({
-    id_project: Joi.string().trim().required().messages({
-      "any.required": "Project id is required",
-      "string.empty": "Project id cannot be empty",
-      "string.base": "Project id must be a string",
-    }),
     menu_name: Joi.string()
       .trim()
       .required()
@@ -140,16 +123,14 @@ class Validator {
   });
 
   subMenuSettngValidations = Joi.object({
-    id_project: Joi.string().trim().required().messages({
-      "any.required": "Project id is required",
-      "string.empty": "Project id cannot be empty",
-      "string.base": "Project id must be a string",
-    }),
-    id_menu: Joi.string().trim().required().messages({
-      "any.required": "Project id is required",
-      "string.empty": "Project id cannot be empty",
-      "string.base": "Project id must be a string",
-    }),
+    id_menu: Joi.string()
+      .trim()
+      .required()
+      .messages({
+        "any.required": "Project id is required",
+        "string.empty": "Project id cannot be empty",
+        "string.base": "Project id must be a string",
+      }),
     submenu_name: Joi.string()
       .trim()
       .required()

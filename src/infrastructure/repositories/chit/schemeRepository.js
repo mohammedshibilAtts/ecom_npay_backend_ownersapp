@@ -86,13 +86,12 @@ class SchemeRepository {
       { $match: query },
   
       {
-        $lookup: {
-          from: "s3bucketsettings",
-          localField: "id_branch",
-          foreignField: "id_branch",
-          as: "s3Details",
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
+          },
         },
-      },
   
       { $unwind: "$s3Details" },
   
@@ -150,7 +149,7 @@ class SchemeRepository {
       { $set: updatedata }
     );
 
-    if (result.modifiedCount > 0) {
+    if (result.matchedCount > 0) {
       return result;
     } else {
       return null;
@@ -395,7 +394,7 @@ class SchemeRepository {
       { $set: { is_deleted: true, active: false } }
     );
 
-    if (schemeData.modifiedCount == 1) {
+    if (schemeData.matchedCount > 0) {
       return schemeData;
     }
 
@@ -496,14 +495,10 @@ class SchemeRepository {
 
   async schemeName(id) {
     const schemeData = await schemeModel
-      .findById({ _id: id, active: true })
+      .findOne({ _id: id, active: true })
       .select("scheme_name");
 
-    if (schemeData.length > 0) {
-      return schemeData;
-    }
-
-    return null;
+    return schemeData || null;
   }
 
   async findByOrder(order) {

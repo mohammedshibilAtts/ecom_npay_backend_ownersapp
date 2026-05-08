@@ -13,6 +13,7 @@ import CategoryRepository from '../../../../infrastructure/repositories/chit/cat
 import purityReporsitory from '../../../../infrastructure/repositories/chit/purityReporsitory.js';
 import MetalRateRepository from '../../../../infrastructure/repositories/chit/metalRateRepository.js';
 import S3BucketRepository from '../../../../infrastructure/repositories/chit/super/s3BucketSettingRepository.js';
+import SubcategoryRepository from '../../../../infrastructure/repositories/ecom/subcategoryRepositary.js';
 const router = express.Router();
 
 const validator=new ProductValidator()
@@ -25,13 +26,30 @@ const categoryRepository=new CategoryRepository()
 const purityRepository= new purityReporsitory()
 const metalRateRepository=new MetalRateRepository()
 const s3Repo = new S3BucketRepository()
+const subCategoryRepository = new SubcategoryRepository()
 const authMiddleware=new AuthMiddleware(tokenService)
 const usecase=new ProductUseCase(productRepository,brachRepository,metalRepository,categoryRepository,purityRepository,metalRateRepository,s3Service
-    ,s3Repo
+    ,s3Repo, subCategoryRepository
 )
 const controller=new ProductController(usecase,validator)
 
 
+/**
+ * @swagger
+ * tags:
+ *   name: Product
+ *   description: Management of items/products associated with schemes
+ */
+
+// router.use(authMiddleware.bypassProtect)
+
+/**
+ * @swagger
+ * /api/client/product/table:
+ *   post:
+ *     summary: Get products table data
+ *     tags: [Product]
+ */
 router.post('/table',(req,res)=>controller.allProducts(req,res))
 router.get('/all',(req,res)=>controller.allProductsData(req,res))
 router.use(authMiddleware.bypassProtect);
@@ -44,10 +62,16 @@ router.get('/category/:id',(req,res)=>controller.getProductByCategory(req,res))
 router.get('/:id',(req,res)=>controller.ProductById(req,res))
 
 router.use(authMiddleware.protect);
+
 router.get('/branch/:id',(req,res)=>controller.ProductByBranchId(req,res))
-router.post('/',upload.handleUpload([{name:"product_image",maxCount:3}]),(req, res) => controller.addProduct(req, res));
-router.patch('/:id',upload.handleUpload([{name:"product_image",maxCount:3}]),(req, res) => controller.editProduct(req, res));
-router.patch('/:id/active',(req,res)=>controller.changeStatus(req,res))
+
+// router.get('/',(req,res)=>controller.getAllProducts(req,res))
+router.use(authMiddleware.protect);
+router.post('/',upload.handleUpload([{ name: 'product_image', maxCount: 10 }]),(req,res)=>controller.addProduct(req,res))
+
+
+// router.get('/:id',(req,res)=>controller.getProductById(req,res))
+router.patch('/:id',upload.handleUpload([{ name: 'product_image', maxCount: 10 }]),(req,res)=>controller.editProduct(req,res))
 router.delete('/:id',(req,res)=>controller.deleteProduct(req,res))
 
 //aushop routes
@@ -56,6 +80,9 @@ router.patch('/best-seller/:id',(req,res)=>controller.toggleBestSeller(req,res))
 //product stock report
 router.get("/report/stock",(req,res)=>controller.getProductStockReport(req,res))
 router.get("/report/lowstock/lowstock",(req,res)=>controller.getProductLowStockReport(req,res))
+
+router.patch('/:id/active',(req,res)=>controller.changeStatus(req,res))
+
 
 
 export default router;

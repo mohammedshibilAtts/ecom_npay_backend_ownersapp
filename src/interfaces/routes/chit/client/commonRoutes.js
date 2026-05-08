@@ -16,17 +16,80 @@ const commonController=new CommonController(commonUseCase)
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Common
+ *   description: Global lookups, metadata, and app configuration
+ */
+
+/**
+ * @swagger
+ * /api/client/common/city/{stateId}:
+ *   get:
+ *     summary: Get cities by state ID
+ *     tags: [Common]
+ */
 router.get('/city/:stateId',(req,res)=>commonController.getCity(req,res))
+
+/**
+ * @swagger
+ * /api/client/common/state/{countryId}:
+ *   get:
+ *     summary: Get states by country ID
+ *     tags: [Common]
+ */
 router.get('/state/:countryId',(req,res)=>commonController.getStates(req,res))
+
+/**
+ * @swagger
+ * /api/client/common/country:
+ *   get:
+ *     summary: Get all countries
+ *     tags: [Common]
+ */
 router.get('/country',(req,res)=>commonController.getCountries(req,res))
+
+/**
+ * @swagger
+ * /api/client/common/relationship:
+ *   get:
+ *     summary: Get all relationship types
+ *     tags: [Common]
+ */
 router.get('/relationship',(req,res)=>commonController.getAllRelationships(req,res))
+
+/**
+ * @swagger
+ * /api/client/common/gender:
+ *   get:
+ *     summary: Get all gender types
+ *     tags: [Common]
+ */
 router.get('/gender',(req,res)=>commonController.getAllGender(req,res))
 
 //! app version check, add, update api section (do not modify with proper understanding)
 //*for mobile
+/**
+ * @swagger
+ * /api/client/common/check:
+ *   get:
+ *     summary: Check app version (Mobile)
+ *     tags: [Common]
+ */
 router.get('/check',(req,res)=>commonController.checkAppVersion(req,res));
 
 router.use(authMiddleware.protect);
+
+/**
+ * @swagger
+ * /api/client/common/metadata:
+ *   get:
+ *     summary: Get various metadata types (wastage, making charge, display, etc)
+ *     tags: [Common]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/wastagetype',(req,res)=>commonController.getAllWastagetype(req,res))
 router.get('/makingcharge',(req,res)=>commonController.getAllmakingcharge(req,res))
 router.get('/displaytype',(req,res)=>commonController.displaytype(req,res))

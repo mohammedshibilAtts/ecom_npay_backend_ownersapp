@@ -23,22 +23,64 @@ const classificationUseCase= new ClassificationUseCase(classificationRepository,
 const classificationController= new ClassificationController(classificationUseCase,validator)
 
 //scheme classification
+/**
+ * @swagger
+ * tags:
+ *   name: Classification
+ *   description: Category and type classification management with images
+ */
+
+/**
+ * @swagger
+ * /api/client/classification:
+ *   get:
+ *     summary: Get all active classifications
+ *     tags: [Classification]
+ *   post:
+ *     summary: Add new classification (with image)
+ *     tags: [Classification]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/scheme',(req,res)=>classificationController.getSchemeClassification(req,res))
 router.get('/',(req,res)=>classificationController.getAllActiveClassifications(req,res))
-router.post('/table',(req,res)=>classificationController.getAllClassifications(req,res));
+
+/**
+ * @swagger
+ * /api/client/classification/{id}:
+ *   get:
+ *     summary: Get classification by ID
+ *     tags: [Classification]
+ *   patch:
+ *     summary: Update classification
+ *     tags: [Classification]
+ *     security:
+ *       - bearerAuth: []
+ *   delete:
+ *     summary: Delete classification
+ *     tags: [Classification]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/:id',(req,res)=>classificationController.getClassificationById(req,res));
 router.use(authMiddleware.protect);
 router.post('/',upload.handleUpload([
-    { name: 'logo', maxCount: 1 },
-    { name: 'desc_img', maxCount: 1 }
+    { name: 'classifcationImg', maxCount: 1 },
   ]),(req,res)=>classificationController.addSchemeClassification(req,res));
 router.patch('/:id',upload.handleUpload([
-    { name: 'logo', maxCount: 1 },
-    { name: 'desc_img', maxCount: 1 }
+    { name: 'classifcationImg', maxCount: 1 },
   ]),(req,res)=>classificationController.updateClassification(req,res));
 router.delete('/:id',(req,res)=>classificationController.deleteClassification(req,res));
-router.patch('/:id/active',(req,res)=>classificationController.toggleActiveStatus(req,res));
-router.get('/branch/:id',(req,res)=>classificationController.getClassificationByBranch(req,res))
 
+/**
+ * @swagger
+ * /api/client/classification/{id}/active:
+ *   patch:
+ *     summary: Toggle classification status
+ *     tags: [Classification]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/:id/active',(req,res)=>classificationController.toggleActiveStatus(req,res));
 
 export default router;

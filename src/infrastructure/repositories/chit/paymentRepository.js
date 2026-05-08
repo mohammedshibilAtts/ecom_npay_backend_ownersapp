@@ -54,7 +54,7 @@ class PaymentRepository {
         .findOne({ id_scheme: schemeId })
         .sort({ _id: -1 })
         .select("payment_receipt");
-  
+
       return lastPayment || null;
     } catch (error) {
       console.error(error);
@@ -84,11 +84,7 @@ class PaymentRepository {
         id_scheme_account: schemeAccountId,
       });
 
-      if (!documents) {
-        return null;
-      }
-
-      return documents;
+      return documents || 0;
     } catch (error) {
       console.error(error);
     }
@@ -174,11 +170,7 @@ class PaymentRepository {
     try {
       const data = paymentModel.aggregate(filter);
 
-      if (data.length === 0) {
-        return false;
-      }
-
-      return data;
+      return data || [];
     } catch (error) {
       console.error(error);
     }
@@ -192,11 +184,7 @@ class PaymentRepository {
         .limit(1)
         .exec();
 
-      if (data.length === 0) {
-        return false;
-      }
-
-      return data;
+      return data || null;
     } catch (error) {
       console.error(error);
     }
@@ -208,11 +196,7 @@ class PaymentRepository {
         .find({ id_scheme_account: id, active: true, payment_status: 1 })
         .sort("payment_receipt");
 
-      if (data.length === 0) {
-        return false;
-      }
-
-      return data;
+      return data || [];
     } catch (error) {
       console.error(error);
     }
@@ -220,14 +204,9 @@ class PaymentRepository {
 
   async findNew(query) {
     try {
-      const data = paymentModel
-        .find(query)
-        
-      if (data.length === 0) {
-        return false;
-      }
+      const data = paymentModel.find(query);
 
-      return data;
+      return data || [];
     } catch (error) {
       console.error(error);
     }
@@ -245,11 +224,11 @@ class PaymentRepository {
             path: "id_scheme_account",
             populate: {
               path: "id_scheme",
-              select:['scheme_name']
+              select: ["scheme_name"],
             },
           })
           .select("-__v")
-          .sort({_id:-1})
+          .sort({ _id: -1 });
       } else {
         documents = await paymentModel
           .find(query)
@@ -259,7 +238,7 @@ class PaymentRepository {
           .populate("id_scheme")
           .populate("id_scheme_account")
           .select("-__v")
-          .sort({_id:-1})
+          .sort({ _id: -1 });
       }
 
       if (!documents || documents.length === 0) {
@@ -279,7 +258,7 @@ class PaymentRepository {
               ...doc.toObject(),
               wallet,
             };
-          })
+          }),
         );
       } else {
         updatedDocuments = documents;
@@ -339,17 +318,17 @@ class PaymentRepository {
   async getMonthlyPayments(data) {
     try {
       const objectId = new mongoose.Types.ObjectId(data.id);
-      const inputDate = data.date
+      const inputDate = data.date;
 
       const startOfMonth = new Date(
         inputDate.getFullYear(),
         inputDate.getMonth(),
-        1
+        1,
       );
       const endOfMonth = new Date(
         inputDate.getFullYear(),
         inputDate.getMonth() + 1,
-        1
+        1,
       );
 
       const result = await paymentModel.aggregate([
@@ -408,19 +387,64 @@ class PaymentRepository {
     }
   }
 
-   async lastPaymentReciept() {
-  try {
-    const lastPayment = await paymentModel
-      .findOne()
-      .sort({ createdAt: -1 })
-      .select("payment_receipt");
-
-    return lastPayment || null;
-  } catch (error) {
-    console.error("Error fetching last payment:", error);
-    throw error;
+  async softDeletePayment(paymentId, deletedBy, reason) {
+    try {
+      const updatedData = await paymentModel.findByIdAndUpdate(
+        paymentId,
+        {
+          $set: {
+            is_deleted: true,
+            active: false,
+            payment_status: 2,
+            deleted_by: deletedBy,
+            deleted_at: new Date(),
+            deletion_reason: reason,
+          },
+        },
+        { new: true },
+      );
+      return updatedData;
+    } catch (error) {
+      console.error("Error soft deleting payment:", error);
+      return null;
+    }
   }
-}
+
+  async lastPaymentReciept() {
+    try {
+      const lastPayment = await paymentModel
+        .findOne()
+        .sort({ createdAt: -1 })
+        .select("payment_receipt");
+
+      return lastPayment || null;
+    } catch (error) {
+      console.error("Error fetching last payment:", error);
+      throw error;
+    }
+  }
+  async getReferralByPayment(paymentId) {
+    try {
+      return await referralListModel.findOne({
+        id_payment: paymentId,
+        active: true,
+      });
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  async softDeleteReferral(id) {
+    try {
+      return await referralListModel.findByIdAndUpdate(id, {
+        $set: { is_deleted: true, active: false },
+      });
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
 }
 
 export default PaymentRepository;

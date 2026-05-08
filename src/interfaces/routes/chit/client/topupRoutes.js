@@ -13,13 +13,79 @@ const topupConfigController = new topupController(topupusecase);
 const tokenService = new TokenService();
 const authMiddleware = new AuthMiddleware(tokenService);
 
+/**
+ * @swagger
+ * tags:
+ *   name: Topup
+ *   description: Management of scheme topups and adjustments
+ */
+
 router.use(authMiddleware.protect); 
 
-
+/**
+ * @swagger
+ * /api/client/topup:
+ *   post:
+ *     summary: Create a new topup
+ *     tags: [Topup]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.patch("/:id", (req, res) => topupConfigController.UpdateTopup(req, res));
+router.post("/", (req, res) => topupConfigController.addTopUp(req, res));
+
+/**
+ * @swagger
+ * /api/client/topup/add:
+ *   post:
+ *     summary: Record topup history
+ *     tags: [Topup]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post("/add", (req, res) => topupConfigController.addTopupHistory(req, res));
+
+/**
+ * @swagger
+ * /api/client/topup/table:
+ *   post:
+ *     summary: Get topups table data
+ *     tags: [Topup]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post("/table", (req, res) => topupConfigController.getAllTopup(req, res));
+
+/**
+ * @swagger
+ * /api/client/topup/pending:
+ *   post:
+ *     summary: Get pending topups
+ *     tags: [Topup]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post("/pending", (req, res) => topupConfigController.getTopupByStatus(req, res));
+
+/**
+ * @swagger
+ * /api/client/topup/{id}:
+ *   get:
+ *     summary: Get topup by client ID
+ *     tags: [Topup]
+ *     security:
+ *       - bearerAuth: []
+ *   patch:
+ *     summary: Update topup details
+ *     tags: [Topup]
+ *     security:
+ *       - bearerAuth: []
+ *   delete:
+ *     summary: Delete topup configuration
+ *     tags: [Topup]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get("/:id", (req, res) => topupConfigController.getTopupByClientId(req, res));
 router.delete("/:id", (req, res) => topupConfigController.deleteConfig(req, res));
 

@@ -4,19 +4,17 @@ import PushNotificationRepository from "../../../../infrastructure/repositories/
 import S3Service from "../../../../utils/s3Bucket.js";
 import S3Repo from "../../../../infrastructure/repositories/chit/super/s3BucketSettingRepository.js";
 import CustomersRepository from "../../../../infrastructure/repositories/chit/CustomerRepository.js";
-import FcmTokenRepository from "../../../../infrastructure/repositories/chit/fcmTokenRepository.js";
 import TargetAudienceRepository from "../../../../infrastructure/repositories/chit/targetAudienceRepository.js";
 import NotificationPromotionHistoryRepository from "../../../../infrastructure/repositories/chit/notifyPromotionHistory.js";
 import smsService from "../../../../config/chit/smsService.js";
 import TopupRepository from "../../../../infrastructure/repositories/chit/topupRepository.js";
 import SmsSettingRepository from '../../../../infrastructure/repositories/chit/super/smsSettingRepository.js'
 import config from "../../../../config/chit/env.js";
-
+import isNotificationEnabled from "../../../../utils/notificationEnableChecket.js";
 
 class NotifyUsecase {
   constructor() {
     this.pushNotificationRepo = new PushNotificationRepository();
-    this.fcmTokenRepo = new FcmTokenRepository();
     this.s3Service = new S3Service();
     this.customerRepo = new CustomersRepository();
     // this.notificationRepository = new NotificationRepository();
@@ -25,8 +23,50 @@ class NotifyUsecase {
     this.targetAudienceRepo = new TargetAudienceRepository();
     this.notifyPromotionHistoryRepo =
       new NotificationPromotionHistoryRepository();
-    this.topupRepo = new TopupRepository()
-    this.smsRepo = new SmsSettingRepository()
+    this.topupRepo = new TopupRepository();
+    this.smsRepo = new SmsSettingRepository();
+  }
+
+  async prepareNotificationData({
+    data,
+    token,
+    id_branch,
+    id_scheme,
+    new_arrival_id,
+  }) {
+    return {
+      ...data,
+      createdBy: token.id_employee,
+      updatedBy: token.id_employee,
+      branchId: id_branch,
+      schemeId: id_scheme,
+      newArraivalId: new_arrival_id,
+    };
+  }
+
+  async sendPushBatchViaOneSignal(customerIds, title, body, imageUrl) {
+    if (!customerIds.length) return { success: 0, failed: 0 };
+
+    try {
+      await this.sendPushNotificationAndUpdate(
+        customerIds,
+        title,
+        body,
+        imageUrl,
+      );
+
+      return {
+        success: customerIds.length,
+        failed: 0,
+      };
+    } catch (error) {
+      console.error("Push batch failed:", error);
+
+      return {
+        success: 0,
+        failed: customerIds.length,
+      };
+    }
   }
 
   addOneDay(dateStr) {
@@ -51,19 +91,14 @@ class NotifyUsecase {
         return { success: false, message: "Branch ID(s) required as an array" };
       }
 
-      // let customerData = await this.getCustomerData(id_scheme, customer_id, id_branch);
-      // if (!customerData.length) {
-      //     return { success: false, message: "No customers found for given criteria" };
-      // }
-
       let customerData = await this.getCustomerData(
         id_scheme,
         customer_id,
-        id_branch
+        id_branch,
       );
 
       customerData = Array.from(
-        new Map(customerData.map((item) => [item._id, item])).values()
+        new Map(customerData.map((item) => [item._id, item])).values(),
       );
 
       if (!customerData.length) {
@@ -75,11 +110,10 @@ class NotifyUsecase {
         token,
         id_branch,
         id_scheme,
-        new_arrival_id
+        new_arrival_id,
       );
-      const result = await this.pushNotificationRepo.addPushNotification(
-        notificationData
-      );
+      const result =
+        await this.pushNotificationRepo.addPushNotification(notificationData);
 
       if (!result) {
         return { success: false, message: "Push notification not saved" };
@@ -88,7 +122,7 @@ class NotifyUsecase {
       const imageUrlFinal = await this.handleImageUpload(
         files,
         imageUrl,
-        token
+        token,
       );
       await this.pushNotificationRepo.updatePushNotification(result._id, {
         image: imageUrlFinal,
@@ -105,7 +139,7 @@ class NotifyUsecase {
           fcmTokens,
           title,
           body,
-          imageUrlFinal
+          imageUrlFinal,
         );
       }
 
@@ -123,304 +157,203 @@ class NotifyUsecase {
     }
   }
 
-  // async addPromotion(data, files, token) {
-  //     try {
-  //         const { id_branch, id_scheme, customer_id, new_arrival_id, title, body, imageUrl, sms, email, whatsapp, pushNotification } = data;
-
-  //         if (!id_branch || !Array.isArray(id_branch) || id_branch.length === 0) {
-  //             return { success: false, message: "Branch ID(s) required as an array" };
-  //         }
-
-  //         // let customerData = await this.getCustomerData(id_scheme, customer_id, id_branch);
-  //         // if (!customerData.length) {
-  //         //     return { success: false, message: "No customers found for given criteria" };
-  //         // }
-
-  //         // let customerData = await this.getCustomerData(id_scheme, customer_id, id_branch);
-
-  //         // const customers = Array.from(new Map(customer_id.map(item => [item._id, item])).values());
-
-  //         if (!customer_id.length == 0) {
-  //             return { success: false, message: "No customers selected" };
-  //         }
-
-  //         const promotionData = await this.prepareNotificationData(data, token, id_branch, id_scheme);
-  //         const result = await this.pushNotificationRepo.addPromotion(promotionData);
-
-  //         if (!result) {
-  //             return { success: false, message: "Promotion not saved" };
-  //         }
-
-  //         const imageUrlFinal = await this.handleImageUpload(files, imageUrl, token);
-  //         await this.pushNotificationRepo.updatePromotion(result._id, { image: imageUrlFinal });
-
-  //         const customerIds = customerData.map((e) => e._id);
-
-  //         const fcmTokens = pushNotification ? await this.fcmTokenRepo.getByCustomerIds(customerIds) : [];
-
-  //         await this.saveTargetAudience(result._id, customerIds, fcmTokens);
-
-  //         let pushCount = 0, smsCount = 0, whatsappCount = 0, emailCount = 0,
-  //             pushFailCount, smsFailCount, whatsappFailCount, emailFailCount
-  //             ;
-  //         let pushNoficationResult, smsResult, whatsappResult, emailResult;
-
-  //         if (pushNotification && fcmTokens.length > 0) {
-  //             pushNoficationResult = await this.sendPushNotificationAndUpdate(result._id, fcmTokens, title, body, imageUrlFinal);
-
-  //             pushCount = pushNoficationResult.successCount;
-  //             pushFailCount = pushNoficationResult.failureCount;
-  //         }
-
-  //         if (sms) {
-  //             //// todo - implement multiple number with 1 message
-
-  //             // const smsResult = await sendSMS({ numbers: customerData.map(c => c.mobile).join("\n"), message: body, sms_type: "aurumm", type: "promotion" });
-  //             // smsCount = smsResult.length;
-
-  //             // todo - it's not better way for multi numbers --get unique numbers
-  //             // smsCount = 0;
-  //             // for (const customer of customerData) {
-  //             //     if (customer.mobile) {
-  //             //         const smsResult = await sendSMS({
-  //             //             numbers: customer.mobile,
-  //             //             message: body,
-  //             //             sms_type: "aurumm",
-  //             //             type: "promotion"
-  //             //         });
-
-  //             //         if (smsResult) {
-  //             //             smsCount += 1;
-  //             //         }
-  //             //     }
-  //             // }
-  //         }
-  //         // if(whatsapp){
-  //         //          whatsappResult = await sendWhatsApp({
-  //         //             smsType: "kavitha",
-  //         //             numbers: customerData.map((c) => c.mobile).join("\n"),
-  //         //             message: "kavitha_aupaypayment",
-  //         //             imageUrl: imageUrl,
-  //         //             customerName: "Customer Name",
-  //         //             companyMobile: company.mobile,
-  //         //             paymentId: id_payment,
-  //         //             customerId: customer.id_customer,
-  //         //         });
-
-  //         // }
-  //         // if (email) {
-  //         // ! not needed for this release
-
-  //         // }
-
-  //         const updatedFinalResult = await this.pushNotificationRepo.updatePromotion(result._id, {
-  //             status: 'sent',
-  //             pushCount, smsCount, whatsappCount, emailCount,
-  //             pushFailCount, smsFailCount, whatsappFailCount, emailFailCount
-
-  //         });
-
-  //         return { success: true, message: "Promotion added successfully", data: updatedFinalResult };
-  //     } catch (error) {
-  //         console.error(error);
-  //         return { success: false, message: "Error while adding promotion" };
-  //     }
-  // }
   async addPromotion(data, files, token) {
-    let result;
-
     try {
-      const {
+      const { id_branch, title, body } = data;
+
+      const schemeBased =
+        data.schemeBased === true ||
+        data.schemeBased === "true" ||
+        data.schemeBased === "1";
+
+      const selectAll =
+        data.selectAll === true ||
+        data.selectAll === "true" ||
+        data.selectAll === "1";
+
+      const scheduledAt = data.scheduled_at
+        ? new Date(data.scheduled_at)
+        : null;
+      const isScheduled =
+        scheduledAt &&
+        !isNaN(scheduledAt.getTime()) &&
+        scheduledAt > new Date();
+
+      const id_scheme =
+        schemeBased && Array.isArray(data.id_scheme) ? data.id_scheme : [];
+      const customer_id =
+        !selectAll && Array.isArray(data.customer_id) ? data.customer_id : [];
+
+      if (!Array.isArray(id_branch) || id_branch.length === 0) {
+        return { success: false, message: "Branch ID(s) required as an array" };
+      }
+
+      if (schemeBased && id_scheme.length === 0) {
+        return {
+          success: false,
+          message: "Scheme ID(s) required when schemeBased is true",
+        };
+      }
+
+      if (!selectAll && customer_id.length === 0) {
+        return { success: false, message: "No customers selected" };
+      }
+
+      const promotionData = await this.prepareNotificationData({
+        data: {
+          ...data,
+          schemeBased,
+          selectAll,
+        },
+        token,
         id_branch,
+        id_scheme,
+      });
+
+      const imageUrlFinal = await this.handleImageUpload(files);
+
+      const promotion = await this.pushNotificationRepo.addPromotion({
+        ...promotionData,
+        noti_image: imageUrlFinal,
+        status: isScheduled ? "scheduled" : "pending",
+        scheduledAt: isScheduled ? scheduledAt : null,
+      });
+
+      if (!promotion) {
+        return { success: false, message: "Promotion not saved" };
+      }
+
+      if (isScheduled) {
+        if (!selectAll) {
+          await this.pushNotificationRepo.bulkInsertPromotionCustomers(
+            promotion._id,
+            customer_id,
+          );
+        }
+        return {
+          success: true,
+          message: `Promotion scheduled for ${scheduledAt.toISOString()}`,
+          data: promotion,
+        };
+      }
+
+      const notificationEnabled =
+        await isNotificationEnabled("Promotioncreation");
+      if (!notificationEnabled) {
+        return {
+          success: true,
+          message: "Promotion saved (notifications disabled)",
+          data: promotion,
+        };
+      }
+
+      const { pushCount, pushFailCount } = await this._executePromotion({
+        promotion,
+        schemeBased,
+        selectAll,
         id_scheme,
         customer_id,
         title,
         body,
-        pushNotification,
-        sms,
-        whatsapp,
-        email,
-        isHtml,
-      } = data;
+        imageUrlFinal,
+      });
 
-      if (!title || !body) {
-        return { success: false, message: "Title and body are required" };
-      }
-
-      if (!id_branch || !Array.isArray(id_branch) || id_branch.length === 0) {
-        return { success: false, message: "At least one branch is required" };
-      }
-
-      if (
-        !customer_id ||
-        !Array.isArray(customer_id) ||
-        customer_id.length === 0
-      ) {
-        return { success: false, message: "At least one customer is required" };
-      }
-
-      // Fetch customer data including mobile numbers
-      const customerData = await this.customerRepo.getCustomersByIds(
-        customer_id,
-        id_branch,
-        {
-          _id: 1,
-          mobile: 1,
-          whatsapp: 1,
-        }
+      const updatedPromotion = await this.pushNotificationRepo.updatePromotion(
+        promotion._id,
+        { status: "sent", pushCount, pushFailCount, sentAt: new Date() },
       );
-
-      if (!customerData || customerData.length === 0) {
-        return { success: false, message: "No valid customers found" };
-      }
-
-      // Prepare promotion data
-      const promotionData = {
-        title,
-        body,
-        isHtml: isHtml === "true",
-        branchId: id_branch,
-        schemeId: id_scheme || [],
-        customerId: customer_id,
-        pushNotification: pushNotification === "true",
-        sms: sms === "true",
-        whatsapp: whatsapp === "true",
-        email: email === "true",
-        createdBy: token.userId,
-        status: "pending",
-      };
-
-      // Create promotion record
-      result = await this.pushNotificationRepo.addPromotion(promotionData);
-
-      if (!result) {
-        return { success: false, message: "Promotion not saved" };
-      }
-
-      // Handle image upload if exists
-      let imageUrlFinal = null;
-      if (files && files.image) {
-        imageUrlFinal = await this.handleImageUpload(files, null, token);
-        await this.pushNotificationRepo.updatePromotion(result._id, {
-          image: imageUrlFinal,
-        });
-      }
-
-      // Initialize counters
-      let pushCount = 0,
-        smsCount = 0,
-        whatsappCount = 0;
-      let pushFailCount = 0,
-        smsFailCount = 0,
-        whatsappFailCount = 0;
-
-      // Send push notifications if enabled
-      if (pushNotification === "true") {
-        const pushNotificationResult = await this.sendPushNotificationAndUpdate(
-          result._id,
-          customer_id,
-          title,
-          body,
-          imageUrlFinal
-        );
-
-        pushCount = pushNotificationResult.successCount || 0;
-        pushFailCount = pushNotificationResult.failureCount || 0;
-      }
-
-      //Send SMS
-      if (sms === 'true') {
-        const smsBalance = await this.topupRepo.getAllTopupBalance()
-          if(smsBalance.SMS > 0){
-            const validMobileNumbers = customerData
-              .filter(c => c.mobile)
-              .map(c => c.mobile);
-
-          if (validMobileNumbers.length > 0) {
-            const smsInfo = await this.smsRepo.findOne({
-                promoSent: 1
-              });
-              if(smsInfo?.promoSent == 1){
-                try {
-                    const smsUrl = smsInfo?.common_url
-                    let smsContent = smsInfo?.promoTemplate;
-                    // smsContent = smsContent.replace(/{{otp}}/g, otp);
-
-                    const smsResult = await smsService.sendNotification({
-                        recipients: validMobileNumbers,
-                        message: body,
-                        type: "promotion",
-                        channel:"sms"
-                    });
-  
-                    smsCount = smsResult.successCount || 0;
-                    smsFailCount = smsResult.failureCount || 0;
-                } catch (smsError) {
-                    console.error("SMS sending failed:", smsError);
-                    smsFailCount = validMobileNumbers.length;
-                }
-              }
-          }
-          }else{
-            return {status:false,message:"Insufficient SMS balance. Recharge to send promostions"}
-          }
-      }
-
-      // Send WhatsApp if enabled
-      if (whatsapp === 'true') {
-          const validWhatsappNumbers = customerData
-              .filter(c => c.mobile && this.isValidWhatsappNumber(c.mobile))
-              .map(c => c.mobile);
-
-          if (validWhatsappNumbers.length > 0) {
-              try {
-                  const whatsappResult = await this.whatsappService.sendBulkMessages({
-                      numbers: validWhatsappNumbers,
-                      message: body,
-                      imageUrl: imageUrlFinal
-                  });
-
-                  whatsappCount = whatsappResult.successCount || 0;
-                  whatsappFailCount = whatsappResult.failureCount || 0;
-              } catch (whatsappError) {
-                  console.error("WhatsApp sending failed:", whatsappError);
-                  whatsappFailCount = validWhatsappNumbers.length;
-              }
-          }
-      }
-
-      // Update promotion with final status and counts
-      const updatedFinalResult =
-        await this.pushNotificationRepo.updatePromotion(result._id, {
-          status: "sent",
-          sentAt: new Date(),
-        //   pushCount,
-        //   smsCount,
-        //   whatsappCount,
-        //   pushFailCount,
-        //   smsFailCount,
-        //   whatsappFailCount
-        });
 
       return {
         success: true,
-        message: "Promotion added successfully",
-        data: updatedFinalResult,
+        message: "Promotion sent successfully",
+        data: updatedPromotion,
       };
     } catch (error) {
-      console.error("Error in addPromotion:", error);
-      if (result && result._id) {
-        await this.pushNotificationRepo.updatePromotion(result._id, {
-          status: "failed",
-        });
-      }
-
-      return {
-        success: false,
-        message: "Error while adding promotion",
-        error: error.message,
-      };
+      console.error(error);
+      return { success: false, message: "Error while adding promotion" };
     }
+  }
+
+  async _executePromotion({
+    promotion,
+    schemeBased,
+    selectAll,
+    id_scheme,
+    customer_id,
+    title,
+    body,
+    imageUrlFinal,
+  }) {
+    const PUSH_BATCH_SIZE = Number(process.env.PUSH_BATCH_SIZE) || 500;
+    let pushCount = 0;
+    let pushFailCount = 0;
+
+    if (!selectAll) {
+      // If customer_id is provided (immediate execution), insert them
+      if (customer_id && customer_id.length > 0) {
+        await this.pushNotificationRepo.bulkInsertPromotionCustomers(
+          promotion._id,
+          customer_id,
+        );
+      } else {
+        // If not provided (cron execution), fetch from DB
+        const promoCustomers = await this.pushNotificationRepo.getPromotionCustomers(promotion._id);
+        customer_id = promoCustomers.map(pc => pc.customerId.toString());
+      }
+      
+      const result = await this.sendPushBatchViaOneSignal(
+        customer_id,
+        title,
+        body,
+        imageUrlFinal,
+      );
+      pushCount += result.success;
+      pushFailCount += result.failed;
+      return { pushCount, pushFailCount };
+    }
+
+    const cursor = schemeBased
+      ? this.pushNotificationRepo.getSchemeCustomerCursor(id_scheme)
+      : this.pushNotificationRepo.getAllCustomerCursor();
+
+    let batch = [];
+
+    for await (const doc of cursor) {
+      batch.push(doc._id.toString());
+
+      if (batch.length === PUSH_BATCH_SIZE) {
+        await this.pushNotificationRepo.bulkInsertPromotionCustomers(
+          promotion._id,
+          batch,
+        );
+        const result = await this.sendPushBatchViaOneSignal(
+          batch,
+          title,
+          body,
+          imageUrlFinal,
+        );
+        pushCount += result.success;
+        pushFailCount += result.failed;
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      await this.pushNotificationRepo.bulkInsertPromotionCustomers(
+        promotion._id,
+        batch,
+      );
+      const result = await this.sendPushBatchViaOneSignal(
+        batch,
+        title,
+        body,
+        imageUrlFinal,
+      );
+      pushCount += result.success;
+      pushFailCount += result.failed;
+    }
+
+    return { pushCount, pushFailCount };
   }
 
   isValidWhatsappNumber(number) {
@@ -430,9 +363,8 @@ class NotifyUsecase {
   // Helper functions
   async getCustomerData(id_scheme, customer_id, id_branch) {
     if (id_scheme && Array.isArray(id_scheme) && id_scheme.length > 0) {
-      const customerIds = await this.customerRepo.getCustomerIdsBySchemeIds(
-        id_scheme
-      ); // todo - need to check
+      const customerIds =
+        await this.customerRepo.getCustomerIdsBySchemeIds(id_scheme);
 
       return customerIds
         ? await this.customerRepo.getCustomersByIds(customerIds)
@@ -444,27 +376,21 @@ class NotifyUsecase {
     return await this.customerRepo.getCustomersByBranch(id_branch);
   }
 
-  async prepareNotificationData(data, token, id_branch, id_scheme) {
-    return {
-      ...data,
-      createdBy: token.id_employee,
-      updatedBy: token.id_employee,
-      branchId: id_branch,
-      schemeId: id_scheme,
-      // newArraivalId: new_arrival_id,
-    };
-  }
-
   async handleImageUpload(files, imageUrl, token) {
-    if (imageUrl) return imageUrl;
-    if (files.image?.[0]) {
-      const s3Settings = await this.s3Repo.getSetting();
+    let upload;
+    let s3Settings;
+    if (files && files?.[0]) {
+      s3Settings = await this.s3Repo.getSetting();
       if (!s3Settings) throw new Error("S3 configuration not found");
-      return await this.s3Service.uploadToS3(
-        files.image[0],
+      upload = await this.s3Service.uploadToS3(
+        files[0],
         "notification",
-        s3Settings
+        s3Settings,
       );
+    }
+
+    if (upload) {
+      return `${s3Settings.s3display_url}${config?.AWS_LOCAL_PATH}notification/${upload}`;
     }
     return null;
   }
@@ -478,70 +404,16 @@ class NotifyUsecase {
     });
   }
 
-  // async sendPushNotificationAndUpdate(notificationId, fcmTokens, title, body, imageUrl) {
-  //     const pushResult = await sendPushNotification({
-  //         tokens: fcmTokens.map((e) => e.token),
-  //         title,
-  //         body,
-  //         imageUrl,
-  //     });
-
-  //     await this.pushNotificationRepo.updatePushNotification(notificationId, {
-  //         status: 'sent',
-  //         pushCount: pushResult.successCount,
-  //         pushFailCount: pushResult.failureCount,
-  //     });
-
-  //     return pushResult;
-  // }
-
-  async sendPushNotificationAndUpdate(notificationId, customers, title, body, imageUrl) {
-    if (!Array.isArray(customers) || customers.length === 0) {
-      return { success: false, message: "No customers provided", successCount: 0, failureCount: 0 };
-    }
-  
-    const CHUNK_SIZE = 500;
-    let successCount = 0;
-    let failureCount = 0;
-  
-    const tokenChunks = [];
-  
-    for (let i = 0; i < customers.length; i += CHUNK_SIZE) {
-      tokenChunks.push(customers.slice(i, i + CHUNK_SIZE));
-    }
-  
-    for (const chunk of tokenChunks) {
-      try {
-        const pushResult = await smsService.sendNotification({
-        recipients: chunk,
-        title,
-        message: body,
-        imageUrl: `https://aupay-img.s3.eu-north-1.amazonaws.com/${config.AWS_LOCAL_PATH}notification/${imageUrl}`,
-        channel: "push",
-        });
-
-        successCount += pushResult.successCount || 0;
-        failureCount += pushResult.failureCount || 0;
-      } catch (err) {
-        console.error("Push send error for chunk:", err);
-        failureCount += chunk.length;
-      }
-    }
-  
-    // Update the DB with overall counts
-    // await this.pushNotificationRepo.updatePushNotification(notificationId, {
-    //   status: "sent",
-    //   pushCount: successCount,
-    //   pushFailCount: failureCount,
-    // });
-  
-    return {
-      success: true,
-    //   successCount,
-    //   failureCount,
+  async sendPushNotificationAndUpdate(customerIds, title, body, imageUrl) {
+    const input = {
+      recipients: customerIds,
+      title: title,
+      message: body,
+      channel: "push",
+      imageUrl: imageUrl,
     };
+    await smsService.sendNotification(input);
   }
-  
 
   async getPushNotificationById(id) {
     if (!isValidObjectId(id))
@@ -596,22 +468,12 @@ class NotifyUsecase {
         filter.createdAt = { $gte: this.addOneDay(startDate), $lte: endDate };
       }
 
-      // if (id_branch && mongoose.isValidObjectId(id_branch)) {
-      //     filter.branchId = { $in: [new mongoose.Types.ObjectId(id_branch)] };
-      // }
-
-      // if (search) {
-      //     const searchRegex = new RegExp(search, "i");
-
-      //     filter.$or = [{ title: { $regex: searchRegex }, body: { $regex: searchRegex } }];
-      // }
-
       const skip = (page - 1) * limit;
       const { data, totalCount } =
         await this.pushNotificationRepo.pushnotificationTable(
           filter,
           skip,
-          parseInt(limit)
+          parseInt(limit),
         );
 
       return {
@@ -654,19 +516,25 @@ class NotifyUsecase {
         startDate.setUTCHours(0, 0, 0, 0);
         endDate.setUTCHours(23, 59, 59, 999);
 
-        filter.createdAt = { $gte: this.addOneDay(startDate), $lte: endDate };
+        filter.createdAt = { $gte: startDate, $lte: endDate };
+      }
+      if (id_branch) {
+        if (!isValidObjectId(id_branch))
+          return { success: false, message: "Provide a valid Branch Id" };
+        filter.id_branch = new mongoose.Types.ObjectId(id_branch);
       }
 
-      // if (id_branch && mongoose.isValidObjectId(id_branch)) {
-      //     filter.branchId = { $in: [new mongoose.Types.ObjectId(id_branch)] };
-      // }
+      if (search) {
+        const searchRegex = new RegExp(search, "i");
+        filter.$or = [{ title: { $regex: searchRegex } }];
+      }
 
       const skip = (page - 1) * limit;
       const { data, totalCount } =
         await this.pushNotificationRepo.promotionTable(
           filter,
           skip,
-          parseInt(limit)
+          parseInt(limit),
         );
       return {
         success: true,
@@ -685,21 +553,21 @@ class NotifyUsecase {
     }
   }
 
-  async getSchemeCustomers({ id_scheme, page = 1, limit = 10 }) {
+  async getSchemeCustomers(id_scheme, page = 1, limit = 10, search = "") {
     try {
-      const filter = { active: true };
-
       const skip = (page - 1) * limit;
+
       const { data, totalDocuments } =
         await this.pushNotificationRepo.getSchemeCustomers(
           id_scheme,
-          filter,
+          search,
           Number(skip),
-          Number(limit)
+          Number(limit),
         );
+
       return {
         success: true,
-        message: "Promotions fetched successfully",
+        message: "Customers fetched successfully",
         data,
         totalDocuments,
         totalPages: Math.ceil(totalDocuments / limit),
@@ -707,10 +575,51 @@ class NotifyUsecase {
       };
     } catch (error) {
       console.error(error);
-      return {
-        success: false,
-        message: "Error while fetching push notifications",
+      return { success: false, message: "Error while fetching customers" };
+    }
+  }
+
+  async sendpromotionnotification({ data, title, body, notificationData }) {
+    if (notificationData?.push) {
+      const input = {
+        recipients: data.customer_id,
+        title: title,
+        message: body,
+        channel: "push",
       };
+      await smsService.sendNotification(input);
+
+      await this.saveNotificationRepo.saveNotification({
+        title: input.title,
+        message: input.message,
+        type: "alert",
+        category: "Promotion",
+      });
+    }
+  }
+
+  async getCustomers(page = 1, limit = 10, search = "") {
+    try {
+      const skip = (page - 1) * limit;
+
+      const { data, totalDocuments } =
+        await this.pushNotificationRepo.getCustomers(
+          search,
+          Number(skip),
+          Number(limit),
+        );
+
+      return {
+        success: true,
+        message: "Customers fetched successfully",
+        data,
+        totalDocuments,
+        totalPages: Math.ceil(totalDocuments / limit),
+        currentPage: page,
+      };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "Error while fetching customers" };
     }
   }
 }

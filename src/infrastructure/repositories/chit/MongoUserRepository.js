@@ -11,8 +11,6 @@ class MongoUserRepository {
       password: userRecord.password,
       active: userRecord.active,
       id_role: userRecord.id_role,
-      id_project: userRecord.id_project,
-      id_client: userRecord.id_client,
       access_branch: userRecord.access_branch,
       id_branch:userRecord.id_branch
     };

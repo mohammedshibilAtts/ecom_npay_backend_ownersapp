@@ -1,5 +1,3 @@
-// src/infrastructure/repositories/itemRepository.js
-
 import itemModel from "../../models/ecom/itemModel.js";
 
 class ItemRepository {
@@ -37,6 +35,10 @@ class ItemRepository {
         itemModel
           .find(query)
           .populate('id_purity')
+          .populate({
+            path: "stoneDetails",
+            populate: { path: "itemId" }
+          })
           .sort({ [sort]: sortOrder })
           .skip(skip)
           .limit(limit)

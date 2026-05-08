@@ -1,5 +1,3 @@
-import { isValidObjectId } from "mongoose";
-
 class ClassificationController{
   constructor(classificationUseCase,validator){
     this.classificationUseCase = classificationUseCase;
@@ -8,50 +6,37 @@ class ClassificationController{
 
   async addSchemeClassification(req, res) {
     const {
-      classification_name,
-      classification_order,
-      description,
-      term_desc,
-      id_branch,
-      typeofscheme,
+      name,
+      description
     } = req.body;
 
     try {
-      if (!classification_name || classification_name === "") {
+      if (!name || name === "") {
         return res
           .status(400)
           .json({
             status: "Failed",
             message: "Classification Name is required",
           });
-      }  else if (!id_branch || id_branch === "") {
+      }  else if (!description || description === "") {
         return res
           .status(400)
-          .json({ status: "Failed", message: "Branch ID is required" });
-      } else if (!typeofscheme || typeofscheme === "") {
-        return res
-          .status(400)
-          .json({ status: "Failed", message: "Type of Scheme is required" });
+          .json({ status: "Failed", message: "Description is required" });
       }
 
-      req.body.created_by = req.user.id_employee;
+      req.body.created_by = req?.user?.id_employee;
 
-      let logo = "";
-      let desc_img = "";
+      let classifcationImg = "";
 
       if (req.files) {
-        if (req.files.logo) {
-          logo = req.files.logo[0];
-        }
-        if (req.files.desc_img) {
-          desc_img = req.files.desc_img[0];
+        if (req.files.classifcationImg) {
+          classifcationImg = req.files.classifcationImg[0];
         }
       }
 
       const result = await this.classificationUseCase.addSchemeClassification(
         req.body,
-        logo,
-        desc_img
+        classifcationImg
       );
 
       if (!result.success) {
@@ -69,60 +54,38 @@ class ClassificationController{
     const { id } = req.params;
 
     const {
-      classification_name,
-      classification_order,
-      description,
-      term_desc,
-      id_branch,
-      typeofscheme,
+      name,
+      description
     } = req.body;
 
     try {
-      if (!classification_name || classification_name === "") {
+      if (!name || name === "") {
         return res
           .status(400)
           .json({
             status: "Failed",
             message: "Classification Name is required",
           });
-      } 
-      // else if (!classification_order || classification_order === "") {
-      //   return res
-      //     .status(400)
-      //     .json({
-      //       status: "Failed",
-      //       message: "Classification Order is required",
-      //     });
-      // }
-       else if (!id_branch || id_branch === "") {
+      } else if (!description || description === "") {
         return res
           .status(400)
-          .json({ status: "Failed", message: "Branch ID is required" });
-      } else if (!typeofscheme || typeofscheme === "") {
-        return res
-          .status(400)
-          .json({ status: "Failed", message: "Type of Scheme is required" });
+          .json({ status: "Failed", message: "Description is required" });
       }
 
-      req.body.created_by = req.user.id_employee;
+      req.body.created_by = req?.user?.id_employee;
       const data = req.body;
 
-      let logo = "";
-      let desc_img = "";
+      let classifcationImg = "";
 
       if (req.files) {
-        if (req.files.logo) {
-          logo = req.files.logo[0];
-        }
-        if (req.files.desc_img) {
-          desc_img = req.files.desc_img[0];
+        if (req.files.classifcationImg) {
+          classifcationImg = req.files.classifcationImg[0];
         }
       }
       const result = await this.classificationUseCase.updateClassification(
         id,
         data,
-        logo,
-        desc_img
+        classifcationImg
       );
 
       if (!result.success) {
@@ -151,45 +114,6 @@ class ClassificationController{
 
     res.status(200).json({ message: result.message, data: result.data });
   }
-
-  async getAllClassifications(req, res) {
-    try {
-      const { page, limit, search, id_branch, from_date, to_date, typeofscheme } = req.body;
-  
-      if (!page || isNaN(page) || parseInt(page) <= 0) {
-        return res.status(400).json({ message: "Invalid page number" });
-      }
-      if (!limit || isNaN(limit) || parseInt(limit) <= 0) {
-        return res.status(400).json({ message: "Invalid limit number" });
-      }
-
-     
-  
-      const data ={...req.body}
-      const result = await this.classificationUseCase.getAllClassifications(
-        page,
-        limit,
-        search,
-        data
-      );
-  
-      if (!result || !result.success) {
-        return res.status(404).json({ message: result.message });
-      }
-  
-      res.status(200).json({
-        message: result.message,
-        data: result.data,
-        totalDocuments: result.totalCount,
-        totalPages: result.totalPages,
-        currentPage: result.currentPage,
-      });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  }
-  
 
   async deleteClassification(req, res) {
     try {
@@ -253,25 +177,6 @@ class ClassificationController{
     }
   }
 
-  async getClassificationByBranch(req, res) {
-    const { id } = req.params;
-    try {
-      if (!id) {
-        return res.status(400).json({ message: "Classification ID is required" });
-      }
-  
-      const result = await this.classificationUseCase.getClassificationByBranch(id);
-  
-      if (!result.success) {
-        return res.status(400).json({ message: result.message });
-      }
-  
-      res.status(200).json({ message: result.message, data: result.data });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({message:"Internal server error"})
-    }
-  }
 
   async getSchemeClassification(req, res) {
     try {

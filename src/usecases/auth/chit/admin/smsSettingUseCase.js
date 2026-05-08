@@ -5,7 +5,7 @@ class SmsSettingUseCase {
 
     async addSmsSetting(data) {
         try {
-            const exists = await this.smssettingRepository.exists(data.id_branch, data.id_project, data.id_client);
+            const exists = await this.smssettingRepository.exists(data.id_branch);
 
             if (exists) {
                 await this.smssettingRepository.updateOne(exists._id, data);

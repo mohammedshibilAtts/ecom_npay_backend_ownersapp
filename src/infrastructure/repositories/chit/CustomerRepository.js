@@ -60,8 +60,7 @@ class CustomerRepository {
         {
           $lookup: {
             from: "s3bucketsettings",
-            localField: "id_branch",
-            foreignField: "id_branch",
+            pipeline: [{ $limit: 1 }],
             as: "s3Details",
           },
         },
@@ -92,7 +91,7 @@ class CustomerRepository {
             referral_type: 1,
             email: 1,
             pan: 1,
-            mpin:1,
+            mpin: 1,
             date_of_wed: 1,
             "branchDetails._id": 1,
             "branchDetails.branch_name": 1,
@@ -230,7 +229,7 @@ class CustomerRepository {
       const updatedData = await customerModel.updateOne(
         { _id: id },
         { $set: data },
-        { new: true }
+        { new: true },
       );
 
       if (updatedData.matchedCount === 0) {
@@ -247,7 +246,7 @@ class CustomerRepository {
     try {
       const updatedData = await customerModel.updateOne(
         { _id: id },
-        { $set: { is_deleted: true, active: false } }
+        { $set: { is_deleted: true, active: false } },
       );
 
       if (updatedData.matchedCount === 0) {
@@ -264,7 +263,7 @@ class CustomerRepository {
     try {
       const updatedData = await customerModel.updateOne(
         { _id: id },
-        { $set: { active: !active } }
+        { $set: { active: !active } },
       );
 
       if (updatedData.matchedCount === 0) {
@@ -328,6 +327,7 @@ class CustomerRepository {
                       { $eq: ["$id_customer", "$$customerId"] },
                       { $eq: ["$active", true] },
                       { $eq: ["$status", 0] },
+                      { $eq: ["$is_deleted", false] },
                     ],
                   },
                 },
@@ -405,7 +405,7 @@ class CustomerRepository {
           otp: null,
           otpExpiry: null,
         },
-        { new: true }
+        { new: true },
       );
     } catch (error) {
       console.error(error);
@@ -419,11 +419,9 @@ class CustomerRepository {
         return { success: false, message: "Provide a valid user ID" };
       }
 
-      const updatedUser = await customerModel.findByIdAndUpdate(
-        userId,
-        data,
-        { new: true }
-      );
+      const updatedUser = await customerModel.findByIdAndUpdate(userId, data, {
+        new: true,
+      });
 
       if (!updatedUser) {
         return { success: false, message: "User not found" };
@@ -452,7 +450,7 @@ class CustomerRepository {
           is_deleted: false,
           active: true,
         },
-        { _id: 1, firstname: 1, lastname: 1, mobile: 1 }
+        { _id: 1, firstname: 1, lastname: 1, mobile: 1 },
       );
 
       return customers.length > 0 ? customers : null;
@@ -474,7 +472,7 @@ class CustomerRepository {
             $in: customerIds.map((id) => new mongoose.Types.ObjectId(id)),
           },
         },
-        { _id: 1, firstname: 1, lastname: 1, mobile: 1 }
+        { _id: 1, firstname: 1, lastname: 1, mobile: 1 },
       );
 
       return customers.length ? customers : null;
@@ -498,7 +496,7 @@ class CustomerRepository {
           active: true,
           is_deleted: false,
         },
-        { id_customer: 1 }
+        { id_customer: 1 },
       );
 
       const customerIds = schemeAccounts.map((sa) => sa.id_customer);
@@ -527,7 +525,7 @@ class CustomerRepository {
       const updatedData = await customerModel.updateOne(
         { _id: id },
         { $set: data },
-        { new: true }
+        { new: true },
       );
 
       if (updatedData.matchedCount === 0) {
@@ -563,7 +561,7 @@ class CustomerRepository {
           }
         : {
             id_branch: new mongoose.Types.ObjectId(branch),
-            mobile: Number(mobile),
+            mobile: mobile,
             active: true,
           };
 
@@ -586,6 +584,8 @@ class CustomerRepository {
               {
                 $match: {
                   $expr: { $eq: ["$id_customer", "$$customerId"] },
+                  active: true,
+                  is_deleted: false,
                 },
               },
               {
@@ -1134,7 +1134,7 @@ class CustomerRepository {
   async getCustomersByIds(customerIds, branchIds, fieldsToReturn = {}) {
     try {
       const branchObjectIds = branchIds.map(
-        (id) => new mongoose.Types.ObjectId(id)
+        (id) => new mongoose.Types.ObjectId(id),
       );
 
       const defaultFields = {
@@ -1193,7 +1193,8 @@ class CustomerRepository {
   }
 
   async getCustomersBatch(skip, limit, filterQuery = {}) {
-    return customerModel.find(filterQuery)
+    return customerModel
+      .find(filterQuery)
       .sort({ _id: 1 })
       .skip(skip)
       .limit(limit)

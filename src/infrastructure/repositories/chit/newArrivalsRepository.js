@@ -50,8 +50,7 @@ class NewArrivalRepository {
         {
           $lookup: {
             from: "s3bucketsettings",
-            localField: "id_branch",
-            foreignField: "id_branch",
+            pipeline: [{ $limit: 1 }],
             as: "s3Details",
           },
         },
@@ -178,8 +177,7 @@ class NewArrivalRepository {
         {
           $lookup: {
             from: "s3bucketsettings",
-            localField: "id_branch",
-            foreignField: "id_branch",
+            pipeline: [{ $limit: 1 }],
             as: "s3Details"
           }
         },

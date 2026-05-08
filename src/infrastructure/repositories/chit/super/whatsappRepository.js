@@ -1,12 +1,10 @@
 import whatsappSettingModel from "../../../models/chit/whatsappSettingModel.js";
 
 class WhatsAppRepository {
-  async findOne(branchId, projectId, clientId) {
+  async findOne(branchId) {
     try {
       const whatsappData = await whatsappSettingModel.findOne({
         id_branch: branchId,
-        id_project: projectId,
-        id_client: clientId,
       });
 
       if (!whatsappData) {
@@ -24,7 +22,7 @@ class WhatsAppRepository {
       const updatedData = await whatsappSettingModel.updateOne(
         { _id: id },
         { $set: data },
-        { new: true }
+        { new: true },
       );
 
       if (updatedData.matchedCount === 0) {
@@ -60,16 +58,8 @@ class WhatsAppRepository {
             path: "id_branch",
             select: "_id branch_name",
           },
-          {
-            path: "id_project",
-            select: "_id project_name",
-          },
-          {
-            path: "id_client",
-            select: "_id company_name",
-          },
         ])
-        .select('-createdAt -updatedAt -__v')
+        .select("-createdAt -updatedAt -__v")
         .lean();
 
       if (!data) {
@@ -82,25 +72,17 @@ class WhatsAppRepository {
     }
   }
 
-  async getByBranchAndProjectId(branchId,projectId) {
+  async getByBranchAndProjectId(branchId, projectId) {
     try {
       const data = await whatsappSettingModel
-        .findOne({ id_branch: branchId,id_project:projectId})
+        .findOne({ id_branch: branchId })
         .populate([
           {
             path: "id_branch",
             select: "_id branch_name",
           },
-          {
-            path: "id_project",
-            select: "_id project_name",
-          },
-          {
-            path: "id_client",
-            select: "_id company_name",
-          },
         ])
-        .select('-createdAt -updatedAt -__v')
+        .select("-createdAt -updatedAt -__v")
         .lean();
 
       if (!data) {
@@ -113,11 +95,11 @@ class WhatsAppRepository {
     }
   }
 
-  async exists(id_branch, id_project, id_client) {
+  async exists(id_branch) {
     try {
-      return !!(await whatsappSettingModel.findOne({ id_branch, id_project, id_client }));
+      return !!(await whatsappSettingModel.findOne({ id_branch }));
     } catch (error) {
-      console.error(`Error checking existence in ${this.model.modelName}:`, error);
+      console.error(`Error checking existence:`, error);
       return false;
     }
   }

@@ -33,7 +33,6 @@ class SizemasterRepository {
   }
 
   async update(id, data) {
-    console.log("wertyu",id,data)
     return await sizeMasterModel.findByIdAndUpdate(id, data, { new: true });
   }
 

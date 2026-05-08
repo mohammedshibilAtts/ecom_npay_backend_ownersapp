@@ -2,19 +2,6 @@ import mongoose from "mongoose";
 
 const stoneMasterSchema = new mongoose.Schema(
   {
-    // stone_category_id: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: 'stone_category',
-    //   required: true,
-    // },
-    // rate: {
-    //   type: mongoose.Schema.Types.Decimal128,
-    //   required: true,
-    // },
-    // certificate_amount: {
-    //   type: mongoose.Schema.Types.Decimal128,
-    //   required: true,
-    // },
     stonename: {
       type: String,
       required: true,
@@ -43,16 +30,6 @@ const stoneMasterSchema = new mongoose.Schema(
       ref: "shape_master",
       required: true,
     },
-    // brand_id: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: 'brand_master',
-    //   required: false,
-    // },
-    // size_id: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: 'stone_size',
-    //   required: true,
-    // },
     description: {
       type: String,
       required: false,

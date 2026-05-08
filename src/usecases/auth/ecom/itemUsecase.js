@@ -1,9 +1,10 @@
 // src/usecases/itemUseCase.js
 
 class ItemUseCase {
-  constructor(itemRepository, productRepository) {
+  constructor(itemRepository, productRepository, stoneDetailsRepository) {
     this.itemRepository = itemRepository;
     this.productRepository = productRepository;
+    this.stoneDetailsRepository = stoneDetailsRepository;
   }
 
   async createBulkItems(items) {
@@ -12,10 +13,8 @@ class ItemUseCase {
         return { success: false, message: "Items are required" };
       }
 
-      // 🔎 Collect all tag numbers
       const tagNumbers = items.map((item) => item.tagNo);
 
-      // 🔎 Find existing tags in DB
       const existingTags =
         await this.itemRepository.findExistingTags(tagNumbers);
 
@@ -41,11 +40,26 @@ class ItemUseCase {
           continue;
         }
 
+        const stoneIds = [];
+        const combinedStones = [
+          ...(data.stoneData || []).map(s => ({ ...s, type: 'stone' })),
+          ...(data.diamondData || []).map(d => ({ ...d, type: 'diamond' }))
+        ];
+
+        if (combinedStones.length > 0) {
+          try {
+            const savedStones = await this.stoneDetailsRepository.createMany(combinedStones);
+            stoneIds.push(...savedStones.map(s => s._id));
+          } catch (err) {
+            console.error("Error saving stones for tag:", data.tagNo, err);
+          }
+        }
+
         const itemPayload = {
           productId: data.productId,
           size: data.size || null,
-          unit:data.unit||"",
-          sizeValue:data.sizeValue||0,
+          unit: data.unit || "",
+          sizeValue: data.sizeValue || 0,
           id_purity: data.id_purity,
           currentMetalRate: Number(data.currentMetalRate || 0),
           tagNo: data.tagNo,
@@ -68,6 +82,8 @@ class ItemUseCase {
 
           price: Number(data.price || 0),
           totalprice: Number(data.totalprice || 0),
+
+          stoneDetails: stoneIds, // ✅ Store stone IDs
 
           makingCharges: {
             makingMode: data.makingCharges?.makingMode ?? null,
@@ -200,7 +216,6 @@ class ItemUseCase {
 
       if (!item) return { success: false, message: "Item not found" };
 
-      // ✅ NEW VALIDATION
       if (item.status === 2) {
         return {
           success: false,
@@ -236,21 +251,16 @@ class ItemUseCase {
       throw new Error("Item not found");
     }
 
-    // 🔒 Prevent editing sold items
     if (item.status === 2) {
       throw new Error(
         "This item has already been sold and cannot be modified.",
       );
     }
 
-    // 🔒 Remove non-editable fields if someone tries to send them
     const forbiddenFields = [
       "productId",
       "size",
       "tagNo",
-      "stonewt",
-      "diamondcts",
-      "diamondwt",
       "active",
       "status",
       "_id",
@@ -262,6 +272,30 @@ class ItemUseCase {
       }
     });
 
+    if (payload.stoneData !== undefined || payload.diamondData !== undefined) {
+      try {
+        if (item.stoneDetails && item.stoneDetails.length > 0) {
+          await mongoose.model("StoneDetails").deleteMany({ _id: { $in: item.stoneDetails } });
+        }
+        const combinedStones = [
+          ...(payload.stoneData || []).map(s => ({ ...s, type: 'stone', _id: undefined })),
+          ...(payload.diamondData || []).map(d => ({ ...d, type: 'diamond', _id: undefined }))
+        ];
+
+        if (combinedStones.length > 0) {
+          const savedStones = await this.stoneDetailsRepository.createMany(combinedStones);
+          payload.stoneDetails = savedStones.map(s => s._id);
+        } else {
+          payload.stoneDetails = [];
+        }
+
+        delete payload.stoneData;
+        delete payload.diamondData;
+      } catch (err) {
+        console.error("Error updating stones during item edit:", err);
+      }
+    }
+
     const updatedItem = await this.itemRepository.updateItem(itemId, payload);
 
     return {
@@ -270,7 +304,7 @@ class ItemUseCase {
       data: updatedItem,
     };
    }catch(error){
-    console.log(error)
+    console.error(error)
    }
   }
 }

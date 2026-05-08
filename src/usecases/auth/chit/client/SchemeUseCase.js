@@ -1,5 +1,6 @@
 import { isValidObjectId } from "mongoose";
 import config from "../../../../config/chit/env.js";
+import s3Helper from "../../../../utils/s3Helper.js";
 
 class SchemeUseCase {
   constructor(
@@ -14,28 +15,6 @@ class SchemeUseCase {
     this.metalRepository = metalRepository;
     this.purityRepository = purityRepository;
     this.s3service = s3Service;
-  }
-
-  async s3Helper() {
-    try {
-      let s3settings = await this.s3Repo.getSetting()
-
-      if (!s3settings) {
-        return { success: false, message: "S3 configuration not found" };
-      }
-
-      const configuration = {
-        s3key: s3settings.s3key,
-        s3secret: s3settings.s3secret,
-        s3bucket_name: s3settings.s3bucket_name,
-        s3display_url: s3settings.s3display_url,
-        region: s3settings.region,
-      };
-
-      return configuration;
-    } catch (error) {
-      console.error(error);
-    }
   }
 
   async addScheme(data, logo, desc_img) {
@@ -71,7 +50,7 @@ class SchemeUseCase {
       }
     }
 
-    const s3Configs = await this.s3Helper(data.id_branch);
+    const s3Configs = await s3Helper()
 
     try {
       if (logo) {
@@ -150,7 +129,7 @@ class SchemeUseCase {
     });
     0;
 
-    const s3Configs = await this.s3Helper(data.id_branch);
+    const s3Configs = await s3Helper()
 
     try {
       if (logo) {
@@ -230,7 +209,7 @@ class SchemeUseCase {
       return { success: false, message: "No scheme found" };
     }
 
-    const s3Configs = await this.s3Helper(result.id_branch);
+    const s3Configs = await s3Helper()
     result.pathUrl = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/`;
 
     return {
@@ -368,7 +347,7 @@ class SchemeUseCase {
   }
 
   async getSchemeByclassificationId(id) {
-    const s3Configs = await this.s3Helper()
+    const s3Configs = await s3Helper()
     const pathurl= `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/`
 
     let result = await this.schemeRepository.getSchemeByclassificationId(id);

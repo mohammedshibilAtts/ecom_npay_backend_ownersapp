@@ -139,6 +139,8 @@ async addGiftIssue(data) {
       }
     }
 
+    /*
+    // ---------------- OLD SEQUENTIAL LOOP LOGIC ----------------
     for (const gift of transformedData.gifts) {
    
       const inwardItem = await this.giftInwardsRepo.findByGiftCode({
@@ -161,6 +163,36 @@ async addGiftIssue(data) {
         };
       }
     }
+    */
+
+    const inwardItems = await Promise.all(
+      transformedData.gifts.map((gift) =>
+        this.giftInwardsRepo.findByGiftCode({
+          gift_code: gift.gift_code,
+          id_gift: gift.id_gift,
+        })
+      )
+    );
+
+    // Validate in memory instantly
+    for (let i = 0; i < transformedData.gifts.length; i++) {
+      const gift = transformedData.gifts[i];
+      const inwardItem = inwardItems[i];
+
+      if (!inwardItem) {
+        return {
+          success: false,
+          message: `No inward item found for giftcode: ${gift.gift_code}`,
+        };
+      }
+
+      if (inwardItem.qty < gift.qty) {
+        return {
+          success: false,
+          message: `Not enough stock available for giftcode: ${gift.gift_code}. Available: ${inwardItem.qty}, Requested: ${gift.qty}`,
+        };
+      }
+    }
     
     
     const savedData = await this.giftIssuesRepository.addGiftIssue(transformedData);
@@ -169,6 +201,8 @@ async addGiftIssue(data) {
       return { success: false, message: "Failed to issue gift" };
     }
 
+    /*
+    // ---------------- OLD SEQUENTIAL LOOP LOGIC ----------------
     for (const gift of transformedData.gifts) {
       const inwardItem = await this.giftInwardsRepo.findByGiftCode({
         gift_code: gift.gift_code,
@@ -179,6 +213,15 @@ async addGiftIssue(data) {
       const qty = Number(gift.qty);
       await this.giftInwardsRepo.updateQty(inwardItem._id, qty);
     }
+    */
+
+    await Promise.all(
+      transformedData.gifts.map((gift, i) => {
+        const qty = Number(gift.qty);
+        const inwardItemId = inwardItems[i]._id; 
+        return this.giftInwardsRepo.updateQty(inwardItemId, qty);
+      })
+    );
 
     if (transformedData.issue_type === 1 && data.id_scheme_account) {
       await this.schemeAccountRepository.updateQty(data.id_scheme_account, totalQty);

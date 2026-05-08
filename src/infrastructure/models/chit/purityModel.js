@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import counterModel from './CounterModel.js'; 
 
 const puritySchema = new mongoose.Schema({
     id_purity: {

@@ -25,14 +25,90 @@ const controller = new CategoryController(useCase, validator);
 
 const router = express.Router();
 
-
-router.get('/all',(req,res)=>controller.getAllCategories(req,res))
 router.get('/allcategories',(req,res)=>controller.getAllCategoriesWithoutBranch(req,res));
+/**
+ * @swagger
+ * tags:
+ *   name: Category
+ *   description: Product category management
+ */
+
+/**
+ * @swagger
+ * /api/client/category/all:
+ *   get:
+ *     summary: Get all categories
+ *     tags: [Category]
+ */
+router.get('/all',(req,res)=>controller.getAllCategories(req,res))
+
+/**
+ * @swagger
+ * /api/client/category/{id}:
+ *   get:
+ *     summary: Get category by ID
+ *     tags: [Category]
+ *   patch:
+ *     summary: Edit category
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ *   delete:
+ *     summary: Delete category
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get("/:id", (req, res) => controller.getById(req, res));
 router.use(authMiddleware.protect);
+
+/**
+ * @swagger
+ * /api/client/category:
+ *   get:
+ *     summary: Get all active categories
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ *   post:
+ *     summary: Add new category
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/',(req,res)=>controller.getAllActiveCategory(req,res))
+
+/**
+ * @swagger
+ * /api/client/category/table:
+ *   post:
+ *     summary: Get categories table data
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/table',(req,res)=>controller.getCategory(req,res))
+
+/**
+ * @swagger
+ * /api/client/category/branch/{id}:
+ *   get:
+ *     summary: Get categories by branch ID
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get("/branch/:id", (req, res) => controller.getByBranchId(req, res));
+
+/**
+ * @swagger
+ * /api/client/category/metal/{id}:
+ *   get:
+ *     summary: Get categories by metal ID
+ *     tags: [Category]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get("/metal/:id", (req, res) => controller.getByMetalId(req, res));
 router.post("/",upload.handleUpload([{name:"image",maxCount:1},{name:"categoryBanner",maxCount:1}]), (req, res) => controller.addCategory(req, res));
 router.patch("/:id",upload.handleUpload([{name:"image",maxCount:1},{name:"categoryBanner",maxCount:1}]), (req, res) => controller.editCategory(req, res));

@@ -1,11 +1,9 @@
-
 import mongoose from 'mongoose';
-import counterModel from './CounterModel.js';  
+  
 
 const schemestatusSchema = new mongoose.Schema({
     id_status: {
         type: Number,
-        required: true,
         default: 1
     },
     status_name: { 
@@ -23,28 +21,6 @@ const schemestatusSchema = new mongoose.Schema({
     
 }, {
     timestamps: true
-});
-
-
-schemestatusSchema.pre('save', async function(next) {
-    if (this.isNew) {
-        try {
-        
-            const counter = await counterModel.findByIdAndUpdate(
-                { _id: 'id_status' },
-                { $inc: { seq: 1 } }, 
-                { new: true, upsert: true }
-            );
-
-            this.id_status = counter.seq;
-
-            next();
-        } catch (error) {
-            next(error); 
-        }
-    } else {
-        next();
-    }
 });
 
 export default mongoose.model('SchemeStatus', schemestatusSchema);

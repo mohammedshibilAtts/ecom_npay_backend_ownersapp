@@ -14,7 +14,24 @@ const otprepo = new OtpRepository()
 const otpusecase = new otpUseCase(otprepo);
 const otpcontroller = new otpController(otpusecase)
 
+/**
+ * @swagger
+ * tags:
+ *   name: OTP
+ *   description: One-Time Password verification services
+ */
+
 router.use(authMiddleware.protect);
+
+/**
+ * @swagger
+ * /api/client/otp/verifyotp:
+ *   post:
+ *     summary: Verify OTP for current user
+ *     tags: [OTP]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/verifyotp',(req,res)=>otpcontroller.verifyOtp(req,res));
 
 export default router;

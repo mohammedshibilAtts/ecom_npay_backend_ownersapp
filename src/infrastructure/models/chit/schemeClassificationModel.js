@@ -18,7 +18,6 @@ const schemeClassifictionSchema= new mongoose.Schema({
       },
       created_by: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true,
         ref:'Employee'
       },
       is_deleted:{
@@ -28,6 +27,10 @@ const schemeClassifictionSchema= new mongoose.Schema({
       payment_editable:{
         type:Boolean,
         default:false
+      },
+      classifcationImg:{
+        type:String,
+        default:""
       }
     },
     {

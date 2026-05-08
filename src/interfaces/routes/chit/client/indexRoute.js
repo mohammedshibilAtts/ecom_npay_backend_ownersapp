@@ -28,8 +28,6 @@ import commonRoutes from './commonRoutes.js'
 import useRoleRoutes from './userRoleRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js'
 import pushNotificationRoutes from './pushNotificationRoutes.js'
-import whatsappMessageRoutes from './whatsappMessageRoutes.js'
-import WeddingBirthDayRoutes from './weddingRoutes.js'
 import reportRoutes from './reportRoutes.js'
 import orderlistRoutes from "./orderItemRoutes.js";
 import orderVendorRoutes from './orderVendorRoutes.js';
@@ -54,7 +52,6 @@ import shape from './shapeMasterroutes.js';
 import cut from './cutmasterRoutes.js';
 import color from './colormasterRoutes.js';
 import stonemaster from './stonemasterRoutes.js'
-
 
 
 const router = express.Router();
@@ -89,8 +86,6 @@ router.use('/useraccess', accessRoutes);
 router.use('/common', commonRoutes)
 router.use('/userrole', useRoleRoutes);
 router.use('/pushnotificaiton', pushNotificationRoutes)
-router.use('/whatsappmessage', whatsappMessageRoutes)
-router.use('/wedding', WeddingBirthDayRoutes)
 router.use('/reports', reportRoutes)
 router.use('/ordervendor', orderVendorRoutes)
 router.use('/ordreitem', orderlistRoutes);
@@ -116,11 +111,7 @@ router.use('/shape',shape)
 router.use('/cut',cut)
 router.use('/colour',color)
 router.use('/stonemaster',stonemaster)
-
-
-
  //for print
-
 router.use('/print',printRoutes);
 
 export default router; 

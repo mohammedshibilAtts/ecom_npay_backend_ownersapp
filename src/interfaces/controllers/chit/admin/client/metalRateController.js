@@ -1,4 +1,5 @@
 import moment from "moment";
+import mongoose from "mongoose";
 
 class metalRateController {
   constructor(metalrateUseCase, validator) {
@@ -8,10 +9,8 @@ class metalRateController {
 
   async addMetalRate(req, res) {
     try {
-      const { error } = this.validator.metalRateValidations.validate(
-        req.body
-      );
-      
+      const { error } = this.validator.metalRateValidations.validate(req.body);
+
       if (error) {
         return res.status(400).json({ message: error.details[0].message });
       }
@@ -20,10 +19,12 @@ class metalRateController {
 
       if (Array.isArray(data)) {
         if (req && req.user.id_employee) {
+          const groupId = new mongoose.Types.ObjectId();
           data = data.map((item) => ({
             ...item,
             created_by: req.user.id_employee,
             modified_by: req.user.id_employee,
+            group_id: groupId,
           }));
         }
       } else {
@@ -36,7 +37,9 @@ class metalRateController {
         return res.status(400).json({ message: result.message });
       }
 
-      return res.status(201).json({ message: result.message , data:result.data});
+      return res
+        .status(201)
+        .json({ message: result.message, data: result.data });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
@@ -91,9 +94,8 @@ class metalRateController {
         return res.staus(400).json({ message: "No valid branch id provided" });
       }
 
-      const result = await this.metalRateUseCase.currenPreviousMetalRate(
-        branchId
-      );
+      const result =
+        await this.metalRateUseCase.currenPreviousMetalRate(branchId);
 
       if (!result.success) {
         return res.status(400).json({ message: result.message });
@@ -109,7 +111,7 @@ class metalRateController {
   }
 
   async todaysMetalRateByMetal(req, res) {
-    const { metalid,purity, date,branch} = req.query;
+    const { metalid, purity, date, branch } = req.query;
 
     try {
       if (!purity) {
@@ -119,7 +121,6 @@ class metalRateController {
       if (!metalid) {
         return res.status(400).json({ message: "Metal id is required" });
       }
-
 
       let parsedDate = null;
       if (date) {
@@ -137,31 +138,31 @@ class metalRateController {
             0,
             0,
             0,
-            0
-          )
+            0,
+          ),
         );
       }
 
-      let branchId=""
-      if(!branch){
-        branchId  = req.user.branch;
+      let branchId = "";
+      if (!branch) {
+        branchId = req.user.branch;
       }
 
-      if(!branch && !req.user.branch){
-        return res.status(400).json("No branch provided")
+      if (!branch && !req.user.branch) {
+        return res.status(400).json("No branch provided");
       }
       const result = await this.metalRateUseCase.todaysMetalRateByMetal(
         metalid,
         purity,
         parsedDate,
-        branch
+        branch,
       );
 
       if (!result.success) {
         return res.status(404).json({ message: result.message });
       }
 
-      return res 
+      return res
         .status(200)
         .json({ message: result.message, data: result.data });
     } catch (error) {
@@ -171,9 +172,8 @@ class metalRateController {
   }
 
   async todaysMetalRate(req, res) {
-
     const { branchId, date } = req.params;
-    
+
     try {
       if (!branchId) {
         return res.status(400).json({ message: "Branch ID is required" });
@@ -185,8 +185,8 @@ class metalRateController {
         if (isNaN(parsedDate.getTime())) {
           return res.status(400).json({ message: "Invalid date format" });
         }
-      }else if (!date) {
-        const date= new Date()
+      } else if (!date) {
+        const date = new Date();
         parsedDate = new Date(date);
         if (isNaN(parsedDate.getTime())) {
           return res.status(400).json({ message: "Invalid date format" });
@@ -195,7 +195,7 @@ class metalRateController {
 
       const result = await this.metalRateUseCase.getMetalRate(
         branchId,
-        parsedDate
+        parsedDate,
       );
 
       if (!result.success) {
@@ -243,7 +243,7 @@ class metalRateController {
         page,
         limit,
         search,
-        dateFilter
+        dateFilter,
       );
 
       if (!result.success) {
@@ -290,7 +290,6 @@ class metalRateController {
   async metalRatetoday(req, res) {
     const { branchId } = req.params;
     try {
-      
       if (!branchId) {
         query.branchId = req.user.branch;
       }
@@ -299,9 +298,7 @@ class metalRateController {
       //   return res.status(400).json({ message: "Branch ID is required" });
       // }
 
-      const result = await this.metalRateUseCase.getMetalRate(
-        branchId
-      );
+      const result = await this.metalRateUseCase.getMetalRate(branchId);
 
       if (!result.success) {
         return res.status(404).json({ message: result.message });
@@ -313,6 +310,29 @@ class metalRateController {
     } catch (error) {
       console.error("Error in metal rate:", error);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getHistory(req, res) {
+    try {
+      const result = await this.metalRateUseCase.getMetalRateHistory(req.body);
+
+      if (!result.success) {
+        return res.status(400).json({ status: false, message: result.message });
+      }
+
+      return res.status(200).json({
+        status: true,
+        message: "Metal rate history fetched successfully",
+        data: result.data,
+        meta: result.meta,
+        totalCount: result.totalCount,
+      });
+    } catch (error) {
+      console.error("Error in getHistory:", error);
+      return res
+        .status(500)
+        .json({ status: false, message: "Internal server error" });
     }
   }
 }

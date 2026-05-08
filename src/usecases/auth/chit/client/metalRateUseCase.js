@@ -3,12 +3,12 @@ import mongoose from "mongoose";
 import smsService from "../../../../config/chit/smsService.js";
 import CustomerRepository from "../../../../infrastructure/repositories/chit/CustomerRepository.js";
 
-class metalRateUseCase { 
-  constructor(metalrateRepository,metalRepo,branchRepo) { 
+class metalRateUseCase {
+  constructor(metalrateRepository, metalRepo, branchRepo) {
     this.metalRateRepository = metalrateRepository;
-    this.metalRepo= metalRepo;
-    this.customerRepo = new CustomerRepository()
-      this.branchRepo= branchRepo;
+    this.metalRepo = metalRepo;
+    this.customerRepo = new CustomerRepository();
+    this.branchRepo = branchRepo;
   }
 
   async addMetalRate(data) {
@@ -16,19 +16,19 @@ class metalRateUseCase {
       if (!Array.isArray(data)) {
         return { success: false, message: "Invalid data format" };
       }
-  
+
       const savedData = await this.metalRateRepository.addMetalRate(data);
-  
+
       if (!savedData) {
         return { success: false, message: "Failed to add metal rate" };
       }
-  
+
       const response = {
         success: true,
         message: "Metal rate added successfully",
         data: savedData,
       };
-  
+
       process.nextTick(async () => {
         try {
           const sortedData = data.slice().sort((a, b) => {
@@ -47,23 +47,26 @@ class metalRateUseCase {
             return acc;
           }, {});
 
-          const messageLines = Object.entries(grouped).map(([metal, items], index) => {
-            const parts = items.map((item, i) => {
-              const purity = item.purity_name || "Unknown Purity";
-              const rate = typeof item.rate === "number" ? item.rate.toFixed(2) : "-";
-              if (i === 0) {
-                return `Rs.${rate.toLocaleString("en-IN")} (${purity})`;
-              } else {
-                return `(${purity}) : Rs.${rate.toLocaleString("en-IN")}`;
-              }
-            });
+          const messageLines = Object.entries(grouped).map(
+            ([metal, items], index) => {
+              const parts = items.map((item, i) => {
+                const purity = item.purity_name || "Unknown Purity";
+                const rate =
+                  typeof item.rate === "number" ? item.rate.toFixed(2) : "-";
+                if (i === 0) {
+                  return `Rs.${rate.toLocaleString("en-IN")} (${purity})`;
+                } else {
+                  return `(${purity}) : Rs.${rate.toLocaleString("en-IN")}`;
+                }
+              });
 
-            if (index === 0) {
-              return `Today’s ${metal} Rate : ${parts.join(" , ")}`;
-            } else {
-              return `${metal} Rate : ${parts.join(" , ")}`;
-            }
-          });
+              if (index === 0) {
+                return `Today’s ${metal} Rate : ${parts.join(" , ")}`;
+              } else {
+                return `${metal} Rate : ${parts.join(" , ")}`;
+              }
+            },
+          );
 
           const messageContent = messageLines.join(" ; ");
 
@@ -75,14 +78,14 @@ class metalRateUseCase {
             message: messageContent,
             channel: "push",
             type: "Notification",
-            sendToAllSubscribed: true
+            sendToAllSubscribed: true,
           };
           await smsService.sendNotification(input);
         } catch (err) {
           console.error("Push notification failed:", err.message);
         }
       });
-  
+
       return response;
     } catch (error) {
       console.error("addMetalRate error:", error);
@@ -91,7 +94,7 @@ class metalRateUseCase {
         message: "An error occurred while adding metal rate",
       };
     }
-  }   
+  }
 
   async editMetalRate(id, data) {
     try {
@@ -102,28 +105,27 @@ class metalRateUseCase {
       const exists = await this.metalRateRepository.findById(id);
 
       if (!exists) {
-        return {success:false,message:"Metal rate not found"}
+        return { success: false, message: "Metal rate not found" };
       } else if (exists.is_deleted) {
         return { success: false, message: "Deleted metal rate" };
       }
 
       const normalizeValue = (value) => {
         if (value instanceof mongoose.Types.ObjectId) {
-            return value.toString();
+          return value.toString();
         }
         if (value instanceof mongoose.Types.Decimal128) {
-            return parseFloat(value.toString());
+          return parseFloat(value.toString());
         }
         if (value instanceof Date) {
-            return value.toISOString().split(".")[0] + "Z";
+          return value.toISOString().split(".")[0] + "Z";
         }
         if (typeof value === "string" && !isNaN(parseFloat(value))) {
-            return parseFloat(value);
+          return parseFloat(value);
         }
 
         return value;
-    };
-    
+      };
 
       let fieldsToUpdate = {};
       for (const key of Object.keys(data)) {
@@ -140,12 +142,17 @@ class metalRateUseCase {
           continue;
         }
 
-        const existingValue = exists[key] !== undefined ? normalizeValue(exists[key]) : undefined;
+        const existingValue =
+          exists[key] !== undefined ? normalizeValue(exists[key]) : undefined;
         const newValue = normalizeValue(data[key]);
-        
-        if (existingValue !== newValue && newValue !== Infinity && newValue !== null) {
-            fieldsToUpdate[key] = data[key];
-        }        
+
+        if (
+          existingValue !== newValue &&
+          newValue !== Infinity &&
+          newValue !== null
+        ) {
+          fieldsToUpdate[key] = data[key];
+        }
       }
 
       if (Object.keys(fieldsToUpdate).length === 0) {
@@ -154,7 +161,7 @@ class metalRateUseCase {
 
       const editedData = await this.metalRateRepository.editMetalRate(
         id,
-        fieldsToUpdate
+        fieldsToUpdate,
       );
 
       if (editedData) {
@@ -171,55 +178,66 @@ class metalRateUseCase {
     }
   }
 
-  async deleteMetalRate(id){
+  async deleteMetalRate(id) {
     try {
-        if(!isValidObjectId(id)){
-            return {success:false,message:"Provide a valid object id"}
-        }
+      if (!isValidObjectId(id)) {
+        return { success: false, message: "Provide a valid object id" };
+      }
 
-        const metalRate = await this.metalRateRepository.findById(id);
+      const metalRate = await this.metalRateRepository.findById(id);
 
-        if (!metalRate) {
-            return { success: false, message: "Metal rate not found" };
-        }
+      if (!metalRate) {
+        return { success: false, message: "Metal rate not found" };
+      }
 
-        if (metalRate.is_deleted) {
-            return { success: false, message: "Metal rate is already deleted" };
-        }
+      if (metalRate.is_deleted) {
+        return { success: false, message: "Metal rate is already deleted" };
+      }
 
-        const newData= await this.metalRateRepository.deleteMetalRate(id);
+      const newData = await this.metalRateRepository.deleteMetalRate(id);
 
-        if(newData){
-            return {success:true,message:"Metal rate deleted"}
-        }
+      if (newData) {
+        return { success: true, message: "Metal rate deleted" };
+      }
 
-        return {success:false,message:"Failed to delete metal rate"}
+      return { success: false, message: "Failed to delete metal rate" };
     } catch (error) {
-        console.error(error);
-        return {success:false,message:'An error occured while deleting metal rate'}
+      console.error(error);
+      return {
+        success: false,
+        message: "An error occured while deleting metal rate",
+      };
     }
   }
 
-  async currenPreviousMetalRate(branchId){
+  async currenPreviousMetalRate(branchId) {
     try {
-        if(!isValidObjectId(branchId)){
-            return {success:false,message:"Provide a valid object id"}
-        }
+      if (!isValidObjectId(branchId)) {
+        return { success: false, message: "Provide a valid object id" };
+      }
 
-        const metalRate= await this.metalRateRepository.currenPreviousMetalRate(branchId)
+      const metalRate =
+        await this.metalRateRepository.currenPreviousMetalRate(branchId);
 
-        if(metalRate.length === 0){
-            return {success:false,message:"No metal rate found"}
-        }
+      if (metalRate.length === 0) {
+        return { success: false, message: "No metal rate found" };
+      }
 
-        return {success:true,message:'Metal rates fetched successfully',data:metalRate}
+      return {
+        success: true,
+        message: "Metal rates fetched successfully",
+        data: metalRate,
+      };
     } catch (error) {
-        console.error(error);
-        return {success:false,message:'An occured while getting current previous rate'}
+      console.error(error);
+      return {
+        success: false,
+        message: "An occured while getting current previous rate",
+      };
     }
   }
 
-  async todaysMetalRateByMetal(metalId,purity, date = null,branchId) {
+  async todaysMetalRateByMetal(metalId, purity, date = null, branchId) {
     try {
       if (!isValidObjectId(metalId)) {
         return { success: false, message: "Invalid metal id" };
@@ -229,23 +247,34 @@ class metalRateUseCase {
         return { success: false, message: "Invalid branch id" };
       }
 
-      const metalData = await this.metalRepo.findById(metalId)
+      const metalData = await this.metalRepo.findById(metalId);
 
-      if(metalData?.is_deleted){
-        return {success:false,message:"No metal found, add new metal"}
+      if (metalData?.is_deleted) {
+        return { success: false, message: "No metal found, add new metal" };
       }
-  
-      const metalRate = await this.metalRateRepository.todaysMetalRateByMetal(metalId,purity,branchId, date);
-  
+
+      const metalRate = await this.metalRateRepository.todaysMetalRateByMetal(
+        metalId,
+        purity,
+        branchId,
+        date,
+      );
+
       if (!metalRate) {
         return { success: false, message: "No metal rate found" };
       }
-  
-      return { success: true, message: "Metal rate fetched successfully", data: metalRate };
-  
+
+      return {
+        success: true,
+        message: "Metal rate fetched successfully",
+        data: metalRate,
+      };
     } catch (error) {
       console.error("Error in Use Case:", error);
-      return { success: false, message: "An error occurred while fetching metal rate" };
+      return {
+        success: false,
+        message: "An error occurred while fetching metal rate",
+      };
     }
   }
 
@@ -254,23 +283,20 @@ class metalRateUseCase {
   //     if (!isValidObjectId(branchId) && branchId !== "0") {
   //       return { success: false, message: "Invalid Branch ID" };
   //     }
-  
-     
+
   //     const metalRate = await this.metalRateRepository.getMetalRate(branchId, date);
-    
-  
+
   //     if (!metalRate) {
   //       return { success: false, message: "No metal rate found" };
   //     }
-  
+
   //     return { success: true, message: "Metal rate fetched successfully", data: metalRate };
-  
+
   //   } catch (error) {
   //     console.error("Error in Use Case:", error);
   //     return { success: false, message: "An error occurred while fetching metal rate" };
   //   }
   // }
-
 
   async getMetalRate(branchId, date = null) {
     try {
@@ -279,22 +305,24 @@ class metalRateUseCase {
         if (!branchData) {
           return { success: false, message: "No default branch found" };
         }
-  
+
         branchId = branchData._id;
       }
 
-      const metalRate = await this.metalRateRepository.getMetalRate(branchId, date);
-  
+      const metalRate = await this.metalRateRepository.getMetalRate(
+        branchId,
+        date,
+      );
+
       if (!metalRate) {
         return { success: false, message: "No metal rate found" };
       }
-  
+
       return {
         success: true,
         message: "Metal rate fetched successfully",
         data: metalRate,
       };
-  
     } catch (error) {
       console.error("❌ Error in getMetalRate Use Case:", error);
       return {
@@ -304,16 +332,15 @@ class metalRateUseCase {
       };
     }
   }
-  
-  
-  async metalRateTable(page,limit,filter){
+
+  async metalRateTable(page, limit, filter) {
     try {
-        const pageNum = page ? parseInt(page) : 1;
+      const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
 
       const query = {
-        is_deleted:false,
-        ...filter
+        is_deleted: false,
+        ...filter,
       };
 
       const documentskip = (pageNum - 1) * pageSize;
@@ -321,7 +348,7 @@ class metalRateUseCase {
       const Data = await this.metalRateRepository.metalRateTable(
         query,
         documentskip,
-        documentlimit
+        documentlimit,
       );
 
       if (!Data || Data.length === 0) {
@@ -337,31 +364,80 @@ class metalRateUseCase {
         currentPage: pageNum,
       };
     } catch (error) {
-       console.error(error);
-       return {success:false,message:"An error occured while fetching metal rate datas"} 
+      console.error(error);
+      return {
+        success: false,
+        message: "An error occured while fetching metal rate datas",
+      };
     }
   }
 
-  async getById(_id){
+  async getById(_id) {
     try {
-        if(!isValidObjectId(_id)){
-            return {success:false,message:"Provide a valid object id"}
-        }
+      if (!isValidObjectId(_id)) {
+        return { success: false, message: "Provide a valid object id" };
+      }
 
-        const metalRate= await this.metalRateRepository.findById(_id);
+      const metalRate = await this.metalRateRepository.findById(_id);
 
-        if(!metalRate){
-            return {success:false,message:"No metal rate found"}
-        }
+      if (!metalRate) {
+        return { success: false, message: "No metal rate found" };
+      }
 
-        return {success:true,message:"Metal rate fetched successfully",data:metalRate}
+      return {
+        success: true,
+        message: "Metal rate fetched successfully",
+        data: metalRate,
+      };
     } catch (error) {
-        console.error(error);
-        return {success:false,message:"An occured while fetching todays metal rate"}
+      console.error(error);
+      return {
+        success: false,
+        message: "An occured while fetching todays metal rate",
+      };
+    }
+  }
+
+  async getMetalRateHistory({
+    limit,
+    cursor = null,
+    fromDate,
+    toDate,
+    metalId,
+    branchId,
+    purityId,
+    sortBy,
+    sortOrder,
+  }) {
+    const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+
+    try {
+      const history = await this.metalRateRepository.getMetalRateHistoryCursor({
+        limit: safeLimit,
+        cursor,
+        fromDate,
+        toDate,
+        metalId,
+        branchId,
+        purityId,
+        sortBy,
+        sortOrder,
+      });
+
+      return {
+        success: true,
+        data: history.data,
+        meta: {
+          nextCursor: history.nextCursor,
+          hasNextPage: !!history.nextCursor,
+          totalCount: history.totalCount,
+        },
+      };
+    } catch (error) {
+      console.error("Error in getMetalRateHistory UseCase:", error);
+      throw error;
     }
   }
 }
-
-
 
 export default metalRateUseCase;

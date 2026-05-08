@@ -29,7 +29,6 @@ const giftitemSchema = new mongoose.Schema(
     },
     created_by: {
       type:mongoose.Schema.Types.ObjectId,
-      required:true,
       ref:"Employee"
     },
     createdate: {
@@ -38,7 +37,6 @@ const giftitemSchema = new mongoose.Schema(
     },
     modify_by: {
       type:mongoose.Schema.Types.ObjectId,
-        required:true,
         ref:"Employee"
     },
     modifydate: {

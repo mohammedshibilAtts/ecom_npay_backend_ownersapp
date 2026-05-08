@@ -29,11 +29,7 @@ class BranchUsecase {
   }
 
   async branchTable(query) {
-    const { page, limit, from_date, to_date, id_client, search } = query;
-
-    if (id_client && !isValidObjectId(id_client)) {
-      return { success: false, message: "Provide a valid object Client ID" };
-    }
+    const { page, limit, from_date, to_date, search } = query;
 
     const pageNum = page ? parseInt(page) : 1;
     const pageSize = limit ? parseInt(limit) : 10;
@@ -53,11 +49,6 @@ class BranchUsecase {
       };
     }
 
-    if (id_client) {
-      filter.id_client = new mongoose.Types.ObjectId(id_client);
-    }
-
-
     if (search) {
       const searchRegex = new RegExp(search, "i");
       filter.$or = [{ branch_name: { $regex: searchRegex } }];
@@ -73,7 +64,6 @@ class BranchUsecase {
       return { success: false, message: "No data found" };
     }
 
-    
     const totalBranch = await this.brachRepository.countBranch(filter);
 
     return {
@@ -193,24 +183,6 @@ class BranchUsecase {
       console.error(err);
 
       return { success: false, message: `Failed to get branch by Id` };
-    }
-  }
-  async getBranchByClientId(id) {
-    try {
-      const idValidation = this.validateObjectId(id, "Client");
-      if (idValidation) return idValidation;
-
-      const existingBranch = await this.brachRepository.findByClientId(id);
-      if (existingBranch) {
-        return {
-          success: true,
-          message: "Branch retrieved successfully",
-          data: existingBranch,
-        };
-      }
-      return { success: false, message: "Branch not found" };
-    } catch (err) {
-      return { success: false, message: `Failed to get branch by Client Id` };
     }
   }
 }

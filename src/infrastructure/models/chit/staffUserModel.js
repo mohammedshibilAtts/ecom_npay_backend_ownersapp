@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import userRole from './userRoleModel.js';
 
 const staffuserSchema = new mongoose.Schema(
   {
@@ -7,16 +6,6 @@ const staffuserSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: 'Employee',
-    },
-    id_project:{
-      type:mongoose.Schema.Types.ObjectId,
-      required:true,
-      ref:"Project",
-    },
-    id_client:{
-      type:mongoose.Schema.Types.ObjectId,
-      required:true,
-      ref:"Client",
     },
     password: {
       type: String,

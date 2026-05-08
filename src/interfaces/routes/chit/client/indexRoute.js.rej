@@ -1,0 +1,17 @@
+diff a/src/interfaces/routes/chit/client/indexRoute.js b/src/interfaces/routes/chit/client/indexRoute.js	(rejected hunks)
+@@ -56,6 +56,7 @@ import color from './colormasterRoutes.js';
+ import stonemaster from './stonemasterRoutes.js'
+ 
+ 
++
+ const router = express.Router();
+ 
+ router.use('/dashboard', dashboardRoutes)
+@@ -117,6 +118,7 @@ router.use('/colour',color)
+ router.use('/stonemaster',stonemaster)
+ 
+ 
++
+  //for print
+ 
+ router.use('/print',printRoutes);

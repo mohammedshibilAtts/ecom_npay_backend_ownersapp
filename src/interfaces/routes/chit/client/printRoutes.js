@@ -16,9 +16,46 @@ const printRepository = new PrintRepository()
 const printUseCase = new PrintUseCase(printRepository)
 const printController = new PrintController(printUseCase)
 
+/**
+ * @swagger
+ * tags:
+ *   name: Print
+ *   description: Generation of physical receipts and passbooks
+ */
+
 router.use(authMiddleware.protect)
+
+/**
+ * @swagger
+ * /api/client/print/receipt:
+ *   post:
+ *     summary: Get receipt data
+ *     tags: [Print]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/receipt',(req,res)=>printController.getReceipt(req,res))
+
+/**
+ * @swagger
+ * /api/client/print/receipt/print:
+ *   post:
+ *     summary: Get receipt data by payment ID
+ *     tags: [Print]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/receipt/print',(req,res)=>printController.getReceiptByPaymentId(req,res));
+
+/**
+ * @swagger
+ * /api/client/print/passbook:
+ *   post:
+ *     summary: Get passbook data for a customer/account
+ *     tags: [Print]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/passbook',(req,res)=>printController.getPassbookData(req,res))
 
 

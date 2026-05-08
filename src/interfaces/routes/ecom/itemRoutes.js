@@ -5,13 +5,15 @@ import ItemRepository from "../../../infrastructure/repositories/ecom/itemReposi
 import ItemUseCase from "../../../usecases/auth/ecom/itemUsecase.js";
 import ItemController from "../../controllers/ecom/itemController.js";
 import ProductRepository from "../../../infrastructure/repositories/chit/productRepository.js";
+import StoneDetailsRepository from "../../../infrastructure/repositories/ecom/stoneDetailsRepository.js";
 
 const router = express.Router();
 
 const itemRepository = new ItemRepository();
 const productRepository = new ProductRepository();
+const stoneDetailsRepository = new StoneDetailsRepository();
 
-const itemUseCase = new ItemUseCase(itemRepository, productRepository);
+const itemUseCase = new ItemUseCase(itemRepository, productRepository, stoneDetailsRepository);
 const itemController = new ItemController(itemUseCase);
 
 router.post("/", (req, res) => itemController.createBulkItems(req, res));

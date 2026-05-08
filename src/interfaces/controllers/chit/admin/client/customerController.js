@@ -58,7 +58,7 @@ class CustomerController {
       const result = await this.customerUseCase.addCustomer(
         data,
         uploads,
-        token
+        token,
       );
 
       if (!result.success) {
@@ -137,7 +137,7 @@ class CustomerController {
         id,
         data,
         uploads,
-        token
+        token,
       );
 
       if (!result.success) {
@@ -234,14 +234,13 @@ class CustomerController {
 
       const result = await this.customerUseCase.searchCustomerByMobile(
         search,
-        customer
+        customer,
       );
 
-       if (!result.data) {
+      if (!result.data) {
         return res.status(400).json({ message: result.message });
       }
 
-      
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
@@ -294,7 +293,7 @@ class CustomerController {
         fromDate,
         toDate,
         id_branch,
-        active
+        active,
       );
 
       if (!result.success) {
@@ -324,7 +323,7 @@ class CustomerController {
 
       const result = await this.customerUseCase.searchCustomerByMobileAndBranch(
         branchId,
-        search
+        search,
       );
 
       if (!result.success) {
@@ -342,7 +341,7 @@ class CustomerController {
 
   async signup(req, res) {
     try {
-      const { firstname, mobile, mpin, id_branch, password,email} = req.body;
+      const { firstname, mobile, mpin, id_branch, password, email } = req.body;
 
       if (!firstname) {
         return res.status(400).json({ message: "First name is required." });
@@ -420,7 +419,7 @@ class CustomerController {
       if (
         !type ||
         !["signup", "forgotpassword", "resetpassword", "forgotmpin"].includes(
-          type
+          type,
         )
       ) {
         return res.status(400).json({
@@ -468,22 +467,21 @@ class CustomerController {
         type,
       };
 
-      let validateUser = false; /// for reusing the same otp function for check already user exsiting or non exisiting
+      let validateUser = false;
       if (type == "signup") {
-        // if (!id_branch) {
-        //   return res.status(400).json({ message: "BranchId is required." });
-        // }
-        // data.id_branch = id_branch;
         validateUser = true;
       }
       if (!mobile) {
         return res.status(400).json({ message: "Mobile number is required." });
       }
 
-      if (typeof mobile !== "number" || isNaN(mobile)) {
-        return res
-          .status(400)
-          .json({ message: "Mobile number must be a valid numeric value." });
+      const mobileStr = String(mobile).trim();
+
+      if (!/^[6-9]\d{9}$/.test(mobileStr)) {
+        return res.status(400).json({
+          message:
+            "Mobile number must be a valid 10-digit Indian mobile number",
+        });
       }
 
       if (!type) {
@@ -492,7 +490,7 @@ class CustomerController {
       if (
         !type ||
         !["signup", "forgotpassword", "resetpassword", "forgotmpin"].includes(
-          type
+          type,
         )
       ) {
         return res.status(400).json({
@@ -532,7 +530,7 @@ class CustomerController {
 
       const result = await this.customerUseCase.forgetPassword(
         mobile,
-        password
+        password,
       );
 
       if (!result.success) {
@@ -636,7 +634,7 @@ class CustomerController {
       const result = await this.customerUseCase.changeMpin(
         mobile,
         mpin,
-        oldMpin
+        oldMpin,
       );
 
       if (result.success) {
@@ -665,7 +663,9 @@ class CustomerController {
           .json({ message: result.message, data: result.data });
       }
 
-      return res.status(200).json({ message: result.message,data: result.data  });
+      return res
+        .status(200)
+        .json({ message: result.message, data: result.data });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
@@ -675,41 +675,42 @@ class CustomerController {
   async customerOverview(req, res) {
     try {
       const { branch, mobile, idCustomer } = req.body;
-  
+
       if (!idCustomer) {
         if (!branch) {
           return res.status(400).json({ message: "Branch is required" });
         }
-  
+
         if (!mobile) {
           return res.status(400).json({ message: "Provide mobile number" });
         }
-  
+
         const mobileNumber = mobile?.toString().trim();
         if (!/^\d{10}$/.test(mobileNumber)) {
-          return res.status(400).json({ message: "Enter a valid mobile number" });
+          return res
+            .status(400)
+            .json({ message: "Enter a valid mobile number" });
         }
       }
-  
+
       const result = await this.customerUseCase.customerOverview(
         branch,
         mobile,
-        idCustomer
+        idCustomer,
       );
-      
+
       if (result?.data?.customerDetails?._id) {
         return res
           .status(200)
           .json({ message: result.message, data: result.data });
       }
-  
-      return res.status(400).json({ message:"No customer data found" });
+
+      return res.status(400).json({ message: "No customer data found" });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
     }
   }
-  
 
   async findUsersBySchema(req, res) {
     try {
@@ -761,11 +762,9 @@ class CustomerController {
       // }
 
       if (newpass !== confirmpass) {
-        return res
-          .status(400)
-          .json({
-            message: "New password and Confirmpassword is not mathcing",
-          });
+        return res.status(400).json({
+          message: "New password and Confirmpassword is not mathcing",
+        });
       }
 
       const result = await this.customerUseCase.changePassword({
@@ -816,16 +815,20 @@ class CustomerController {
 
   async exportCustomers(req, res) {
     try {
-      const {startDate,endDate,search} = req.query;
-      const result = await this.customerUseCase.exportCustomers(startDate,endDate,search);
-  
+      const { startDate, endDate, search } = req.query;
+      const result = await this.customerUseCase.exportCustomers(
+        startDate,
+        endDate,
+        search,
+      );
+
       if (result.success) {
         return res.status(200).json({
           message: result.message,
           downloadUrl: `/exports/${result.data.filename}`,
         });
       }
-  
+
       return res.status(400).json({ message: result.message });
     } catch (error) {
       console.error("Export Error:", error);

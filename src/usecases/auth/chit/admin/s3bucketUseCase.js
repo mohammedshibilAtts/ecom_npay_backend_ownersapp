@@ -5,7 +5,7 @@ class S3BucketUseCase {
 
     async addSmsSetting(data) {
         try {
-            const exists = await this.s3bucketRepository.exists(data.id_branch, data.id_project, data.id_client);
+            const exists = await this.s3bucketRepository.exists(data.id_branch);
 
             if (exists) {
                 await this.s3bucketRepository.updateOne(exists._id, data);

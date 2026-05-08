@@ -23,5 +23,4 @@ router.use('/stonedetails',stonedetailsRoutes)
 router.use('/settings',ecomSettings)
 router.use('/items',itemRoutes)
 
-
 export default router;

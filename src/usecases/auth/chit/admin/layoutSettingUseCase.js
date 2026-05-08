@@ -5,7 +5,7 @@ class LayoutSettingUseCase {
 
     async addLayoutSetting(data) {
         try {
-            const exists = await this.layoutRepository.exists(data.id_branch, data.id_project, data.id_client);
+            const exists = await this.layoutRepository.exists(data.id_branch);
 
             if (exists) {
                 await this.layoutRepository.updateOne(exists._id, data);

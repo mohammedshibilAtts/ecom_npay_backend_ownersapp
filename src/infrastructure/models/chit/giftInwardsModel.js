@@ -1,5 +1,4 @@
 import mongoose, { Schema } from 'mongoose';
-import counterModel from './CounterModel.js';
 
 const giftinwardsSchema = new mongoose.Schema({
     gift_vendorid:{
@@ -54,15 +53,6 @@ const giftinwardsSchema = new mongoose.Schema({
         required:true,
         ref:'Employee'
     },
-    // createdate:{
-    //     type:Date,
-    //     required:true,
-    //     default:null
-    // },
-    // modifydate:{
-    //     type:Date,
-    //     default:null
-    // },
     gst_percenty:{
         type:Number,
         required:true
@@ -78,34 +68,5 @@ const giftinwardsSchema = new mongoose.Schema({
 },{
     timestamps:true
 });
-
-giftinwardsSchema.pre('save', async function (next) {
-    if (this.isNew) {
-      try {
-        let counter = await counterModel.findById('barcode');
-  
-        if (!counter) {
-          counter = new counterModel({
-            _id: 'barcode',
-            barcode: 99
-          });
-          await counter.save();
-        }
-  
-        const updatedCounter = await counterModel.findByIdAndUpdate(
-          { _id: 'barcode' },
-          { $inc: { barcode: 1 } },
-          { new: true }
-        );
-  
-        this.barcode = updatedCounter.barcode;
-        next();
-      } catch (error) {
-        next(error);
-      }
-    } else {
-      next();
-    }
-  });
 
 export default mongoose.model('GiftInwards',giftinwardsSchema)

@@ -1,5 +1,6 @@
 import { isValidObjectId } from "mongoose";
 import config from "../../../../config/chit/env.js";
+import s3Helper from "../../../../utils/s3Helper.js";
 
 class ClassificationUseCase {
   constructor(classificationRepository, s3service,s3Repo) {
@@ -8,59 +9,22 @@ class ClassificationUseCase {
     this.s3Repo = s3Repo;
   }
 
-  async s3Helper(id_branch){
-    try {
-      const s3settings = await this.s3Repo.getSettingByBranch(id_branch);
-
-      if (!s3settings) {
-        return { success: false, message: "S3 configuration not found" };
-      }
-
-      const configuration = {
-        s3key: s3settings[0].s3key,
-        s3secret: s3settings[0].s3secret,
-        s3bucket_name: s3settings[0].s3bucket_name,
-        s3display_url: s3settings[0].s3display_url,
-        region: s3settings[0].region,
-      };
-
-      return configuration
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  async addSchemeClassification(data, logo, desc_img) {
+  async addSchemeClassification(data, classifcationImg) {
     const existingClassificationName =
-      await this.classificationRepository.findByName(data.classification_name);
+      await this.classificationRepository.findByName(data.name);
 
     if (existingClassificationName) {
       return { success: false, message: "Classificaiton name already in use" };
     }
 
-    if (data.typeofscheme === 2) {
-      const existingType = await this.classificationRepository.findByOne({
-        typeofscheme: data.typeofscheme,
-      });
+    const s3Configs = await s3Helper()
 
-      if (existingType) {
-        return {
-          success: false,
-          message: "Digigold classificaiton already created",
-        };
-      }
+    if (classifcationImg) {
+      data.classifcationImg = await this.s3service.uploadToS3(classifcationImg, "classification",s3Configs);
     }
 
-    const s3Configs = await this.s3Helper(data.id_branch)
-
-    if (logo && desc_img) {
-      data.logo = await this.s3service.uploadToS3(logo, "classification",s3Configs);
-      data.desc_img = await this.s3service.uploadToS3(
-        desc_img,
-        "classification",
-        s3Configs
-      );
-    }
+    const highestOrder = await this.classificationRepository.getHighestOrder();
+    data.order = highestOrder + 1;
 
     const result = await this.classificationRepository.addSchemeClassification(
       data
@@ -73,7 +37,7 @@ class ClassificationUseCase {
     return { success: true, message: "Classification created successfully" };
   }
 
-  async updateClassification(id, data, logo, desc_img) {
+  async updateClassification(id, data, classifcationImg) {
     const existingClassification = await this.classificationRepository.findById(
       id
     );
@@ -82,26 +46,15 @@ class ClassificationUseCase {
       return { success: false, message: "No classification found" };
     }
 
-    const s3Configs =await this.s3Helper(data.id_branch)
-    const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/${existingClassification?.logo}`
+    const s3Configs = await s3Helper()
+    
     try {
-      if (logo) {
-        if (existingClassification.logo) {
+      if (classifcationImg) {
+        if (existingClassification.classifcationImg) {
+          const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/${existingClassification?.classifcationImg}`
           await this.s3service.deleteFromS3(keyPath,s3Configs);
         }
-        data.logo = await this.s3service.uploadToS3(logo, "classification",s3Configs);
-      }
-
-      if (desc_img) {
-        if (existingClassification.desc_img) {
-           const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/${existingClassification?.desc_img}`
-          await this.s3service.deleteFromS3(keyPath,s3Configs);
-        }
-        data.desc_img = await this.s3service.uploadToS3(
-          desc_img,
-          "classification",
-          s3Configs
-        );
+        data.classifcationImg = await this.s3service.uploadToS3(classifcationImg, "classification", s3Configs);
       }
     } catch (error) {
       console.error("Error during S3 operations:", error);
@@ -126,88 +79,12 @@ class ClassificationUseCase {
     if (!result) {
       return { success: false, message: "No classification found" };
     }
-    const s3Configs =await this.s3Helper(result.id_branch)
+    const s3Configs =await s3Helper()
     result.pathUrl = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}classification/`
-    // result.pathUrl = `https://${config.AWS_S3_BUCKET}.s3.${config.AWS_REGION}.amazonaws.com/keerthijewellery/webadmin/assets/img/classification/`;
     return {
       success: true,
       message: "Classification retrieved successfully",
       data: result,
-    };
-  }
-
-  async getAllClassifications(page, limit, search,data) {
-    const {from_date,to_date,typesofscheme,id_branch}= data
-
-    const pageNum = page ? parseInt(page) : 1;
-    const pageSize = limit ? parseInt(limit) : 10;
-
-    let filter = {};
-
-    if (id_branch && isValidObjectId(id_branch)) {
-      filter.id_branch = id_branch;
-    }
-
-    if (from_date) {
-      const fromDate = new Date(data.from_date);
-      if (isNaN(fromDate.getTime())) {
-        return res.status(400).json({ message: "Invalid from_date format" });
-      }
-      filter.createdAt = { ...(filter.createdAt || {}), $gte: fromDate };
-    }
-
-
-    if (to_date) {
-      const toDate = new Date(to_date);
-      if (isNaN(toDate.getTime())) {
-        return res.status(400).json({ message: "Invalid to_date format" });
-      }
-      filter.createdAt = { ...(filter.createdAt || {}), $lte: toDate };
-    }
-
-    if (typesofscheme) {      
-      filter.typeofscheme = typesofscheme;
-    }
-
-    const searchTerm = search || "";
-
-    const searchCriteria = searchTerm
-      ? {
-          $or: [{ classification_name: { $regex: searchTerm, $options: "i" } }],
-        }
-      : {};
-
-
-      const filterCriteria = filter || {};
-
-      const query = {
-        is_deleted: false,
-        ...searchCriteria, 
-        ...filterCriteria, 
-      };
-
-
-    const documentskip = (pageNum - 1) * pageSize;
-    const documentlimit = pageSize;
-
-    const classtData =
-      await this.classificationRepository.getAllClassifications({
-        query,
-        documentskip,
-        documentlimit,
-      });
-
-    if (!classtData || classtData.length === 0) {
-      return { success: false, message: "No active classifications found" };
-    }
-    
-    return {
-      success: true,
-      message: "Classifications fetched successfully",
-      data: classtData.classData,
-      totalCount: classtData.totalCount,
-      totalPages: Math.ceil(classtData.totalCount / pageSize),
-      currentPage: pageNum,
     };
   }
 
@@ -296,34 +173,6 @@ class ClassificationUseCase {
     }
   }
 
-  async getClassificationByBranch(id) {
-    try {
-      if(!isValidObjectId(id)){
-        return {success:false,message:"Provide a valid object id"}
-      }
-      
-      const result = await this.classificationRepository.find({
-        id_branch: id,
-      });
-
-      if (!result) {
-        return { success: false, message: "No classification found" };
-      }
-
-      result.pathUrl = `https://${config.AWS_S3_BUCKET}.s3.${config.AWS_REGION}.amazonaws.com/${config.AWS_LOCAL_PATH}img/classification/`;
-      return {
-        success: true,
-        message: "Classification retrieved successfully",
-        data: result,
-      };
-    } catch (error) {
-      console.error(error);
-      return {
-        success: false,
-        message: "Error while fetching classification data",
-      };
-    }
-  }
 
   async getSchemeClassification() {
     try {

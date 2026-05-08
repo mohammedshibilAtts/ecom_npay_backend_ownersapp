@@ -5,7 +5,6 @@ import mongoose from "mongoose";
 class EmployeeRepository {
   async findOne(query) {
     try {
-      console.log(query)
       const findData = await employeeModel
         .findOne(query)
         .populate({
@@ -86,12 +85,11 @@ class EmployeeRepository {
         },
         { $unwind: "$id_city" },
         {
-            $lookup: {
-                from: "s3bucketsettings",
-                localField: "id_branch._id",
-                foreignField: "id_branch",
-                as: "s3Details",
-            },
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
+          },
         },
         { $unwind: "$s3Details" },
         {

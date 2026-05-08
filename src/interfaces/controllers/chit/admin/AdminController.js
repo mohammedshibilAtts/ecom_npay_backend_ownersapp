@@ -1,17 +1,14 @@
 class AdminController {
-  constructor(adminUseCase, clientUsecase, projectUsecase
-    ,appsettingUseCase
+  constructor(adminUseCase
   ) {  
-    this.adminUseCase = adminUseCase;
-    this.clientUseCase = clientUsecase;
-    this.projectUsecase = projectUsecase;
-    this.appsettingUsecase= appsettingUseCase;
+    this.adminUseCase = adminUseCase
   }
 
   async login(req, res) {
     try {
       const { username, password } = req.body;
       const result = await this.adminUseCase.findAdmin(username, password);
+      
       if (result.success) {
         return res.status(200).json({
           message: result.message,
@@ -387,21 +384,11 @@ class AdminController {
   async addAppSetting(req, res) {
     const {    
       id_branch,
-      id_project,
-      id_client
     } = req.body;
     try {
-      if (!id_client || id_client === "") {
-        return res.status(400).json({ status: 'Failed', message: 'Client Id is required' });
-      } 
-  
       if (!id_branch || id_branch === "") {
         return res.status(400).json({ status: 'Failed', message: 'Branch Id is required' });
       } 
-  
-      if (!id_project || id_project === "") {
-        return res.status(400).json({ status: 'Failed', message: 'Project Id is required' });
-      }
 
       const data=req.body
       const result= await this.appsettingUsecase.addAppSetting(data)
@@ -421,9 +408,7 @@ class AdminController {
     const {id}= req.params;
 
     const {    
-      id_client,
       id_branch,
-      id_project,
       android_version,
       ios_version,
       is_android_latest,
@@ -442,22 +427,13 @@ class AdminController {
       if(!id){
         return res.status(400).json({message:"No valid object id provided"})
       }
-      if (!id_client || id_client === "") {
-        return res.status(400).json({message: 'Client Id is required' });
-      } 
-  
+    
       if (!id_branch || id_branch === "") {
         return res.status(400).json({message: 'Branch Id is required' });
       } 
-  
-      if (!id_project || id_project === "") {
-        return res.status(400).json({message: 'Project Id is required' });
-      }
 
       const updateFields = Object.entries({
-        id_client,
         id_branch,
-        id_project,
         android_version,
         ios_version,
         is_android_latest,

@@ -6,7 +6,7 @@ class EcomSettingsController {
 
   async activeEcom(req, res) {
     try {
-        const {isEnable}=req.body
+      const { isEnable } = req.body;
       const result = await this.ecomSettingsUseCase.activeEcom(isEnable);
       if (!result.success) {
         return res.status(400).json({
@@ -20,7 +20,7 @@ class EcomSettingsController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,

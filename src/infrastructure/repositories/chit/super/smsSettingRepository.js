@@ -1,18 +1,18 @@
 import smsSettingModel from "../../../models/chit/smsSettingModel.js";
 
 class SmsSettingRepository {
-
-  async find(){
-    try{
+  async find() {
+    try {
       return await smsSettingModel.find();
-    }catch(error){
+    } catch (error) {
       console.error("Error checking existence:", error);
       return null;
     }
   }
-  async exists(id_branch, id_project, id_client) {
+
+  async exists(id_branch) {
     try {
-      return await smsSettingModel.findOne({ id_branch, id_project, id_client });
+      return await smsSettingModel.findOne({ id_branch });
     } catch (error) {
       console.error("Error checking existence:", error);
       return null;
@@ -21,10 +21,9 @@ class SmsSettingRepository {
 
   async findOne(query) {
     try {
-      const smsData =  await smsSettingModel.findOne(query)
-      .lean();
+      const smsData = await smsSettingModel.findOne(query).lean();
 
-      return smsData ? smsData : null ;
+      return smsData ? smsData : null;
     } catch (error) {
       console.error("Error checking existence:", error);
       return null;
@@ -61,9 +60,9 @@ class SmsSettingRepository {
 
   async getByProjectAndBranch(projectId, branchId) {
     try {
-      return await smsSettingModel.findOne({ id_project: projectId, id_branch: branchId });
+      return await smsSettingModel.findOne({ id_branch: branchId });
     } catch (error) {
-      console.error("Error fetching SMS settings by project and branch:", error);
+      console.error("Error fetching SMS settings by branch:", error);
       return null;
     }
   }

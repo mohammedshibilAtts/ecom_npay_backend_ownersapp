@@ -9,9 +9,8 @@ class PrintController {
         if(!accountNumber){
           return res.status(400).json({ message: "Account number or mobile number required" });
         }
-        console.log("accountNumber",accountNumber)
         const result = await this.printUseCase.getReceipt({accountNumber})
-        console.log("resultttttt",result)
+
         if(result.success){
           return res.status(200).json({ message:result.message,data:result.data });
         }
@@ -30,7 +29,7 @@ class PrintController {
           return res.status(400).json({ message: "Payment ids required" });
         }
         const result = await this.printUseCase.getReceiptByPaymentId(paymentIds,req.user)
-        console.log(result)
+        
         if(result.success){
           return res.status(200).json({ message:result.message,data:result.data });
         }

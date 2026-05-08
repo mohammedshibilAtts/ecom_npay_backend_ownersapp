@@ -5,9 +5,9 @@ import CustomerRepository from "../../../../infrastructure/repositories/chit/Cus
 
 class ReportUseCase {
   constructor(reportRepo, branchRepo) {
-    this.reportRepo = reportRepo; 
+    this.reportRepo = reportRepo;
     this.branchRepo = branchRepo;
-    this.customerRepo =  new CustomerRepository();
+    this.customerRepo = new CustomerRepository();
   }
 
   addOneDay(dateStr) {
@@ -32,25 +32,28 @@ class ReportUseCase {
     const pageNum = page ? parseInt(page) : 1;
     const pageSize = limit ? parseInt(limit) : 10;
     const skip = (pageNum - 1) * pageSize;
-    const filter = { is_deleted: false,active:true};
+    const filter = { is_deleted: false, active: true };
 
     let dateFilter = {};
-  
+
     if (from_date && to_date) {
       if (new Date(to_date) < new Date(from_date)) {
         throw new Error("End date cannot be before start date");
       }
 
-      const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+      const startDate = moment
+        .tz(from_date, "Asia/Kolkata")
+        .startOf("day")
+        .toDate();
+      const endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
 
       dateFilter.createdAt = {
         $gte: startDate,
         $lte: endDate,
       };
     } else {
-      const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
+      const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+      const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
 
       dateFilter.createdAt = {
         $gte: startOfToday,
@@ -65,20 +68,20 @@ class ReportUseCase {
     }
 
     if (isValidObjectId(id_branch)) {
-      filter.id_branch = new Types.ObjectId(id_branch) ;
+      filter.id_branch = new Types.ObjectId(id_branch);
     }
 
-  // Convert string IDs to ObjectId
+    // Convert string IDs to ObjectId
     if (id_branch && isValidObjectId(id_branch)) {
-      filter.id_branch =  new Types.ObjectId(id_branch);
+      filter.id_branch = new Types.ObjectId(id_branch);
     }
 
     if (id_scheme && isValidObjectId(id_scheme)) {
-      filter._id =  new Types.ObjectId(id_scheme);
+      filter._id = new Types.ObjectId(id_scheme);
     }
-    
+
     if (id_classification && isValidObjectId(id_classification)) {
-      filter.id_classification =  new Types.ObjectId(id_classification);
+      filter.id_classification = new Types.ObjectId(id_classification);
     }
     // Fetch category with filters
     const { data, totalDocs, totalPages } = await this.reportRepo.overAllReport(
@@ -86,7 +89,7 @@ class ReportUseCase {
       skip,
       pageSize,
       sort ?? {},
-      dateFilter
+      dateFilter,
     );
     return { data, totalDocs, totalPages };
   }
@@ -126,17 +129,23 @@ class ReportUseCase {
           throw new Error("End date cannot be before start date");
         }
 
-        const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-        const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
-  
+        const startDate = moment
+          .tz(from_date, "Asia/Kolkata")
+          .startOf("day")
+          .toDate();
+        const endDate = moment
+          .tz(to_date, "Asia/Kolkata")
+          .endOf("day")
+          .toDate();
+
         query.createdAt = {
           $gte: startDate,
           $lte: endDate,
         };
       } else {
-        const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-        const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
-  
+        const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+        const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
+
         query.createdAt = {
           $gte: startOfToday,
           $lte: endOfToday,
@@ -147,7 +156,7 @@ class ReportUseCase {
         pageNum,
         pageSize,
         query,
-        sort ?? ""
+        sort ?? "",
       );
 
       if (!dueData || !dueData || dueData.length === 0) {
@@ -155,7 +164,7 @@ class ReportUseCase {
       }
       return {
         message: "Pending due data fetched successfully",
-        data: dueData
+        data: dueData,
       };
     } catch (error) {
       console.error(error);
@@ -215,7 +224,7 @@ class ReportUseCase {
         0,
         0,
         0,
-        0
+        0,
       );
       toDate = new Date(currentDate.setHours(0, 0, 0, 0));
     }
@@ -229,7 +238,7 @@ class ReportUseCase {
       query,
       search,
       skip,
-      limit
+      limit,
     );
     return {
       data: schemes.data,
@@ -239,110 +248,6 @@ class ReportUseCase {
     };
   }
 
-  // async getPaymentSummary({
-  //   page = 1,
-  //   limit = 10,
-  //   id_scheme,
-  //   id_branch,
-  //   payment_mode,
-  //   from_date,
-  //   to_date,
-  //   search,
-  // }) {
-  //   try {
-  //     const query = { active: true, is_deleted: false,payment_status:1};
-  
-  //     // Date range handling with timezone adjustment
-  //     if (from_date && to_date) {
-  //       if (new Date(to_date) < new Date(from_date)) {
-  //         throw new Error("End date cannot be before start date");
-  //       }
-  
-  //       // Convert to UTC with timezone adjustment (Asia/Kolkata - UTC+5:30)
-  //       const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-  //       const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
-  
-  //       query.date_payment = {
-  //         $gte: startDate,
-  //         $lte: endDate,
-  //       };
-  //     } else {
-  //       // Default to today's date in local timezone
-  //       const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-  //       const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
-  
-  //       query.date_payment = {
-  //         $gte: startOfToday,
-  //         $lte: endOfToday,
-  //       };
-  //     }
-  
-  //     // Branch filter
-  //     if (id_branch) {
-  //       if (!isValidObjectId(id_branch)) {
-  //         return { success: false, message: "Provide a valid Branch Id" };
-  //       }
-  //       query.id_branch = new mongoose.Types.ObjectId(id_branch);
-  //     }
-  
-  //     // Scheme filter
-  //     if (id_scheme) {
-  //       if (!isValidObjectId(id_scheme)) {
-  //         return { success: false, message: "Provide a valid id_scheme" };
-  //       }
-  //       query.id_scheme = new mongoose.Types.ObjectId(id_scheme);
-  //     }
-  
-  //     // Payment mode filter
-  //     if (payment_mode) {
-  //       if (!isValidObjectId(payment_mode)) {
-  //         return { success: false, message: "Provide a valid payment_mode" };
-  //       }
-  //       query.payment_mode = new mongoose.Types.ObjectId(payment_mode);
-  //     }
-  
-  //     // Search functionality
-  //     if (search) {
-  //       const searchRegex = new RegExp(search, "i");
-  //       query.$or = [
-  //         { id_transaction: { $regex: searchRegex } },
-  //         { remark: { $regex: searchRegex } },
-  //         { itr_utr: { $regex: searchRegex } },
-  //         { account_name: { $regex: searchTerm, $options: "i" } },
-  //         { scheme_acc_number: { $regex: searchTerm, $options: "i" } },
-  //       ];
-  //     }
-  
-  //     // Pagination
-  //     const pageNum = parseInt(page) || 1;
-  //     const perPage = parseInt(limit) || 10;
-  //     const skip = (pageNum - 1) * perPage;
-  
-  //     // Get data from repository
-  //     const { totalDocuments, totalPages, data } = await this.reportRepo.getPaymentReport(
-  //       query,
-  //       skip,
-  //       perPage
-  //     );
-
-  //     console.log(data,"data")
-  
-  //     return {
-  //       success: true,
-  //       message: "Payment data retrieved successfully",
-  //       totalDocuments,
-  //       totalPages,
-  //       currentPage: pageNum,
-  //       data,
-  //     };
-  //   } catch (error) {
-  //     console.error("Error in getPaymentSummary:", error);
-  //     return {
-  //       success: false,
-  //       message: error.message || "Failed to retrieve payment data",
-  //     };
-  //   }
-  // }
   async getPaymentSummary({
     page = 1,
     limit = 10,
@@ -355,32 +260,35 @@ class ReportUseCase {
   }) {
     try {
       const query = { active: true, is_deleted: false, payment_status: 1 };
-  
-      // Date range handling with timezone adjustment
+
       if (from_date && to_date) {
         if (new Date(to_date) < new Date(from_date)) {
           throw new Error("End date cannot be before start date");
         }
-  
-        // Convert to UTC with timezone adjustment (Asia/Kolkata - UTC+5:30)
-        const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-        const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
-  
+
+        const startDate = moment
+          .tz(from_date, "Asia/Kolkata")
+          .startOf("day")
+          .toDate();
+        const endDate = moment
+          .tz(to_date, "Asia/Kolkata")
+          .endOf("day")
+          .toDate();
+
         query.date_payment = {
           $gte: startDate,
           $lte: endDate,
         };
       } else {
-        // Default to today's date in local timezone
-        const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-        const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
-  
+        const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+        const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
+
         query.date_payment = {
           $gte: startOfToday,
           $lte: endOfToday,
         };
       }
-  
+
       // Branch filter
       if (id_branch) {
         if (!isValidObjectId(id_branch)) {
@@ -388,7 +296,7 @@ class ReportUseCase {
         }
         query.id_branch = new mongoose.Types.ObjectId(id_branch);
       }
-  
+
       // Scheme filter
       if (id_scheme) {
         if (!isValidObjectId(id_scheme)) {
@@ -396,7 +304,7 @@ class ReportUseCase {
         }
         query.id_scheme = new mongoose.Types.ObjectId(id_scheme);
       }
-  
+
       // Payment mode filter
       if (payment_mode) {
         if (!isValidObjectId(payment_mode)) {
@@ -404,20 +312,21 @@ class ReportUseCase {
         }
         query.payment_mode = new mongoose.Types.ObjectId(payment_mode);
       }
-  
-      // Handle mobile number search - find customer first
+
       let customerIdForSearch = null;
       if (search) {
-        // Check if search is a mobile number (10 digits)
-        const isMobileNumber = /^\d{10}$/.test(search);
-        
-        if (isMobileNumber) {
-          // Find customer by mobile number
-          const customer = await this.customerRepo.findOne({ mobile: Number(search) });
-          if (customer) {
-            customerIdForSearch = customer._id;
-          } else {
-            // If no customer found with this mobile, return empty results
+        const searchValue = String(search).trim();
+
+        const isDigitsOnly = /^\d+$/.test(searchValue);
+
+        if (isDigitsOnly) {
+          const customers = await this.customerRepo.find({
+            mobile: { $regex: searchValue, $options: "i" },
+          });
+
+          const customerIds = customers.map((c) => c._id);
+
+          if (!customerIds.length) {
             return {
               success: true,
               message: "Payment data retrieved successfully",
@@ -427,25 +336,25 @@ class ReportUseCase {
               data: [],
             };
           }
+
+          customerIdForSearch = customerIds;
         }
       }
-  
-      // Pagination
+
       const pageNum = parseInt(page) || 1;
       const perPage = parseInt(limit) || 10;
       const skip = (pageNum - 1) * perPage;
-  
-      console.log(customerIdForSearch)
-      // Get data from repository - pass search term and customer ID if mobile search
-      const { totalDocuments, totalPages, data } = await this.reportRepo.getPaymentReport(
-        query,
-        skip,
-        perPage,
-        {},
-        search,
-        customerIdForSearch // Pass the customer ID for mobile search
-      );
-  
+
+      const { totalDocuments, totalPages, data } =
+        await this.reportRepo.getPaymentReport(
+          query,
+          skip,
+          perPage,
+          {},
+          search,
+          customerIdForSearch,
+        );
+
       return {
         success: true,
         message: "Payment data retrieved successfully",
@@ -480,16 +389,19 @@ class ReportUseCase {
         throw new Error("End date cannot be before start date");
       }
 
-      const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+      const startDate = moment
+        .tz(from_date, "Asia/Kolkata")
+        .startOf("day")
+        .toDate();
+      const endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startDate,
         $lte: endDate,
       };
     } else {
-      const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
+      const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+      const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startOfToday,
@@ -555,8 +467,11 @@ class ReportUseCase {
       }
 
       // Convert to UTC with timezone adjustment (Asia/Kolkata - UTC+5:30)
-      const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+      const startDate = moment
+        .tz(from_date, "Asia/Kolkata")
+        .startOf("day")
+        .toDate();
+      const endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startDate,
@@ -564,15 +479,14 @@ class ReportUseCase {
       };
     } else {
       // Default to today's date in local timezone
-      const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
+      const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+      const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startOfToday,
         $lte: endOfToday,
       };
     }
-    
 
     if (id_branch) {
       if (!isValidObjectId(id_branch))
@@ -617,23 +531,26 @@ class ReportUseCase {
     to_date,
     sort = {},
   }) {
-    const query = { active: true,status:1};
+    const query = { active: true, status: 1 };
 
     if (from_date && to_date) {
       if (new Date(to_date) < new Date(from_date)) {
         throw new Error("End date cannot be before start date");
       }
 
-      const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+      const startDate = moment
+        .tz(from_date, "Asia/Kolkata")
+        .startOf("day")
+        .toDate();
+      const endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startDate,
         $lte: endDate,
       };
     } else {
-      const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
+      const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+      const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startOfToday,
@@ -662,8 +579,8 @@ class ReportUseCase {
     const perPage = limit ? parseInt(limit) : 10;
 
     const skip = (pageNum - 1) * perPage;
-    console.log(query)
-    const { totalDocuments, totalPages, data } = await this.reportRepo.getCloseReport(query, skip, limit, sort);
+    const { totalDocuments, totalPages, data } =
+      await this.reportRepo.getCloseReport(query, skip, limit, sort);
 
     return {
       message: "Completed Account Data Retrived Successfuly",
@@ -691,16 +608,19 @@ class ReportUseCase {
         throw new Error("End date cannot be before start date");
       }
 
-      const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+      const startDate = moment
+        .tz(from_date, "Asia/Kolkata")
+        .startOf("day")
+        .toDate();
+      const endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startDate,
         $lte: endDate,
       };
     } else {
-      const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
+      const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+      const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
 
       query.updatedAt = {
         $gte: startOfToday,
@@ -729,8 +649,8 @@ class ReportUseCase {
     const perPage = limit ? parseInt(limit) : 10;
 
     const skip = (pageNum - 1) * perPage;
-    console.log(query)
-    const { totalDocuments, totalPages, data } = await this.reportRepo.getRefendSummary(query, skip, limit, sort);
+    const { totalDocuments, totalPages, data } =
+      await this.reportRepo.getRefendSummary(query, skip, limit, sort);
 
     return {
       message: "Completed Account Data Retrived Successfuly",
@@ -744,7 +664,6 @@ class ReportUseCase {
   async giftReport(filterdata) {
     try {
       const { page, limit, id_branch, search = "" } = filterdata;
-
 
       if (!id_branch) {
         return { success: false, message: "No branchId found" };
@@ -761,7 +680,6 @@ class ReportUseCase {
       //   ? { $or: [{ gift_name: { $regex: searchTerm, $options: "i" } }] }
       //   : {};
 
-
       const searchCriteria = {};
 
       if (searchTerm) {
@@ -773,7 +691,7 @@ class ReportUseCase {
 
       const query = {
         active: true,
-        is_deleted:false,
+        is_deleted: false,
         id_branch,
         ...searchCriteria,
       };
@@ -781,7 +699,11 @@ class ReportUseCase {
       const documentskip = (pageNum - 1) * pageSize;
       const documentlimit = pageSize;
 
-      const Data = await this.reportRepo.getGiftReport({ query, documentskip, documentlimit });
+      const Data = await this.reportRepo.getGiftReport({
+        query,
+        documentskip,
+        documentlimit,
+      });
 
       if (!Data || !Data.result || Data.result.length === 0) {
         return { success: true, message: "No data found", data: [] };
@@ -804,7 +726,7 @@ class ReportUseCase {
   async getAmountPayable(bodyData) {
     try {
       const { page, limit, from_date, to_date, type } = bodyData;
-  
+
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
 
@@ -812,9 +734,12 @@ class ReportUseCase {
         active: true,
         is_deleted: false,
       };
-      
+
       if (to_date) {
-        const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+        const endDate = moment
+          .tz(to_date, "Asia/Kolkata")
+          .endOf("day")
+          .toDate();
         query.createdAt = {
           $lte: endDate,
         };
@@ -822,38 +747,44 @@ class ReportUseCase {
           if (new Date(to_date) < new Date(from_date)) {
             throw new Error("End date cannot be before start date");
           }
-          const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
+          const startDate = moment
+            .tz(from_date, "Asia/Kolkata")
+            .startOf("day")
+            .toDate();
           query.createdAt.$gte = startDate;
         }
       } else if (from_date) {
-        const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
+        const startDate = moment
+          .tz(from_date, "Asia/Kolkata")
+          .startOf("day")
+          .toDate();
         query.createdAt = {
           $gte: startDate,
         };
       } else {
-        const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-        const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
-  
+        const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+        const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
+
         query.createdAt = {
           $gte: startOfToday,
           $lte: endOfToday,
         };
       }
-  
+
       const documentSkip = (pageNum - 1) * pageSize;
       const documentLimit = pageSize;
-  
+
       const Data = await this.reportRepo.getAmountPayable(
-        query, 
-        documentSkip, 
+        query,
+        documentSkip,
         documentLimit,
-        type
+        type,
       );
 
       if (!Data) {
         return { success: true, message: "No data found", data: [] };
       }
-  
+
       return {
         success: true,
         message: "Scheme based details fetched successfully",
@@ -864,47 +795,50 @@ class ReportUseCase {
       };
     } catch (error) {
       console.error("Error in data:", error);
-      return { success: false, message: error.message || "Error while getting data" };
+      return {
+        success: false,
+        message: error.message || "Error while getting data",
+      };
     }
   }
 
   async getEmployeeRefferal(bodyData) {
     try {
-      const { page, limit, from_date, to_date,type} = bodyData;
-  
+      const { page, limit, from_date, to_date, type } = bodyData;
+
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
-  
+
       const query = {
         active: true,
         is_deleted: false,
       };
-  
+
       if (from_date && to_date) {
         query.createdAt = {
           $gte: new Date(from_date),
-          $lte: new Date(to_date), 
+          $lte: new Date(to_date),
         };
       } else if (from_date) {
         query.createdAt = { $gte: new Date(from_date) };
       } else if (to_date) {
-        query.createdAt = { $lte: new Date(to_date) }; 
+        query.createdAt = { $lte: new Date(to_date) };
       }
-  
+
       const documentSkip = (pageNum - 1) * pageSize;
       const documentLimit = pageSize;
-  
+
       const Data = await this.reportRepo.getEmployeeRefferal(
-        query, 
-        documentSkip, 
+        query,
+        documentSkip,
         documentLimit,
-        type
+        type,
       );
 
       if (!Data) {
         return { success: true, message: "No data found", data: [] };
       }
-  
+
       return {
         success: true,
         message: "Employee referral details fetched successfully",
@@ -921,91 +855,92 @@ class ReportUseCase {
 
   async getPaymentLedger(query) {
     try {
-        const { page, limit, from_date, to_date, id_payment } = query;
-        
-        const pageNum = Math.max(1, parseInt(page) || 1);
-        const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 10));
-        const skip = (pageNum - 1) * pageSize;
+      const { page, limit, from_date, to_date, id_payment } = query;
 
-        const filter = { is_deleted: false,payment_status:1 };
-        
-        let startDate, endDate;
-        
-        if (from_date && to_date) {
-            startDate = new Date(from_date);
-            endDate = new Date(to_date);
-            
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                throw new Error("Invalid date format. Use ISO format (YYYY-MM-DD)");
-            }
-        } else {
-            startDate = new Date();
-            startDate.setHours(0, 0, 0, 0);
-            
-            endDate = new Date();
-            endDate.setHours(23, 59, 59, 999);
+      const pageNum = Math.max(1, parseInt(page) || 1);
+      const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 10));
+      const skip = (pageNum - 1) * pageSize;
+
+      const filter = { is_deleted: false, payment_status: 1 };
+
+      let startDate, endDate;
+
+      if (from_date && to_date) {
+        startDate = new Date(from_date);
+        endDate = new Date(to_date);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          throw new Error("Invalid date format. Use ISO format (YYYY-MM-DD)");
         }
-        
-        filter.createdAt = {
-            $gte: startDate,
-            $lte: endDate
-        };
+      } else {
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
 
-        const sanitizedFilter = Object.keys(filter).reduce((acc, key) => {
-            if (filter[key] !== undefined && filter[key] !== null) {
-                acc[key] = filter[key];
-            }
-            return acc;
-        }, {});
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+      }
 
-        if(id_payment){
-          sanitizedFilter.payment_mode = new mongoose.Types.ObjectId(id_payment)
+      filter.createdAt = {
+        $gte: startDate,
+        $lte: endDate,
+      };
+
+      const sanitizedFilter = Object.keys(filter).reduce((acc, key) => {
+        if (filter[key] !== undefined && filter[key] !== null) {
+          acc[key] = filter[key];
         }
+        return acc;
+      }, {});
 
-        console.log(sanitizedFilter,"pay")
+      if (id_payment) {
+        sanitizedFilter.payment_mode = new mongoose.Types.ObjectId(id_payment);
+      }
 
-        return await this.reportRepo.getPaymentLedger(sanitizedFilter, skip, pageSize);
-
+      return await this.reportRepo.getPaymentLedger(
+        sanitizedFilter,
+        skip,
+        pageSize,
+      );
     } catch (error) {
-        console.error("Payment report error:", error);
-        throw new Error(error.message || "Failed to generate payment report");
+      console.error("Payment report error:", error);
+      throw new Error(error.message || "Failed to generate payment report");
     }
-}
+  }
 
   async getCustomerRefferal(bodyData) {
     try {
-      const { page, limit, from_date, to_date,type,search} = bodyData;
-  
+      const { page, limit, from_date, to_date, type, search } = bodyData;
+
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
-  
+
       const query = {
         active: true,
         is_deleted: false,
       };
-  
+
       if (from_date && to_date) {
         query.createdAt = {
           $gte: new Date(from_date),
-          $lte: new Date(to_date), 
+          $lte: new Date(to_date),
         };
       } else if (from_date) {
         query.createdAt = { $gte: new Date(from_date) };
       } else if (to_date) {
-        query.createdAt = { $lte: new Date(to_date) }; 
+        query.createdAt = { $lte: new Date(to_date) };
       }
-  
+
       const documentSkip = (pageNum - 1) * pageSize;
       const documentLimit = pageSize;
-  
+
       const Data = await this.reportRepo.getCustomerRefferal(
-        query, 
-        documentSkip, 
+        query,
+        documentSkip,
         documentLimit,
         type,
-        search
+        search,
       );
-  
+
       if (!Data) {
         return { success: true, message: "No data found", data: [] };
       }
@@ -1024,12 +959,10 @@ class ReportUseCase {
     }
   }
 
-
-  
-  //!drill down api section 
+  //!drill down api section
   async getSchemeDetailedView(bodyData) {
     try {
-      const {schemeid,page,limit,search,from_date,to_date} = bodyData;
+      const { schemeid, page, limit, search, from_date, to_date } = bodyData;
 
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
@@ -1046,7 +979,7 @@ class ReportUseCase {
 
       const query = {
         active: true,
-        is_deleted:false,
+        is_deleted: false,
         ...searchCriteria,
       };
 
@@ -1054,20 +987,26 @@ class ReportUseCase {
         if (new Date(to_date) < new Date(from_date)) {
           throw new Error("End date cannot be before start date");
         }
-  
+
         // Convert to UTC with timezone adjustment (Asia/Kolkata - UTC+5:30)
-        const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-        const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
-  
+        const startDate = moment
+          .tz(from_date, "Asia/Kolkata")
+          .startOf("day")
+          .toDate();
+        const endDate = moment
+          .tz(to_date, "Asia/Kolkata")
+          .endOf("day")
+          .toDate();
+
         query.createdAt = {
           $gte: startDate,
           $lte: endDate,
         };
       } else {
         // Default to today's date in local timezone
-        const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-        const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
-  
+        const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+        const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
+
         query.createdAt = {
           $gte: startOfToday,
           $lte: endOfToday,
@@ -1077,8 +1016,13 @@ class ReportUseCase {
       const documentskip = (pageNum - 1) * pageSize;
       const documentlimit = pageSize;
 
-      const Data = await this.reportRepo.getSchemeDetailedView(query, documentskip, documentlimit,schemeid);
-   
+      const Data = await this.reportRepo.getSchemeDetailedView(
+        query,
+        documentskip,
+        documentlimit,
+        schemeid,
+      );
+
       if (!Data) {
         return { success: true, message: "No data found", data: [] };
       }
@@ -1099,40 +1043,42 @@ class ReportUseCase {
 
   async getAmountDetailedView(bodyData) {
     try {
-      const { page, limit, from_date, to_date,id,type} = bodyData;
-  
+      const { page, limit, from_date, to_date, id, type } = bodyData;
+
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
-  
+
       const query = {
         active: true,
         is_deleted: false,
         paid_installments: { $gte: 1 },
       };
 
-      let startDate= "";
-      let endDate= "";
+      let startDate = "";
+      let endDate = "";
 
       if (from_date && to_date) {
         if (new Date(to_date) < new Date(from_date)) {
           throw new Error("End date cannot be before start date");
         }
-         startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-         endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+        startDate = moment
+          .tz(from_date, "Asia/Kolkata")
+          .startOf("day")
+          .toDate();
+        endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
       }
 
-  
       const documentSkip = (pageNum - 1) * pageSize;
       const documentLimit = pageSize;
 
       const Data = await this.reportRepo.getAmountDetailedView(
-        query, 
-        documentSkip, 
+        query,
+        documentSkip,
         documentLimit,
         id,
         type,
         startDate,
-        endDate
+        endDate,
       );
 
       if (!Data) {
@@ -1161,19 +1107,19 @@ class ReportUseCase {
       const pageSize = limit ? parseInt(limit) : 4;
 
       const query = {
-        status:0,
-        active:true
+        status: 0,
+        active: true,
       };
 
       if (from_date && to_date) {
         query.createdAt = {
           $gte: new Date(from_date),
-          $lte: new Date(to_date), 
+          $lte: new Date(to_date),
         };
       } else if (from_date) {
         query.createdAt = { $gte: new Date(from_date) };
       } else if (to_date) {
-        query.createdAt = { $lte: new Date(to_date) }; 
+        query.createdAt = { $lte: new Date(to_date) };
       }
 
       if (id_customer && isValidObjectId(id_customer)) {
@@ -1183,11 +1129,10 @@ class ReportUseCase {
       const documentSkip = (pageNum - 1) * pageSize;
       const documentLimit = pageSize;
 
-
       const Data = await this.reportRepo.getActiveAccounts(
-        query, 
-        documentSkip, 
-        documentLimit
+        query,
+        documentSkip,
+        documentLimit,
       );
 
       if (!Data) {
@@ -1199,7 +1144,7 @@ class ReportUseCase {
         message: "Scheme based details fetched successfully",
         data: Data.data,
         totalCount: Data.totalCount || 0,
-        totalPages: Math.ceil((Data.totalCount) / pageSize),
+        totalPages: Math.ceil(Data.totalCount / pageSize),
         currentPage: pageNum,
       };
     } catch (error) {
@@ -1216,18 +1161,18 @@ class ReportUseCase {
       const pageSize = limit ? parseInt(limit) : 4;
 
       const query = {
-        status:1
+        status: 1,
       };
 
       if (from_date && to_date) {
         query.createdAt = {
           $gte: new Date(from_date),
-          $lte: new Date(to_date), 
+          $lte: new Date(to_date),
         };
       } else if (from_date) {
         query.createdAt = { $gte: new Date(from_date) };
       } else if (to_date) {
-        query.createdAt = { $lte: new Date(to_date) }; 
+        query.createdAt = { $lte: new Date(to_date) };
       }
 
       if (id_customer && isValidObjectId(id_customer)) {
@@ -1238,9 +1183,9 @@ class ReportUseCase {
       const documentLimit = pageSize;
 
       const Data = await this.reportRepo.getRedeemedAccounts(
-        query, 
-        documentSkip, 
-        documentLimit
+        query,
+        documentSkip,
+        documentLimit,
       );
 
       if (!Data) {
@@ -1277,8 +1222,11 @@ class ReportUseCase {
       }
 
       // Convert to UTC with timezone adjustment (Asia/Kolkata - UTC+5:30)
-      const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+      const startDate = moment
+        .tz(from_date, "Asia/Kolkata")
+        .startOf("day")
+        .toDate();
+      const endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
 
       query.createdAt = {
         $gte: startDate,
@@ -1286,8 +1234,8 @@ class ReportUseCase {
       };
     } else {
       // Default to today's date in local timezone
-      const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
+      const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+      const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
 
       query.createdAt = {
         $gte: startOfToday,
@@ -1327,7 +1275,7 @@ class ReportUseCase {
     const data = await this.reportRepo.getAmountPayble(filter, skip, limit);
     return data;
   }
-  
+
   async getWeightPayble(query) {
     const { page, limit, from_date, to_date, id_branch, id_purity, id_scheme } =
       query;
@@ -1344,16 +1292,19 @@ class ReportUseCase {
       }
 
       // Convert to UTC with timezone adjustment (Asia/Kolkata - UTC+5:30)
-      const startDate = moment.tz(from_date, 'Asia/Kolkata').startOf('day').toDate();
-      const endDate = moment.tz(to_date, 'Asia/Kolkata').endOf('day').toDate();
+      const startDate = moment
+        .tz(from_date, "Asia/Kolkata")
+        .startOf("day")
+        .toDate();
+      const endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
 
       query.createdAt = {
         $gte: startDate,
         $lte: endDate,
       };
     } else {
-      const startOfToday = moment.tz('Asia/Kolkata').startOf('day').toDate();
-      const endOfToday = moment.tz('Asia/Kolkata').endOf('day').toDate();
+      const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+      const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
 
       query.createdAt = {
         $gte: startOfToday,
@@ -1499,72 +1450,14 @@ class ReportUseCase {
       const data = await this.reportRepo.getEmployeeRefferal(
         filter,
         skip,
-        limit
+        limit,
       );
-      console.log(data);
+
       return data;
     } catch (err) {
-      console.log(err);
+      console.error(err);
     }
   }
-
-  // async getCustomerRefferal(query) {
-  //   try {
-  //     const { page, limit, from_date, to_date, id_branch } = query;
-
-  //     const pageNum = page ? parseInt(page) : 1;
-  //     const perPage = limit ? parseInt(limit) : 10;
-  //     const skip = (pageNum - 1) * perPage;
-
-  //     const filter = { is_deleted: false };
-
-  //     if (from_date && to_date) {
-  //       const startDate = new Date(from_date);
-  //       const endDate = new Date(to_date);
-
-  //       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-  //         throw new Error("Invalid date format.");
-  //       }
-
-  //       filter.createdAt = {
-  //         $gte: startDate,
-  //         $lte: endDate,
-  //       };
-  //     } else {
-  //       const today = new Date();
-  //       const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-  //       const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-
-  //       filter.createdAt = {
-  //         $gte: startOfDay,
-  //         $lte: endOfDay,
-  //       };
-  //     }
-
-  //     if (id_branch) {
-  //       if (!isValidObjectId(id_branch)) {
-  //         return "Provide valid branch id";
-  //       }
-
-  //       const findBranch = await this.branchRepo.findById(id_branch);
-  //       if (!findBranch) {
-  //         return "Branch not found";
-  //       }
-
-  //       filter.id_branch = new mongoose.Types.ObjectId(id_branch);
-  //     }
-
-  //     const data = await this.reportRepo.getCustomerRefferal(
-  //       filter,
-  //       skip,
-  //       limit
-  //     );
-  //     console.log(data);
-  //     return data;
-  //   } catch (err) {
-  //     console.log(err);
-  //   }
-  // }
 }
 
 export default ReportUseCase;

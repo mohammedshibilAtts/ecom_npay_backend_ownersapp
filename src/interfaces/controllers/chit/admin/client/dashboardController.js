@@ -8,7 +8,9 @@ class DashboardController {
       const result = await this.dashboardUseCase.getAllOver(req.body);
 
       if (result.success) {
-        return res.status(200).json({ message: result.message,data:result.data });
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
       }
       return res.status(400).json({ message: result.message });
     } catch (error) {
@@ -16,14 +18,15 @@ class DashboardController {
       res.status(500).json({ message: "Internal server error" });
     }
   }
-
 
   async accountStat(req, res) {
     try {
       const result = await this.dashboardUseCase.accountStat(req.body);
 
       if (result.success) {
-        return res.status(200).json({ message: result.message,data:result.data });
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
       }
       return res.status(400).json({ message: result.message });
     } catch (error) {
@@ -32,12 +35,13 @@ class DashboardController {
     }
   }
 
-  
   async account(req, res) {
     try {
       const result = await this.dashboardUseCase.account(req.body);
       if (result.success) {
-        return res.status(200).json({ message: result.message,data:result.data });
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
       }
       return res.status(400).json({ message: result.message });
     } catch (error) {
@@ -45,13 +49,14 @@ class DashboardController {
       res.status(500).json({ message: "Internal server error" });
     }
   }
-
 
   async getPaymentHistory(req, res) {
     try {
       const result = await this.dashboardUseCase.getPaymentHistory(req.body);
       if (result.success) {
-        return res.status(200).json({ message: result.message,data:result.data });
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
       }
       return res.status(400).json({ message: result.message });
     } catch (error) {
@@ -63,7 +68,9 @@ class DashboardController {
     try {
       const result = await this.dashboardUseCase.paymentModeData(req.body);
       if (result.success) {
-        return res.status(200).json({ message: result.message,data:result.data });
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
       }
       return res.status(400).json({ message: result.message });
     } catch (error) {
@@ -72,6 +79,65 @@ class DashboardController {
     }
   }
 
+  async getMonthlyInsights(req, res) {
+    try {
+      const result = await this.dashboardUseCase.getMonthlyInsights(req.body);
+      if (result.success) {
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getSettlements(req, res) {
+    try {
+      const result = await this.dashboardUseCase.getSettlements(req.body);
+      if (result.success) {
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getRefunds(req, res) {
+    try {
+      const result = await this.dashboardUseCase.getRefunds(req.body);
+      if (result.success) {
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+  async getBulkStats(req, res) {
+    try {
+      const result = await this.dashboardUseCase.getBulkStats(req.body);
+      if (result.success) {
+        return res
+          .status(200)
+          .json({ message: result.message, data: result.data });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
 }
+
 
 export default DashboardController;

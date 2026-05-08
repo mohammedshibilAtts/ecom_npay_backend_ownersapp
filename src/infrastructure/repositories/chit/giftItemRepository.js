@@ -41,14 +41,6 @@ class GiftItemRepository{
                     as: 'branch_data'
                 }
             },
-            // { 
-            //     $lookup: {
-            //         from: 's3bucketsettings', 
-            //         localField: 'id_branch',
-            //         foreignField: 'id_branch',
-            //         as: 's3data'
-            //     }
-            // },
             { 
                 $project: {
                     gift_name: 1,
@@ -58,12 +50,6 @@ class GiftItemRepository{
                     gift_code:1,
                     gift_vendorid:{ $arrayElemAt: ['$vendor_data._id', 0] },
                     branch_name: { $arrayElemAt: ['$branch_data._id', 0] },
-                    // pathurl: {
-                    //     $concat: [
-                    //         { $arrayElemAt: ['$s3data.s3display_url', 0] },
-                    //         'keerthijewellery/webadmin/assets/giftItem/'
-                    //     ]
-                    // }
                 }
             }
         ];
@@ -157,74 +143,6 @@ class GiftItemRepository{
 
     return updatedData
 }
-
-// async getAllActiveGiftItems({ query, documentskip, documentlimit }) {
-//     try {
-//         const aggregationPipeline = [
-//             { $match: query },
-//             { 
-//                 $lookup: {
-//                     from: 'giftvendors', 
-//                     localField: 'gift_vendorid',
-//                     foreignField: '_id',
-//                     as: 'vendor_data'
-//                 }
-//             },
-//             { 
-//                 $lookup: {
-//                     from: 'branches', 
-//                     localField: 'id_branch',
-//                     foreignField: '_id',
-//                     as: 'branch_data'
-//                 }
-//             },
-//             // { 
-//             //     $lookup: {
-//             //         from: 's3bucketsettings', 
-//             //         localField: 'id_branch',
-//             //         foreignField: 'id_branch',
-//             //         as: 's3data'
-//             //     }
-//             // },
-//             { 
-//                 $project: {
-//                     gift_name: 1,
-//                     _id: 1, 
-//                     active: 1, 
-//                     id_branch: 1,
-//                     gift_image:1,
-//                     gift_code:1,
-//                     createdAt:1,
-//                     gift_vendor: { 
-//                         vendor_name: { $arrayElemAt: ['$vendor_data.vendor_name', 0] },
-//                         vendor_id: { $arrayElemAt: ['$vendor_data._id', 0] }
-//                     },
-//                     branch_name: { $arrayElemAt: ['$branch_data.branch_name', 0] },
-//                     pathurl: {
-//                         $concat: [
-//                             { $arrayElemAt: ['$s3data.s3display_url', 0] },
-//                             'keerthijewellery/webadmin/assets/giftItem/'
-//                         ]
-//                     }
-//                 } 
-//             },
-//             { $skip: documentskip },
-//             { $limit: documentlimit },
-//             {$sort:{_id:-1}}
-//         ];
-
-//         const data = await giftItemModel.aggregate(aggregationPipeline);
-
-//         const totalCount = await giftItemModel.countDocuments(query);
-
-//         if (!data || data.length === 0) return null;
-
-//         return { data, totalCount };
-//     } catch (error) {
-//         console.error(error);
-//     }
-// }
-
 
 async getAllActiveGiftItems({ query, documentskip, documentlimit }) {
     try {

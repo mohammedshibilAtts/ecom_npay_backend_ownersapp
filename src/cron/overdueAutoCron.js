@@ -65,6 +65,8 @@ class OverdueNotificationScheduler {
   }
 
   async processCustomerBatch(batch) {
+    /*
+    // ---------------- OLD SEQUENTIAL LOOP LOGIC ----------------
     let queueEntries = [];
 
     for (const c of batch) {
@@ -93,6 +95,38 @@ class OverdueNotificationScheduler {
         console.error(`❌ Error processing overdue for ${c._id}:`, err);
       }
     }
+    */
+
+    // ---------------- NEW OPTIMIZED CONCURRENT LOGIC ----------------
+    const processPromises = batch.map(async (c) => {
+      try {
+        const overdueResult = await this.overdueRepo.overdueCalculationForNotification(c._id);
+
+        if (!overdueResult || overdueResult.overdueAccountNumbers.length === 0) {
+          return null;
+        }
+
+        return {
+          insertOne: {
+            document: {
+              customerId: c._id,
+              mobile: c.mobile?.toString(),
+              name: c.firstname,
+              overdueAccounts: overdueResult.overdueAccountNumbers,
+              cronStatus: 1,
+              sendStatus: 2,
+              scheduledAt: this.getTodayAt8PM(),
+            },
+          },
+        };
+      } catch (err) {
+        console.error(`❌ Error processing overdue for ${c._id}:`, err);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(processPromises);
+    const queueEntries = results.filter((entry) => entry !== null);
 
     if (queueEntries.length > 0) {
       await OverdueQueue.bulkWrite(queueEntries);
@@ -115,7 +149,6 @@ class OverdueNotificationScheduler {
       while (true) {
         const batch = await OverdueQueue.find({
           sendStatus: 2,
-        //   scheduledAt: { $lte: new Date() }
         })
           .limit(SEND_BATCH)
           .skip(skip);

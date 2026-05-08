@@ -7,9 +7,6 @@ class StaffUserController{
     async addStaff(req,res){
         try {
           const requiredFields = [
-            { field: 'id_project', message: 'Project ID is required' },
-            { field: 'id_client', message: 'Client ID is required' },
-            { field: 'id_employee', message: 'Employee ID is required' },
             { field: 'password', message: 'Password is required' },
             { field: 'username', message: 'Username is required' },
             { field: 'id_role', message: 'Role ID is required' },
@@ -19,6 +16,12 @@ class StaffUserController{
           for (const { field, message } of requiredFields) {
             if (!req.body[field] || req.body[field] === "") {
               return res.status(400).json({ status: 'Failed', message });
+            }
+          }
+
+           if([1,2].includes(req.user.id_role) && !req.user?.id_employee){
+            if(!req.body.id_employee || req.body.id_employee === ""){
+              return res.status(400).json({ status: 'Failed', message: 'Employee ID is required' });
             }
           }
   
@@ -53,9 +56,6 @@ class StaffUserController{
         }
 
         const requiredFields = [
-          // { field: 'id_project', message: 'Project ID is required' },
-          { field: 'id_client', message: 'Client ID is required' },
-          { field: 'id_employee', message: 'Employee ID is required' },
           { field: 'password', message: 'Password is required' },
           { field: 'username', message: 'Username is required' },
           { field: 'id_role', message: 'Role ID is required' },
@@ -67,6 +67,12 @@ class StaffUserController{
             return res.status(400).json({ status: 'Failed', message });
           }
         }
+
+          if([1,2].includes(req.user.id_role) && !req.user?.id_employee){
+            if(!req.body.id_employee || req.body.id_employee === ""){
+              return res.status(400).json({ status: 'Failed', message: 'Employee ID is required' });
+            }
+          }
   
         const { access_branch } = req.body;
         if (access_branch !== undefined && access_branch !== 0 && access_branch === "") {
@@ -75,7 +81,7 @@ class StaffUserController{
     
         const staffData = {};
     
-        const fieldsToUpdate = ['id_project', 'id_client', 'id_employee', 'password', 'username', 'id_role', 'access_branch'];
+        const fieldsToUpdate = ['id_employee', 'password', 'username', 'id_role', 'access_branch'];
         fieldsToUpdate.forEach(field => {
           if (req.body[field] !== undefined) {
             staffData[field] = req.body[field];
@@ -151,7 +157,8 @@ class StaffUserController{
             page,
             limit,
             search,
-            active
+            active,
+            req.user
           );
   
         if (!result || !result.success) {

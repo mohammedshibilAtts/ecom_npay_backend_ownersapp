@@ -68,8 +68,6 @@ class CategoryController {
 }
 
   async editCategory(req, res) {
-    console.log("Request Body:", req.body);
-
     try {
       const { id } = req.params;
       if (!id) {
@@ -143,7 +141,6 @@ class CategoryController {
 
   async getById(req, res) {
     try {
-      console.log("1234567890-")
       const { id } = req.params;
       if (!id) {
         return res.status(400).json({ message: "Category id is required" });

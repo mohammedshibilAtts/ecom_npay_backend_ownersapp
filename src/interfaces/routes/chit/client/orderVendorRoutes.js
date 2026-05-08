@@ -13,9 +13,35 @@ const authMiddleware = new AuthMiddleware(tokenService)
 const vendorUsecase = new OrderVendorUsecase(vendorRepo)
 const vendorController  = new OrderVendorController(vendorUsecase)
 
+/**
+ * @swagger
+ * tags:
+ *   name: OrderVendor
+ *   description: Management of vendors specialized in order fulfillment
+ */
+
 router.use(authMiddleware.protect)
 
+/**
+ * @swagger
+ * /api/client/ordervendor:
+ *   post:
+ *     summary: Add a new order vendor
+ *     tags: [OrderVendor]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/',(req,res)=>vendorController.addVendor(req,res))
+
+/**
+ * @swagger
+ * /api/client/ordervendor/{id}:
+ *   patch:
+ *     summary: Update vendor details
+ *     tags: [OrderVendor]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.patch('/:id',(req,res)=>vendorController.updateVendor(req,re))
 
 export default router;

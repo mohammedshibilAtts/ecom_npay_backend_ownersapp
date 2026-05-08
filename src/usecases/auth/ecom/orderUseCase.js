@@ -445,7 +445,6 @@ class OrderUseCase {
         totalDiamondPrice: item.totalDiamondPrice,
         totalStonePrice: item.totalStonePrice,
       }));
-      console.log(cartItems);
       const createOrder = await this.orderRepository.createOrder(
         orderData,
         orderItems
@@ -852,32 +851,6 @@ class OrderUseCase {
     }
   }
 
-  // async changeOrderStatus(statusId, orderId) {
-  //   try {
-  //     const orderData = await this.orderRepository.findById({_id:orderId})
-  //     const stautsData = await this.orderRepository.findStatusById(statusId)
-  //     // if(stautsData?.statusNo == "2"){
-
-  //     // }
-  //     return console.log(orderData)
-  //     const result = await this.orderRepository.changeOrderStatus(
-  //       statusId,
-  //       orderId
-  //     );
-  //     if (result) {
-  //       return {
-  //         success: true,
-  //         data: result,
-  //       };
-  //     }
-  //     return {
-  //       success: false,
-  //       message: "Failed to Update order status",
-  //     };
-  //   } catch (error) {
-  //     return { success: false, message: "Error while getting order Status" };
-  //   }
-  // }
   async changeOrderStatus(statusId, orderId, remarks, orderStatusData) {
     try {
       const orderData = await this.orderRepository.findById({ _id: orderId });
@@ -931,11 +904,11 @@ class OrderUseCase {
         let title = "Order Status";
         let message = "";
 
-        if (statusData?.statusNo == ORDER_STATUS_NO.PLACED) {
+        if (statusData?.statusNo == "2") {
           message = `Your order has been placed successfully! Order ID: ${orderData?.orderId}`;
-        } else if (statusData?.statusNo == ORDER_STATUS_NO.DELIVERED) {
+        } else if (statusData?.statusNo == "3") {
           message = `Your order has been delivered successfully. Order ID: ${orderData?.orderId}`;
-        } else if (statusData?.statusNo == ORDER_STATUS_NO.CANCELLED) {
+        } else if (statusData?.statusNo == "4") {
           message = `Your order has been cancelled. Order ID: ${orderData?.orderId}`;
         }
 

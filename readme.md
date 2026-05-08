@@ -5,3 +5,6 @@
 female = 1749878753243.webp
 male = 1749878256269.webp
 others = 1749878926644.webp
+
+
+api documentation = http://localhost:3011/api-docs/

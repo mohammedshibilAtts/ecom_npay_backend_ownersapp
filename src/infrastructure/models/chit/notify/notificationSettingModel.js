@@ -6,17 +6,6 @@ const notificationsettingSchema = new mongoose.Schema({
     required: true,
      ref:"Branch"
   },
-  id_project: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref:"Project"
-  },
-  id_client: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref:"Client"
-  },
- 
   notifyappid: { 
     type: String,
     required: true

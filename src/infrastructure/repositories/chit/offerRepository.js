@@ -26,8 +26,7 @@ class OfferRepository {
         {
           $lookup: {
             from: "s3bucketsettings",
-            localField: "id_branch",
-            foreignField: "id_branch",
+            pipeline: [{ $limit: 1 }],
             as: "s3Details",
           },
         },
@@ -168,8 +167,7 @@ class OfferRepository {
         {
           $lookup: {
             from: "s3bucketsettings",
-            localField: "id_branch._id",
-            foreignField: "id_branch",
+            pipeline: [{ $limit: 1 }],
             as: "s3Details",
           },
         },

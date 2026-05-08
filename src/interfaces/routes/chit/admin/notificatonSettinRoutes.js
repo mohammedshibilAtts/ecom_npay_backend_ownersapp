@@ -15,9 +15,46 @@ const notificationUseCase = new NotificationSettingUseCase(notificationRepo);
 
 const notificationController = new NotificationSettingController(notificationUseCase);
 
+/**
+ * @swagger
+ * tags:
+ *   name: AdminNotification
+ *   description: System-level notification provider configuration
+ */
+
 router.use(authMiddleWare.protect)
+
+/**
+ * @swagger
+ * /api/admin/notificationsetting:
+ *   post:
+ *     summary: Add or update notification provider setting
+ *     tags: [AdminNotification]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.post('/',(req,res)=>notificationController.addNotificationSetting(req,res));
+
+/**
+ * @swagger
+ * /api/admin/notificationsetting/branch/{branchId}:
+ *   get:
+ *     summary: Get notification setting by branch
+ *     tags: [AdminNotification]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/branch/:branchId',(req,res)=>notificationController.getNotificationSettByBranchId(req,res));
+
+/**
+ * @swagger
+ * /api/admin/notificationsetting/project/{projectId}/branch/{branchId}:
+ *   get:
+ *     summary: Get notification setting by project and branch
+ *     tags: [AdminNotification]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/project/:projectId/branch/:branchId',(req,res)=>notificationController.getSettingByProjectAndBranchId(req,res))
 
 

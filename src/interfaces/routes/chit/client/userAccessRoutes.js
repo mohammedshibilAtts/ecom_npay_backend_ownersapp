@@ -19,10 +19,52 @@ const useraccessUseCase = new UserAccessUseCase(useraccessRepository,submenuRepo
 
 const useraccessContoller = new UseAccessController(useraccessUseCase)
 
+/**
+ * @swagger
+ * tags:
+ *   name: UserAccess
+ *   description: Management of menu permissions and user access control
+ */
+
 router.use(authMiddleware.protect)
+
+/**
+ * @swagger
+ * /api/client/useraccess/{roleId}:
+ *   patch:
+ *     summary: Update menu permissions for a role
+ *     tags: [UserAccess]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: roleId
+ *         required: true
+ *         schema:
+ *           type: string
+ */
 router.patch('/:roleId',(req,res)=>useraccessContoller.updateMenuPermission(req,res));
-// router.get('/access/:roleId',(req,res)=>useraccessContoller.getUserAccess(req,res));
+
+/**
+ * @swagger
+ * /api/client/useraccess/permissions/{roleId}:
+ *   get:
+ *     summary: Get user permissions by role ID
+ *     tags: [UserAccess]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/permissions/:roleId',(req,res)=>useraccessContoller.getUserPrermission(req,res));
+
+/**
+ * @swagger
+ * /api/client/useraccess/menu/{roleId}:
+ *   get:
+ *     summary: Get active menu access for a role
+ *     tags: [UserAccess]
+ *     security:
+ *       - bearerAuth: []
+ */
 router.get('/menu/:roleId',(req,res)=>useraccessContoller.getActiveMenuAccess(req,res))
 
 

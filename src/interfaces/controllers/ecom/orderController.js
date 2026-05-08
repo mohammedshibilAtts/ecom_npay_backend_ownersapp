@@ -19,7 +19,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -29,13 +29,13 @@ class OrderController {
 
   async placeOrder(req, res) {
     try {
-      const { addressId,redeemedSchemeAccounts,isStorePickup} = req.body;
+      const { addressId, redeemedSchemeAccounts, isStorePickup } = req.body;
       const result = await this.orderUseCase.placeOrder(
         req.user,
         addressId,
         req.user,
         redeemedSchemeAccounts,
-        isStorePickup
+        isStorePickup,
       );
       if (!result.success) {
         return res.status(400).json({
@@ -49,7 +49,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -57,13 +57,13 @@ class OrderController {
     }
   }
 
-    async orderNow(req, res) {
+  async orderNow(req, res) {
     try {
-      const { addressId,productId} = req.body;
+      const { addressId, productId } = req.body;
       const result = await this.orderUseCase.orderNow(
         req.user,
         addressId,
-        productId
+        productId,
       );
       if (!result.success) {
         return res.status(400).json({
@@ -77,7 +77,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -100,7 +100,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -123,7 +123,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -132,8 +132,6 @@ class OrderController {
   }
 
   async getAllOrders(req, res) {
-   
-    
     try {
       const result = await this.orderUseCase.getAllOrders(req.query);
       if (!result.success) {
@@ -148,7 +146,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -158,7 +156,7 @@ class OrderController {
   async webhook(req, res) {
     try {
       const result = await this.orderUseCase.webhook(req);
-      
+
       if (!result) {
         return res.status(400).json({ message: result.message });
       }
@@ -188,9 +186,9 @@ class OrderController {
     }
   }
 
-    async getOrderItemReport(req, res) {
+  async getOrderItemReport(req, res) {
     try {
-      const {id}=req.params
+      const { id } = req.params;
       const result = await this.orderUseCase.getOrderItemReport(id);
       if (!result.success) {
         return res.status(400).json({
@@ -204,7 +202,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -212,11 +210,14 @@ class OrderController {
     }
   }
 
-    async getTopSellingProduct(req, res) {
+  async getTopSellingProduct(req, res) {
     try {
-      const {fromDate,toDate}=req.body
-  
-      const result = await this.orderUseCase.getTopSellingProduct(fromDate,toDate);
+      const { fromDate, toDate } = req.body;
+
+      const result = await this.orderUseCase.getTopSellingProduct(
+        fromDate,
+        toDate,
+      );
       if (!result.success) {
         return res.status(400).json({
           success: false,
@@ -229,7 +230,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -237,12 +238,14 @@ class OrderController {
     }
   }
 
-
-    async getTopSellingCategory(req, res) {
+  async getTopSellingCategory(req, res) {
     try {
-      const {fromDate,toDate}=req.body
-      
-      const result = await this.orderUseCase.getTopSellingCategory(fromDate,toDate);
+      const { fromDate, toDate } = req.body;
+
+      const result = await this.orderUseCase.getTopSellingCategory(
+        fromDate,
+        toDate,
+      );
       if (!result.success) {
         return res.status(400).json({
           success: false,
@@ -255,19 +258,21 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
       });
     }
   }
-    async getTopSellingCategory(req, res) {
+  async getTopSellingCategory(req, res) {
     try {
-      const {fromDate,toDate}=req.body
-     
-      
-      const result = await this.orderUseCase.getTopSellingCategory(fromDate,toDate);
+      const { fromDate, toDate } = req.body;
+
+      const result = await this.orderUseCase.getTopSellingCategory(
+        fromDate,
+        toDate,
+      );
       if (!result.success) {
         return res.status(400).json({
           success: false,
@@ -280,7 +285,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -288,11 +293,11 @@ class OrderController {
     }
   }
 
-    async getOverAllReport(req, res) {
+  async getOverAllReport(req, res) {
     try {
-      const {fromDate,toDate}=req.body
-     
-      const result = await this.orderUseCase.getOverAllReport(fromDate,toDate);
+      const { fromDate, toDate } = req.body;
+
+      const result = await this.orderUseCase.getOverAllReport(fromDate, toDate);
       if (!result.success) {
         return res.status(400).json({
           success: false,
@@ -305,7 +310,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -313,9 +318,8 @@ class OrderController {
     }
   }
 
-    async getOrderStatus(req, res) {
+  async getOrderStatus(req, res) {
     try {
-     
       const result = await this.orderUseCase.getOrderStatusList();
       if (!result.success) {
         return res.status(400).json({
@@ -329,7 +333,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -337,10 +341,15 @@ class OrderController {
     }
   }
 
-    async changeOrderStatus(req, res) {
+  async changeOrderStatus(req, res) {
     try {
-      const {statusId,orderId,remarks,statusData}=req.body
-      const result = await this.orderUseCase.changeOrderStatus(statusId,orderId,remarks,statusData);
+      const { statusId, orderId, remarks, statusData } = req.body;
+      const result = await this.orderUseCase.changeOrderStatus(
+        statusId,
+        orderId,
+        remarks,
+        statusData,
+      );
       if (!result.success) {
         return res.status(400).json({
           success: false,
@@ -353,7 +362,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -361,12 +370,17 @@ class OrderController {
     }
   }
 
+  async getPaymentReport(req, res) {
+    const { page, limit, search, from_date, to_date } = req.query;
 
-    async getPaymentReport(req, res) {
-    const {page,limit,search,from_date,to_date}=req.query;
-    
     try {
-      const result = await this.orderUseCase.getPaymentReport(page,limit,search,from_date,to_date);
+      const result = await this.orderUseCase.getPaymentReport(
+        page,
+        limit,
+        search,
+        from_date,
+        to_date,
+      );
       if (!result.success) {
         return res.status(400).json({
           success: false,
@@ -379,7 +393,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,
@@ -387,13 +401,18 @@ class OrderController {
     }
   }
 
-
-    async getTopSellingProductTable(req, res) {
+  async getTopSellingProductTable(req, res) {
     try {
-      const {fromDate,toDate,search,page,limit,id_category}=req.body
+      const { fromDate, toDate, search, page, limit, id_category } = req.body;
 
-  
-      const result = await this.orderUseCase.getTopSellingProducttable(fromDate,toDate,page,limit,search,id_category);
+      const result = await this.orderUseCase.getTopSellingProducttable(
+        fromDate,
+        toDate,
+        page,
+        limit,
+        search,
+        id_category,
+      );
       if (!result.success) {
         return res.status(400).json({
           success: false,
@@ -406,7 +425,7 @@ class OrderController {
         data: result.data,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       res.status(400).json({
         success: false,
         message: error.message,

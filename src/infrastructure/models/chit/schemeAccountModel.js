@@ -2,10 +2,6 @@ import mongoose from "mongoose";
 
 const schemeAccountSchema = new mongoose.Schema(
   {
-    // accountschemeid: {
-    //   type: Number,
-    //   default: 0,
-    // },
     id_classification: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
@@ -15,6 +11,7 @@ const schemeAccountSchema = new mongoose.Schema(
       type: Number,
       required: false,
       default: 0,
+      index: true,
     },
     referral_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -27,10 +24,6 @@ const schemeAccountSchema = new mongoose.Schema(
       default:"",
       required: false,
     },
-    // collectionuserid: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   default: null,
-    // },
     referralpaid: {
       type: Boolean,
       default: false, // 0-No, 1-Yes
@@ -55,6 +48,7 @@ const schemeAccountSchema = new mongoose.Schema(
     id_customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
+      index: true,
     },
     id_branch: {
       type: mongoose.Schema.Types.ObjectId,
@@ -64,10 +58,13 @@ const schemeAccountSchema = new mongoose.Schema(
     scheme_acc_number: {
       type: String,
       required: false,
+      index: true,
+      unique: true,
     },
     account_name: {
       type: String,
       required: true,
+      index: true,
     },
     scheme_count_number:{
       type:Number,

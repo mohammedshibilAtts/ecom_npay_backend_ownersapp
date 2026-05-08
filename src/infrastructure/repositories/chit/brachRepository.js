@@ -44,7 +44,6 @@ class BranchRepository {
 
     const branch = await Branch.findOne({ _id: id, is_deleted: false })
       .populate("id_city")
-      .populate("id_client")
       .populate("id_state")
       .populate("id_country");
 
@@ -52,7 +51,7 @@ class BranchRepository {
   }
 
   async findByClientId(id) {
-    const branch = await Branch.find({ id_client: id, is_deleted: false })
+    const branch = await Branch.find({is_deleted: false })
       .select('branch_name')
 
     return branch || null;
@@ -83,10 +82,9 @@ class BranchRepository {
       return await Branch.find(filter)
         .skip(skip)
         .limit(limit)
-        // .populate("id_city",'city_name')
-        // .populate("id_client")
-        // .populate("id_state")
-        // .populate("id_country")
+        .populate("id_city",'city_name')
+        .populate("id_state")
+        .populate("id_country")
         .select('_id active branch_name mobile createdAt')
         .exec();
 
