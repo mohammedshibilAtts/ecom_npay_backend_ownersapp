@@ -126,8 +126,14 @@ app.get("/health", (req, res) => {
   });
 });
 
+import ecomAppProducts from './interfaces/routes/ecom/app/appProdcutRoutes.js';
+import ecomAppWishlist from './interfaces/routes/ecom/app/appWishlistRoutes.js';
+
 //aupay ecom routes
-app.use('/api/shop',shopRoutes)
+app.use('/api/shop', shopRoutes);
+app.use('/api/ecom/app/product', ecomAppProducts);
+app.use('/api/ecom/app/products', ecomAppProducts);
+app.use('/api/ecom/app/wishlist', ecomAppWishlist);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")));

@@ -1,6 +1,7 @@
 import ProductModel from "../../models/chit/productModel.js";
 import mongoose from "mongoose";
 import config from "../../../config/chit/env.js";
+import { getPricingPipeline } from "../ecom/helpers/pricingPipeline.js";
 
 class ProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -111,6 +112,38 @@ class ProductRepository {
           }
         },
         {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                    ],
+                  },
+                },
+              },
+              { $sort: { createdAt: 1 } },
+              { $limit: 1 },
+            ],
+            as: "firstItem",
+          },
+        },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        // Inject Reusable Pricing Pipeline for the firstItem
+        ...getPricingPipeline("$id_branch").map(stage => {
+          // Adjust stages to work on the firstItem object
+          if (stage.$lookup && stage.$lookup.from === "metalrates") {
+             stage.$lookup.let = { purityId: "$firstItem.id_purity", bId: "$id_branch" };
+             stage.$lookup.pipeline[0].$match.$expr.$and[0].$eq[1] = "$$purityId";
+             stage.$lookup.pipeline[0].$match.$expr.$and[1].$eq[1] = "$$bId";
+          }
+          return stage;
+        }),
+        {
           $project: {
             _id: 1,
             id_category: 1,
@@ -132,17 +165,16 @@ class ProductRepository {
             collection: 1,
             createdAt: 1,
             updatedAt: 1,
+            price: "$calculatedPrice",
+            totalprice: "$calculatedTotalPrice",
             categoryName: "$categoryDetails.category_name",
             metalName: { $arrayElemAt: ["$metalDetails.metal_name", 0] },
-            latestMetalPrice: { $ifNull: [{ $arrayElemAt: ["$metalRateInfo.rate", 0] }, 0] },
             pathurl: {
               $concat: [
                 { $ifNull: ["$s3Details.s3display_url", ""] },
                 `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
               ],
             },
-            makingCharges: { $ifNull: ["$makingCharges", { mode: "amount", actualValue: 0, discountedValue: 0, discountedPercentage: 0, discountView: false, mcView: false }] },
-            wastageCharges: { $ifNull: ["$wastageCharges", { mode: "amount", actualValue: 0, discountedValue: 0, discountedPercentage: 0, discountView: false, wastageView: false }] }
           }
         }
       ];
@@ -204,7 +236,7 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$sizeDetails", preserveNullAndEmptyArrays: true } },
-         {
+        {
           $lookup: {
             from: "s3bucketsettings",
             pipeline: [{ $limit: 1 }],
@@ -233,32 +265,35 @@ class ProductRepository {
           },
         },
         {
-          $addFields: {
-            stock: {
-              $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0],
-            },
-            quantity: {
-              $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0],
-            }
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                    ],
+                  },
+                },
+              },
+              { $sort: { createdAt: 1 } },
+              { $limit: 1 },
+            ],
+            as: "firstItem",
           },
         },
-      ];
-
-      if (searchOptions && searchOptions.term) {
-        const regex = new RegExp(searchOptions.term.trim(), "i");
-        pipeline.push({
-          $match: {
-            $or: [
-              { product_name: regex },
-              { "id_branch.branch_name": regex },
-              { "id_category.category_name": regex },
-              { "id_metal.metal_name": regex },
-            ],
-          },
-        });
-      }
-
-      pipeline.push(
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        ...getPricingPipeline("$id_branch").map(stage => {
+           if (stage.$lookup && stage.$lookup.from === "metalrates") {
+              stage.$lookup.let = { purityId: "$firstItem.id_purity", bId: "$id_branch" };
+              stage.$lookup.pipeline[0].$match.$expr.$and[0].$eq[1] = "$$purityId";
+              stage.$lookup.pipeline[0].$match.$expr.$and[1].$eq[1] = "$$bId";
+           }
+           return stage;
+        }),
         { $skip: skip },
         { $limit: limit },
         {
@@ -268,11 +303,12 @@ class ProductRepository {
             product_image: 1,
             active: 1,
             bestSeller: 1,
+            price: "$calculatedPrice",
+            totalprice: "$calculatedTotalPrice",
             branchName: "$id_branch.branch_name",
             metalName: "$id_metal.metal_name",
             categoryName: "$id_category.category_name",
-            quantity: 1,
-            stock: 1,
+            stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
             onlineProduct: 1,
             pathurl: {
               $concat: [
@@ -281,8 +317,8 @@ class ProductRepository {
               ],
             },
           },
-        }
-      );
+        },
+      ];
 
       return await ProductModel.aggregate(pipeline);
     } catch (err) {
@@ -328,20 +364,131 @@ class ProductRepository {
   async getProductBySubcategory(id, page, limit, filter) {
     try {
       const skip = (page - 1) * limit;
-      const query = { subcategoryId: id, is_deleted: false };
-      const products = await ProductModel.find(query)
-        .populate("id_category id_metal id_branch subcategoryId sizeId")
-        .skip(skip)
-        .limit(limit);
-      const total = await ProductModel.countDocuments(query);
+      const pipeline = [
+        {
+          $match: {
+            subcategoryId: new mongoose.Types.ObjectId(id),
+            is_deleted: false,
+            active: true,
+          },
+        },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "categoryDetails",
+          },
+        },
+        {
+          $lookup: {
+            from: "metals",
+            localField: "id_metal",
+            foreignField: "_id",
+            as: "metalDetails",
+          },
+        },
+        {
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
+          },
+        },
+        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                    ],
+                  },
+                },
+              },
+              { $count: "stockCount" },
+            ],
+            as: "stockData",
+          },
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                    ],
+                  },
+                },
+              },
+              { $sort: { createdAt: 1 } },
+              { $limit: 1 },
+            ],
+            as: "firstItem",
+          },
+        },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        ...getPricingPipeline("$id_branch").map(stage => {
+          if (stage.$lookup && stage.$lookup.from === "metalrates") {
+             stage.$lookup.let = { purityId: "$firstItem.id_purity", bId: "$id_branch" };
+             stage.$lookup.pipeline[0].$match.$expr.$and[0].$eq[1] = "$$purityId";
+             stage.$lookup.pipeline[0].$match.$expr.$and[1].$eq[1] = "$$bId";
+          }
+          return stage;
+        }),
+        {
+          $facet: {
+            metadata: [{ $count: "total" }],
+            data: [
+              { $skip: skip },
+              { $limit: parseInt(limit) },
+              {
+                $project: {
+                  _id: 1,
+                  product_name: 1,
+                  product_image: 1,
+                  createdAt: 1,
+                  bestSeller: 1,
+                  price: "$calculatedPrice",
+                  totalprice: "$calculatedTotalPrice",
+                  categoryName: { $arrayElemAt: ["$categoryDetails.category_name", 0] },
+                  stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
+                  pathurl: {
+                    $concat: [
+                      { $ifNull: ["$s3Details.s3display_url", ""] },
+                      `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ];
+
+      const result = await ProductModel.aggregate(pipeline);
+      const total = result[0].metadata[0]?.total || 0;
+      const products = result[0].data;
+
       return {
         products,
-        currentPage: page,
+        currentPage: parseInt(page),
         totalPages: Math.ceil(total / limit),
-        totalCount: total
+        totalDocs: total,
       };
     } catch (err) {
-      throw new Error("Database error fetching products by subcategory");
+      console.error(err);
+      throw new Error("Database error fetching products by subcategory via aggregation");
     }
   }
 

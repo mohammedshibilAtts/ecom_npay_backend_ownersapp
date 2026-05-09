@@ -67,7 +67,7 @@ class ItemRepository {
   }
 
   async findById(id) {
-    return await itemModel.findById(id);
+    return await itemModel.findById(id).populate("stoneDetails");
   }
 
   async updateStatus(id, status) {
@@ -84,6 +84,58 @@ class ItemRepository {
       { $set: updateData },
       { new: true },
     );
+  }
+
+  async getSizesByPurity(productId, purityId) {
+    try {
+      const items = await itemModel
+        .find({
+          productId: productId,
+          id_purity: purityId,
+          active: true,
+          is_deleted: { $ne: true },
+        })
+        .populate("size")
+        .lean();
+
+      const uniqueSizes = [];
+      const seenSizeKeys = new Set();
+
+      for (const item of items) {
+        const sizeKey = `${item.size?._id?.toString()}_${item.sizeValue}`;
+        if (item.size && !seenSizeKeys.has(sizeKey)) {
+          seenSizeKeys.add(sizeKey);
+          uniqueSizes.push({
+            sizeId: item.size._id,
+            sizeValue: item.sizeValue,
+            unit: item.unit,
+          });
+        }
+      }
+
+      return uniqueSizes;
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Repository Error (getSizesByPurity): ${error.message}`);
+    }
+  }
+
+  async getItemsByCriteria(productId, sizeValue, purityId) {
+    try {
+      return await itemModel
+        .find({
+          productId: productId,
+          sizeValue: sizeValue,
+          id_purity: purityId,
+          active: true,
+          is_deleted: { $ne: true },
+        })
+        .populate("stoneDetails size")
+        .lean();
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Repository Error (getItemsByCriteria): ${error.message}`);
+    }
   }
 }
 

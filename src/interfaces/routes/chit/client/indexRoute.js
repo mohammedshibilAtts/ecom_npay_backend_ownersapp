@@ -52,7 +52,7 @@ import shape from './shapeMasterroutes.js';
 import cut from './cutmasterRoutes.js';
 import color from './colormasterRoutes.js';
 import stonemaster from './stonemasterRoutes.js'
-
+import appProductRoutes from "../../../routes/ecom/app/appProdcutRoutes.js"
 
 const router = express.Router();
 
@@ -101,6 +101,7 @@ router.use('/content', contentRoutes)
 router.use('/faq', faqRoutes);
 router.use('/wishlist',wishlistRoutes)
 router.use('/notification',SaveNotificationRoutes);
+router.use('/app/product',appProductRoutes)
 
 //ecom
 router.use('/subcategory',subcategoryroutes);

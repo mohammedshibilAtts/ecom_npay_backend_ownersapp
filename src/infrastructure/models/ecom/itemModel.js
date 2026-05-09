@@ -20,7 +20,6 @@ const itemSchema = new mongoose.Schema(
       ref: "Purity",
       required: true,
     },
-
     currentMetalRate: {
       type: Number,
       required: true,
@@ -34,6 +33,7 @@ const itemSchema = new mongoose.Schema(
     sizeValue: {
       type: String,
       required: true,
+      index:true,
     },
     unit: {
       type: String,
