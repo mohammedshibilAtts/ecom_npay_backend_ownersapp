@@ -415,6 +415,20 @@ class ProductUseCase {
         }
       }
 
+      const booleanFields = [
+        "showprice",
+        "bestSeller",
+        "onlineProduct",
+        "active",
+        "isMrp",
+      ];
+      booleanFields.forEach((field) => {
+        if (productData[field] !== undefined) {
+          productData[field] =
+            productData[field] === "true" || productData[field] === true;
+        }
+      });
+
       const updateFields = {
         product_name: productData.product_name,
         id_category: productData.id_category,
@@ -422,6 +436,8 @@ class ProductUseCase {
         collection: productData.collection,
         description: productData.description,
         product_image: updatedImages,
+        isMrp: productData.isMrp,
+        onlineProduct: productData.onlineProduct,
         modified_by: productData.modified_by,
         modified_at: new Date(),
       };
@@ -453,7 +469,17 @@ class ProductUseCase {
   async getCategoryByCollectionId(id) {
     try {
       const data = await this.productRepository.getCategoryByCollectionId(id);
-      return { success: true, message: "Categories fetched successfully", data };
+      const s3configs = await s3Helper();
+      const pathurl = s3configs?.s3display_url 
+        ? `${s3configs.s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}category/`
+        : "";
+
+      return { 
+        success: true, 
+        message: "Categories fetched successfully", 
+        data, 
+        pathUrl: pathurl 
+      };
     } catch (err) {
       return { success: false, message: "Error fetching categories", error: err.message };
     }

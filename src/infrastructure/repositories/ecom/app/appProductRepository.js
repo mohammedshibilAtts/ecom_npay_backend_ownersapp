@@ -1,6 +1,7 @@
 import ProductModel from "../../../models/chit/productModel.js";
 import mongoose from "mongoose";
 import config from "../../../../config/chit/env.js";
+import { getPricingPipeline } from "../helpers/pricingPipeline.js";
 
 class AppProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -57,6 +58,7 @@ class AppProductRepository {
             as: "categoryDetails",
           },
         },
+        { $unwind: { path: "$categoryDetails", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "metals",
@@ -65,6 +67,7 @@ class AppProductRepository {
             as: "metalDetails",
           },
         },
+        { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "branches",
@@ -111,6 +114,88 @@ class AppProductRepository {
           }
         },
         {
+          $lookup: {
+            from: "purities",
+            let: { metalId: "$id_metal", branchId: "$id_branch" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$id_metal", "$$metalId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: "purityList"
+          }
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] }
+                    ],
+                  },
+                },
+              },
+              { $sort: { createdAt: 1 } },
+              { $limit: 1 },
+              {
+                $lookup: {
+                  from: "purities",
+                  let: { pId: "$id_purity" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: [
+                            "$_id",
+                            { $convert: { input: "$$pId", to: "objectId", onError: "$$pId", onNull: "$$pId" } }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  as: "purityDetails",
+                },
+              },
+              { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
+              {
+                $addFields: {
+                  purityName: "$purityDetails.purity_name",
+                },
+              },
+              { $project: { purityDetails: 0 } },
+            ],
+            as: "firstItem",
+          },
+        },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            purityName: "$firstItem.purityName",
+          }
+        },
+        ...getPricingPipeline("$id_branch", "firstItem"),
+        {
+          $addFields: {
+            categoryNameRoot: { $arrayElemAt: [{ $ifNull: ["$categoryDetails.category_name", []] }, 0] },
+            stoneValue: "$totalStoneValue",
+            gstValue: "$gstAmount",
+          }
+        },
+        {
           $project: {
             _id: 1,
             id_category: 1,
@@ -132,9 +217,19 @@ class AppProductRepository {
             collection: 1,
             createdAt: 1,
             updatedAt: 1,
-            categoryName: "$categoryDetails.category_name",
-            metalName: { $arrayElemAt: ["$metalDetails.metal_name", 0] },
+            categoryName: "$categoryNameRoot",
+            metalName: "$metalDetails.metal_name",
             latestMetalPrice: { $ifNull: [{ $arrayElemAt: ["$metalRateInfo.rate", 0] }, 0] },
+            price: "$calculatedPrice",
+            totalprice: "$calculatedTotalPrice",
+            purityName: 1,
+            metalValue: 1,
+            makingValue: 1,
+            wastageValue: 1,
+            stoneValue: 1,
+            gstValue: 1,
+            firstItem: 1,
+            purityList: 1,
             pathurl: {
               $concat: [
                 { $ifNull: ["$s3Details.s3display_url", ""] },
@@ -264,6 +359,7 @@ class AppProductRepository {
             firstItem: { $arrayElemAt: ["$firstItem", 0] },
           },
         },
+        ...getPricingPipeline("$id_branch._id", "firstItem"),
       ];
 
       if (searchOptions && searchOptions.term) {
@@ -290,6 +386,8 @@ class AppProductRepository {
             product_image: 1,
             active: 1,
             bestSeller: 1,
+            price: "$calculatedPrice",
+            totalprice: "$calculatedTotalPrice",
             branchName: "$id_branch.branch_name",
             metalName: "$id_metal.metal_name",
             categoryName: "$id_category.category_name",
@@ -360,13 +458,26 @@ class AppProductRepository {
       const sortQuery = {};
       if (sort === "latest") {
         sortQuery.createdAt = -1;
+      } else if (sort === "oldest") {
+        sortQuery.createdAt = 1;
+      } else if (sort === "priceHigh") {
+        sortQuery.calculatedTotalPrice = -1;
+      } else if (sort === "priceLow") {
+        sortQuery.calculatedTotalPrice = 1;
       } else {
-        sortQuery.createdAt = -1; // Default to latest
+        sortQuery.createdAt = -1; // Default to latest (new to old)
       }
+
+      const isPriceSort = sort === "priceHigh" || sort === "priceLow";
+      const initialSort = !isPriceSort ? { $sort: sortQuery } : null;
+      const priceSort = isPriceSort ? { $sort: sortQuery } : null;
 
       const pipeline = [
         { $match: filter },
-        { $sort: sortQuery },
+      ];
+
+
+      pipeline.push(
         {
           $lookup: {
             from: "categories",
@@ -375,6 +486,7 @@ class AppProductRepository {
             as: "categoryDetails",
           },
         },
+        { $unwind: { path: "$categoryDetails", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "metals",
@@ -383,6 +495,7 @@ class AppProductRepository {
             as: "metalDetails",
           },
         },
+        { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "s3bucketsettings",
@@ -408,6 +521,32 @@ class AppProductRepository {
               },
               { $sort: { createdAt: 1 } },
               { $limit: 1 },
+              {
+                $lookup: {
+                  from: "purities",
+                  let: { pId: "$id_purity" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: [
+                            "$_id",
+                            { $convert: { input: "$$pId", to: "objectId", onError: "$$pId", onNull: "$$pId" } }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  as: "purityDetails",
+                },
+              },
+              { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
+              {
+                $addFields: {
+                  purityName: "$purityDetails.purity_name",
+                },
+              },
+              { $project: { purityDetails: 0 } },
             ],
             as: "firstItem",
           },
@@ -440,14 +579,24 @@ class AppProductRepository {
             firstItem: { $arrayElemAt: ["$firstItem", 0] },
           },
         },
-        {
-          $facet: {
-            metadata: [{ $count: "total" }],
-            data: [
-              { $skip: skip },
-              { $limit: parseInt(limit) },
-              {
-                $project: {
+        ...getPricingPipeline("$id_branch", "firstItem")
+      );
+
+      pipeline.push({
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [
+            ...(initialSort ? [initialSort] : []),
+            ...(priceSort ? [priceSort] : []),
+            { $skip: skip },
+            { $limit: parseInt(limit) },
+            {
+              $addFields: {
+                purityName: "$firstItem.purityName",
+              }
+            },
+            {
+              $project: {
                   _id: 1,
                   product_name: 1,
                   product_image: 1,
@@ -455,13 +604,15 @@ class AppProductRepository {
                   bestSeller: 1,
                   stock: 1,
                   categoryName: "$categoryDetails.category_name",
-                  metalName: { $arrayElemAt: ["$metalDetails.metal_name", 0] },
-                  price: "$firstItem.price",
-                  totalprice: "$firstItem.totalprice",
+                  metalName: "$metalDetails.metal_name",
+                  price: "$calculatedPrice",
+                  totalprice: "$calculatedTotalPrice",
+                  purityName: 1,
                   tagNo: "$firstItem.tagNo",
                   sku: { $ifNull: ["$firstItem.tagNo", "$sku"] },
                   netWeight: "$firstItem.netWeight",
                   grossWt: "$firstItem.grossWt",
+                  grossWeight: "$firstItem.grossWt",
                   pathurl: {
                     $concat: [
                       { $ifNull: ["$s3Details.s3display_url", ""] },
@@ -472,10 +623,10 @@ class AppProductRepository {
               },
             ],
           },
-        },
-      ];
+        });
 
       const result = await ProductModel.aggregate(pipeline);
+      
       const total = result[0].metadata[0]?.total || 0;
       const products = result[0].data;
 

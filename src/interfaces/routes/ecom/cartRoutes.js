@@ -7,6 +7,7 @@ import CustomerRepository from '../../../infrastructure/repositories/chit/Custom
 import AuthMiddleware from '../../../utils/middleware/authMiddleware.js';
 import TokenService from '../../../utils/jwtToken.js';
 import ProductRepository from '../../../infrastructure/repositories/chit/productRepository.js';
+import ItemRepository from '../../../infrastructure/repositories/ecom/itemRepository.js';
 
 const router = express.Router();
 
@@ -15,7 +16,8 @@ const tokenService=new TokenService()
 const cartRepository = new CartRepository();
 const customerRepository = new CustomerRepository()
 const productRepository = new ProductRepository()
-const cartUseCase = new CartUseCase(cartRepository,customerRepository,productRepository);
+const itemRepository = new ItemRepository();
+const cartUseCase = new CartUseCase(cartRepository,customerRepository,productRepository,itemRepository);
 const cartController = new CartController(cartUseCase);
 const authMiddleware=new AuthMiddleware(tokenService)
 // Cart routes

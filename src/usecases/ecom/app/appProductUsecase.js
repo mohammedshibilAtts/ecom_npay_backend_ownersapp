@@ -9,7 +9,8 @@ class AppProductUsecase {
     s3Service,
     s3Respo,
     subCategoryRepository,
-    itemRepository
+    itemRepository,
+    wishlistRepository
   ) {
     this.productRepository = productRepository;
     this.branchRepository = branchRepository;
@@ -21,69 +22,55 @@ class AppProductUsecase {
     this.s3Respo = s3Respo;
     this.subCategoryRepository = subCategoryRepository;
     this.itemRepository = itemRepository;
+    this.wishlistRepository = wishlistRepository;
   }
 
-  async findById(id) {
+  async findById(id, user) {
     try {
-        
+      const customerId = user && user._id ? user._id : null;
+      let productData = await this.productRepository.findById(id, customerId);
 
-      const productData = await this.productRepository.findById(id);
+
       if (productData) {
-        const purityList = await this.purityRepository.find({
-          id_metal: productData.id_metal,
-          is_deleted: false,
-          active: true,
-        });
-
-        const itemResult = await this.itemRepository.findByProductId({
-          productId: id,
-          page: 1,
-          limit: 1,
-        });
-        const firstItem = itemResult?.data?.[0];
-
         let finalData = productData;
-        if (firstItem) {
-          finalData = this._mergeItemData(productData, firstItem);
-          finalData._id = productData._id; // Keep product ID as primary ID
+        if (productData.firstItem) {
+          finalData = this._mergeItemData(productData, productData.firstItem);
+          finalData._id = productData._id;
         }
+
+        const { purityList, firstItem, ...restData } = finalData;
 
         return {
           success: true,
           message: "Product retrieved successfully",
           data: {
-            ...finalData,
-            purity: (purityList || []).map((p) => ({
-              _id: p._id,
-              purity_name: p.purity_name,
-            })),
+            ...restData,
+            purityName: finalData.purityName || (firstItem && firstItem.purityName ? firstItem.purityName : null),
+            isWishlisted: productData.isWishlisted || false,
+            purity: productData.purityList || [],
           },
         };
       }
 
+      // If not found by product ID, try as an item ID
       const itemData = await this.itemRepository.findById(id);
       if (itemData) {
         const parentProduct = await this.productRepository.findById(
-          itemData.productId
+          itemData.productId,
+          customerId
         );
-        if (parentProduct) {
-          const purityList = await this.purityRepository.find({
-          id_metal: parentProduct.id_metal,
-          is_deleted: false,
-          active: true,
-        });
         
+        if (parentProduct) {
           const mergedData = this._mergeItemData(parentProduct, itemData);
+          const { purityList, firstItem, ...restData } = mergedData;
 
           return {
             success: true,
             message: "Product retrieved successfully",
             data: {
-              ...mergedData,
-              purity: (purityList || []).map((p) => ({
-                _id: p._id,
-                purity_name: p.purity_name,
-              })),
+              ...restData,
+              isWishlisted: parentProduct.isWishlisted || false,
+              purity: parentProduct.purityList || [],
             },
           };
         }
@@ -102,38 +89,54 @@ class AppProductUsecase {
 
   _mergeItemData(product, item) {
     const calculations = this._calculateItemPricing(item);
+    
+    // Remove unwanted nested fields from the parent product before merging
+    const { firstItem, purityList, ...cleanProduct } = product;
 
     return {
-      ...product,
-      _id: item._id,
-      productId: item.productId,
+      ...cleanProduct,
+      _id: item._id, // This is the item ID
+      itemId: item._id,
+      productId: item.productId || product._id,
+      purityName: product.purityName || item.purityName || 
+        (item.id_purity && product.purityList && product.purityList.find(p => p._id.toString() === item.id_purity.toString())?.purity_name) || 
+        (item.id_purity && typeof item.id_purity === 'object' ? item.id_purity.purity_name : null),
+      grossWeight: item.grossWt,
+      netWeight: item.netWeight,
       tagNo: item.tagNo,
       sku: item.tagNo || product.sku,
       sizeId: item.size || product.sizeId,
       sizeValue: item.sizeValue,
       unit: item.unit,
       grossWt: item.grossWt,
-      netWeight: item.netWeight,
+      netWt: item.netWeight,
       stonewt: item.stonewt,
       diamondcts: item.diamondcts,
       diamondwt: item.diamondwt,
       diaCertificateNo: item.diaCertificateNo,
       huidCharges: item.huidCharges,
       huidNo: item.huidNo,
-      price: calculations.price,
-      totalprice: calculations.totalprice,
-      gst: item.gst ?? product.gst,
-      latestMetalPrice: item.currentMetalRate ?? product.latestMetalPrice,
+      price: product.price || calculations.price,
+      totalprice: product.totalprice || calculations.totalprice,
+      priceBreakup: {
+        metalValue: product.metalValue || calculations.metalValue,
+        makingValue: product.makingValue || calculations.makingValue,
+        wastageValue: product.wastageValue || calculations.wastageValue,
+        stoneValue: product.stoneValue || calculations.stoneValue,
+        gstValue: product.gstValue || calculations.gstValue,
+      },
+      gst: item.gst !== undefined ? item.gst : product.gst,
+      latestMetalPrice: item.currentMetalRate || product.latestMetalPrice,
       makingCharges: {
         mode: item.makingCharges?.makingMode || product.makingCharges?.mode,
         actualValue:
-          item.makingCharges?.makingActualValue ??
+          item.makingCharges?.makingActualValue !== undefined ? item.makingCharges?.makingActualValue :
           product.makingCharges?.actualValue,
         discountedValue:
-          item.makingCharges?.makingDiscountedValue ??
+          item.makingCharges?.makingDiscountedValue !== undefined ? item.makingCharges?.makingDiscountedValue :
           product.makingCharges?.discountedValue,
         discountedPercentage:
-          item.makingCharges?.makingDiscountedPercentage ??
+          item.makingCharges?.makingDiscountedPercentage !== undefined ? item.makingCharges?.makingDiscountedPercentage :
           product.makingCharges?.discountedPercentage,
         discountView: product.makingCharges?.discountView,
         mcView: product.makingCharges?.mcView,
@@ -141,20 +144,17 @@ class AppProductUsecase {
       wastageCharges: {
         mode: item.wastageCharges?.wastageMode || product.wastageCharges?.mode,
         actualValue:
-          item.wastageCharges?.wastageActualValue ??
+          item.wastageCharges?.wastageActualValue !== undefined ? item.wastageCharges?.wastageActualValue :
           product.wastageCharges?.actualValue,
         discountedValue:
-          item.wastageCharges?.wastageDiscountedValue ??
+          item.wastageCharges?.wastageDiscountedValue !== undefined ? item.wastageCharges?.wastageDiscountedValue :
           product.wastageCharges?.discountedValue,
         discountedPercentage:
-          item.wastageCharges?.wastageDiscountedPercentage ??
+          item.wastageCharges?.wastageDiscountedPercentage !== undefined ? item.wastageCharges?.wastageDiscountedPercentage :
           product.wastageCharges?.discountedPercentage,
         discountView: product.wastageCharges?.discountView,
         wastageView: product.wastageCharges?.wastageView,
       },
-      active: item.active,
-      item_createdAt: item.createdAt,
-      item_updatedAt: item.updatedAt,
     };
   }
 
@@ -306,13 +306,15 @@ class AppProductUsecase {
     }
   }
 
-  async getProductBySubcategory(id, page = 1, limit = 10, sort = "latest") {
+  async getProductBySubcategory(id, page = 1, limit = 10, sort = "latest", user) {
     try {
+      const customerId = user && user._id ? user._id : null;
       const { products, currentPage, totalPages, totalDocs } = await this.productRepository.getProductBySubcategory(
         id,
         page,
         limit,
-        sort
+        sort,
+        customerId
       );
 
       return {

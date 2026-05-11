@@ -23,7 +23,8 @@ class OrderUseCase {
     orderRepository,
     shipRocketUseCase,
     pincodeUseCase,
-    deliveryAddressRepository
+    deliveryAddressRepository,
+    itemRepository
   ) {
     this.cartRepository = cartRepository;
     this.productRepository = productRepository;
@@ -31,6 +32,7 @@ class OrderUseCase {
     this.shipRocketUseCase = shipRocketUseCase;
     this.pincodeUseCase = pincodeUseCase;
     this.deliveryAddressRepository = deliveryAddressRepository;
+    this.itemRepository = itemRepository;
 
     this.baseUrl = config.CASH_FREE_URL || "https://sandbox.cashfree.com";
     this.url = `${this.baseUrl}/pg/orders`;
@@ -243,18 +245,19 @@ class OrderUseCase {
         orderType: ORDER_TYPE.OFFLINE_ORDER,
       };
       const orderItems = {
-        productId: findProduct._id, // from API
+        productId: findProduct._id,
+        itemId: findProduct.items?.[0]?._id, // if items are populated
         productName: findProduct.product_name,
-        sku: findProduct.sku, // not in response
+        sku: findProduct.sku,
         image: findProduct.product_image[0],
         grossWeight: findProduct.grossWeight,
         price: findProduct.totalAmount,
         quantity: 1,
         discountAmount: findProduct.discountedAmount,
-        categoryId: findProduct.categoryId, // not in response (set later if needed)
-        subCategoryId: findProduct.subCategoryId, // not in response
-        collectionId: findProduct.collectionId, // not in response
-        status: "pending", // default
+        categoryId: findProduct.id_category,
+        subCategoryId: findProduct.subcategoryId,
+        collectionId: findProduct.collectionId,
+        status: "pending",
         trackingNumber: null,
         shippedAt: new Date(),
         returnStatus: "none",
@@ -262,11 +265,151 @@ class OrderUseCase {
         metalRate: findProduct?.latestMetalPrice,
         netWt: findProduct?.netWeight,
         id_purity: findProduct.id_purity,
+        purityName: findProduct.purityName,
         id_metal: findProduct.id_metal,
         makingCharges: findProduct.makingCharges ?? null,
         wastageCharges: findProduct.wastageCharges ?? null,
-        sku: findProduct.sku,
         gstAmount: findCart?.gst,
+      };
+      const createOrder = await this.orderRepository.createOrder(orderData, [
+        orderItems,
+      ]);
+
+      if (!createOrder) {
+        return {
+          success: false,
+          message: "Failed to create order now",
+        };
+      }
+
+      return {
+        success: true,
+        message: "Your order has been placed successfully",
+        data: createOrder?.data,
+      };
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Failed to place order: ${error.message}`);
+    }
+  }
+
+  async orderNowItem(userData, addressId, itemId) {
+    try {
+      if (!userData._id) {
+        throw new Error("User ID not found");
+      }
+      if (!addressId) {
+        throw new Error("Address Id is required");
+      }
+      if (!itemId) {
+        throw new Error("Item Id is required");
+      }
+      const findAddress = await this.deliveryAddressRepository.findById(
+        addressId
+      );
+
+      if (!findAddress) {
+        return {
+          success: false,
+          message: "Invalid Address Id",
+        };
+      }
+      const findItem = await this.itemRepository.findById(itemId);
+
+      if (!findItem) {
+        return {
+          success: false,
+          message: "Item not found",
+        };
+      }
+
+      const findProduct = await this.productRepository.findById(findItem.productId);
+
+      if (!findProduct && findProduct.onlineProduct) {
+        return {
+          success: false,
+          message: "Product not found",
+        };
+      }
+
+      const findProductForOrderNow =
+        await this.productRepository.findProductForOrderNow(
+          findProduct._id,
+          userData._id
+        );
+      if (findProductForOrderNow.alreadyOrdered) {
+        return {
+          success: false,
+          message:
+            "Order confirmation is pending. You can place a new order after it's confirmed.",
+        };
+      }
+
+      const cartData = {};
+      const findCart = await this.cartRepository.findByUserId(userData._id);
+      let cartId = findCart && findCart._id ? findCart._id : null;
+      cartData.userId = userData._id;
+      if (!findCart) {
+        const cart = {
+          ...cartData,
+          status: "active",
+        };
+        const createCart = await this.cartRepository.create(cart);
+        cartId = createCart._id;
+      }
+
+      const shppingCharge = 0;
+      const raw = `${userData._id}${Date.now()}`;
+      const transactionId = crypto
+        .createHash("sha256")
+        .update(raw)
+        .digest("hex")
+        .slice(0, 15);
+      const orderData = {
+        orderId: `ORD-${transactionId}`,
+        userId: userData._id,
+        phone: userData?.mobile,
+        cartId: findCart._id,
+        shipping_is_billing: true,
+        itemsCount: 1,
+        subtotal: findItem.totalprice || findProduct.totalAmount,
+        totalDiscount: findProduct.discountedAmount, // assuming product discount logic
+        shippingFee: shppingCharge,
+        totalAmount: (findItem.totalprice || findProduct.discountedAmount) + shppingCharge,
+        savedAmount: findProduct.totalAmount - findProduct.discountedAmount,
+        status: ORDER_STATUS[1],
+        deliveryAddress: addressId,
+        active: true,
+        orderStatus: ORDER_STATUS_NO.PROCESSING,
+        orderType: ORDER_TYPE.OFFLINE_ORDER,
+      };
+      const orderItems = {
+        productId: findProduct._id,
+        itemId: findItem._id,
+        sizeId: findItem.size,
+        productName: findProduct.product_name,
+        sku: findItem.tagNo || findProduct.sku,
+        image: findProduct.product_image[0],
+        grossWeight: findItem.grossWt,
+        price: findItem.totalprice || findProduct.totalAmount,
+        quantity: 1,
+        discountAmount: findProduct.discountedAmount,
+        categoryId: findProduct.id_category,
+        subCategoryId: findProduct.subcategoryId,
+        collectionId: findProduct.collectionId,
+        status: "pending",
+        trackingNumber: null,
+        shippedAt: new Date(),
+        returnStatus: "none",
+        refundAmount: 0,
+        metalRate: findItem.currentMetalRate || findProduct?.latestMetalPrice,
+        netWt: findItem.netWeight || findProduct?.netWeight,
+        id_purity: findItem.id_purity || findProduct.id_purity,
+        purityName: findItem.purityName,
+        id_metal: findProduct.id_metal,
+        makingCharges: findItem.makingCharges || findProduct.makingCharges || null,
+        wastageCharges: findItem.wastageCharges || findProduct.wastageCharges || null,
+        gstAmount: findItem.gst || findCart?.gst,
       };
       const createOrder = await this.orderRepository.createOrder(orderData, [
         orderItems,
@@ -414,19 +557,20 @@ class OrderUseCase {
         totalStonePrice: totals.totalStonePrice,
       };
       const orderItems = cartItems.items.map((item) => ({
-        productId: item.productId, // from API
-        sizeId: item.sizeId, // mapping `itemId` → `sizeId`
+        productId: item.productId,
+        itemId: item.itemId,
+        sizeId: item.sizeId,
         productName: item.productName,
-        sku: item.sku, // not in response
-        image: item.image,
+        sku: item.sku,
+        image: item.productImg,
         grossWeight: item.grossWt,
         price: item.price,
         quantity: item.qty,
         discountAmount: item.discount,
-        categoryId: item.categoryId, // not in response (set later if needed)
-        subCategoryId: item.subCategoryId, // not in response
-        collectionId: item.collectionId, // not in response
-        status: "pending", // default
+        categoryId: item.categoryId,
+        subCategoryId: item.subCategoryId,
+        collectionId: item.collectionId,
+        status: "pending",
         trackingNumber: null,
         shippedAt: new Date(),
         estimatedDeliveryDays,
@@ -435,10 +579,10 @@ class OrderUseCase {
         metalRate: item.metalRate,
         netWt: item.netWt,
         id_purity: item.id_purity,
+        purityName: item.purityName,
         id_metal: item.id_metal,
         makingCharges: item.makingCharges ?? null,
         wastageCharges: item.wastageCharges ?? null,
-        sku: item.sku,
         gstAmount: item?.gstRate,
         totalDiamondWeight: item.totalDiamondWeight,
         totalStoneWeight: item.totalStoneWeight,

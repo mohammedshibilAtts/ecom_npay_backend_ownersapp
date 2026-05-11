@@ -15,7 +15,12 @@ const branchRepository = new BranchRepository();
 const repository = new SubCategoryRepository();
 const s3Repo = new S3BucketRepository();
 const s3Service = new S3Service();
-const useCase = new SubCategoryUseCase(repository, branchRepository, s3Repo, s3Service);
+const useCase = new SubCategoryUseCase(
+  repository,
+  branchRepository,
+  s3Repo,
+  s3Service,
+);
 const validator = new SubCategoryValidator();
 const tokenService = new TokenService();
 const authMiddleware = new AuthMiddleware(tokenService);
@@ -32,12 +37,12 @@ router.get("/:id", (req, res) => controller.getById(req, res));
 router.post(
   "/",
   upload.handleUpload([{ name: "image", maxCount: 1 }]),
-  (req, res) => controller.addSubCategory(req, res)
+  (req, res) => controller.addSubCategory(req, res),
 );
 router.patch(
   "/:id",
   upload.handleUpload([{ name: "image", maxCount: 1 }]),
-  (req, res) => controller.editSubCategory(req, res)
+  (req, res) => controller.editSubCategory(req, res),
 );
 router.patch("/:id/active", (req, res) => controller.changeStatus(req, res));
 router.delete("/:id", (req, res) => controller.deleteSubCategory(req, res));

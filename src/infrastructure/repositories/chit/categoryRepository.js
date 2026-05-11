@@ -20,7 +20,7 @@ class CategoryRepository {
       return await CategoryModel.findOne({ _id: id, is_deleted: false });
     } catch (err) {
       throw new Error(
-        "Database error occurred while finding new arrivals by id"
+        "Database error occurred while finding new arrivals by id",
       );
     }
   }
@@ -55,7 +55,7 @@ class CategoryRepository {
     try {
       const updateCategory = await CategoryModel.updateOne(
         { _id: id },
-        { $set: categoryData }
+        { $set: categoryData },
       );
       if (updateCategory.modifiedCount == 1) {
         return updateCategory;
@@ -71,9 +71,12 @@ class CategoryRepository {
     try {
       const update = await CategoryModel.updateOne(
         { _id: id },
-        { is_deleted: true }
+        { is_deleted: true },
       );
-      await ProductModel.updateMany({id_category:id},{$set:{is_deleted:true}})
+      await ProductModel.updateMany(
+        { id_category: id },
+        { $set: { is_deleted: true } },
+      );
       if (update.modifiedCount == 1) return true;
       return null;
     } catch (err) {
@@ -85,7 +88,7 @@ class CategoryRepository {
     try {
       const updateStatus = await CategoryModel.updateOne(
         { _id: id },
-        { active: !status }
+        { active: !status },
       );
       if (updateStatus.modifiedCount == 1) {
         return updateStatus;
@@ -110,7 +113,7 @@ class CategoryRepository {
       }
     } catch (err) {
       throw new Error(
-        "Database error occurred while finding category by branch"
+        "Database error occurred while finding category by branch",
       );
     }
   }
@@ -120,7 +123,7 @@ class CategoryRepository {
       const categoryData = await CategoryModel.find({
         id_metal: id,
         is_deleted: false,
-        active:true
+        active: true,
       });
 
       if (categoryData.length > 0) {
@@ -129,9 +132,9 @@ class CategoryRepository {
         return null;
       }
     } catch (err) {
-      console.error(err)
+      console.error(err);
       throw new Error(
-        "Database error occurred while finding category by metal id"
+        "Database error occurred while finding category by metal id",
       );
     }
   }
@@ -175,111 +178,116 @@ class CategoryRepository {
           $project: {
             category_name: 1,
             description: 1,
-            bannerImage: 1,
+            categoryBanner: 1,
             active: 1,
             isDeleted: 1,
             branchName: "$id_branch.branch_name",
             metalName: "$id_metal.metal_name",
-            image:1,
-            createdAt:1,
+            image: 1,
+            createdAt: 1,
             pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
                 `${config?.AWS_LOCAL_PATH}category/`,
               ],
             },
+          },
         },
-      }
       ]);
 
       return categories;
     } catch (err) {
-      throw new Error("Database error occurred while fetching categories: " + err.message);
+      throw new Error(
+        "Database error occurred while fetching categories: " + err.message,
+      );
     }
   }
-  
-    async countCategory(filter) {
-      return await CategoryModel.countDocuments(filter);
+
+  async countCategory(filter) {
+    return await CategoryModel.countDocuments(filter);
+  }
+
+  async findAllActive(branch) {
+    try {
+      return await CategoryModel.find({
+        active: true,
+        is_deleted: false,
+        id_branch: branch,
+      });
+    } catch (err) {
+      throw new Error("Database error occured while get Category");
     }
+  }
 
-    async findAllActive(branch){
-      try{
-        return await CategoryModel.find({active:true,is_deleted:false,id_branch:branch})
-      }catch(err){
-        throw new Error("Database error occured while get Category");
-      }
-    }
-
-
-async getAllCategories(branch) {
-  try {
-    const categories = await CategoryModel.aggregate([
-      {
-        $match: {
-          active: true,
-          id_branch: new mongoose.Types.ObjectId(branch),
+  async getAllCategories(branch) {
+    try {
+      const categories = await CategoryModel.aggregate([
+        {
+          $match: {
+            active: true,
+            id_branch: new mongoose.Types.ObjectId(branch),
+          },
         },
-      },
-      {
+        {
           $lookup: {
             from: "s3bucketsettings",
             pipeline: [{ $limit: 1 }],
             as: "s3Details",
           },
         },
-      {
-        $unwind: {
-          path: "$s3Details",
-          preserveNullAndEmptyArrays: true,
+        {
+          $unwind: {
+            path: "$s3Details",
+            preserveNullAndEmptyArrays: true,
+          },
         },
-      },
-       {
-        $lookup: {
-          from: "metals",
-          localField: "id_metal",
-          foreignField: "_id",
-          as: "id_metal",
+        {
+          $lookup: {
+            from: "metals",
+            localField: "id_metal",
+            foreignField: "_id",
+            as: "id_metal",
+          },
         },
-      },
-      { $unwind: { path: "$id_metal", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          category_name: 1,
-          image: 1,
-          categoryBanner: 1,
-          metal_name: "$id_metal.metal_name",
-          pathurl: {
+        { $unwind: { path: "$id_metal", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            category_name: 1,
+            image: 1,
+            categoryBanner: 1,
+            metal_name: "$id_metal.metal_name",
+            pathurl: {
               $concat: [
                 "$s3Details.s3display_url",
                 `${config?.AWS_LOCAL_PATH}category/`,
               ],
             },
+          },
         },
-      },
-    ]);
+      ]);
 
-    return categories;
-  } catch (err) {
-    throw new Error("Database error occurred while getting categories: " + err.message);
+      return categories;
+    } catch (err) {
+      throw new Error(
+        "Database error occurred while getting categories: " + err.message,
+      );
+    }
   }
-}
-
 
   async getAllCategoriesWithoutBranch() {
-  try {
-    return await CategoryModel.find({
-      is_deleted:false,
-      active:true
-    })
-      .populate('id_branch')
-      .populate('id_metal', 'metal_name')
-      .sort({ _id: -1 })
-      .exec();
-  } catch (err) {
-    throw new Error("Database error occurred while fetching all categories");
+    try {
+      return await CategoryModel.find({
+        is_deleted: false,
+        active: true,
+      })
+        .populate("id_branch")
+        .populate("id_metal", "metal_name")
+        .sort({ _id: -1 })
+        .exec();
+    } catch (err) {
+      throw new Error("Database error occurred while fetching all categories");
+    }
   }
-}
-
 }
 
 export default CategoryRepository;

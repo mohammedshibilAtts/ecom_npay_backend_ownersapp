@@ -13,6 +13,8 @@ import purityReporsitory from "../../../../infrastructure/repositories/chit/puri
 import MetalRateRepository from "../../../../infrastructure/repositories/chit/metalRateRepository.js";
 import S3BucketRepository from "../../../../infrastructure/repositories/chit/super/s3BucketSettingRepository.js";
 import SubcategoryRepository from "../../../../infrastructure/repositories/ecom/subcategoryRepositary.js";
+import ItemRepository from "../../../../infrastructure/repositories/ecom/itemRepository.js";
+import WishlistRepository from "../../../../infrastructure/repositories/chit/wishlistRepository.js";
 
 const router = express.Router();
 
@@ -27,6 +29,8 @@ const purityRepository = new purityReporsitory();
 const metalRateRepository = new MetalRateRepository();
 const s3Repo = new S3BucketRepository();
 const subCategoryRepository = new SubcategoryRepository();
+const itemRepository = new ItemRepository();
+const wishlistRepository = new WishlistRepository();
 const authMiddleware = new AuthMiddleware(tokenService);
 
 const usecase = new AppProductUsecase(
@@ -39,6 +43,8 @@ const usecase = new AppProductUsecase(
   s3Service,
   s3Repo,
   subCategoryRepository,
+  itemRepository,
+  wishlistRepository
 );
 
 const controller = new ProductController(usecase);

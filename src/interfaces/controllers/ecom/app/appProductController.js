@@ -71,7 +71,8 @@ class AppProductController {
         id,
         page,
         limit,
-        sort
+        sort,
+        req.user
       );
 
       if (result.success) {

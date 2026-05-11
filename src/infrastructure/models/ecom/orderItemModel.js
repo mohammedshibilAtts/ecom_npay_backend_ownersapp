@@ -40,6 +40,7 @@ const OrderItemSchema = new Schema(
 
     // Product linkage
     productId: { type: Types.ObjectId, ref: "Product", required: true },
+    itemId: { type: Types.ObjectId, ref: "Item", required: false },
     sizeId: { type: Types.ObjectId, ref: "SizeMaster", required: false },
     categoryId: { type: Types.ObjectId, ref: "Category" },
     subCategoryId: { type: Types.ObjectId, ref: "SubCategory" },
@@ -122,6 +123,7 @@ const OrderItemSchema = new Schema(
       ref: "Metal",
       required: true,
     },
+    purityName: { type: String },
   },
 
   { timestamps: true }

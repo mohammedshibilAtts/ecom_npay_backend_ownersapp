@@ -378,6 +378,17 @@ class CartRepository {
           },
         },
 
+        // Lookup item details
+        {
+          $lookup: {
+            from: "items",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "Item",
+          },
+        },
+        { $unwind: { path: "$Item", preserveNullAndEmptyArrays: true } },
+
         // Lookup product details
         {
           $lookup: {
@@ -390,36 +401,57 @@ class CartRepository {
         { $unwind: { path: "$Product", preserveNullAndEmptyArrays: true } },
 
         {
-          $lookup: {
-            from: "sizemasters",
-            localField: "Product.availableSizes.sizeId",
-            foreignField: "_id",
-            as: "SizeMaster",
-          },
-        },
-        {
-          $unwind: {
-            path: "$SizeMaster",
-            preserveNullAndEmptyArrays: true,
-          },
+          $addFields: {
+            "Product.grossWt": "$Item.grossWt",
+            "Product.netWeight": "$Item.netWeight",
+            "Product.stoneDetails": "$Item.stoneDetails",
+            "Product.sku": "$Item.tagNo",
+            "Product.id_purity": "$Item.id_purity",
+            "Product.makingCharges": {
+              mode: "$Item.makingCharges.makingMode",
+              calculationType: "$Item.makingCharges.calculationType",
+              actualValue: "$Item.makingCharges.makingActualValue",
+              discountedPercentage: "$Item.makingCharges.makingDiscountedPercentage",
+              discountedValue: "$Item.makingCharges.makingDiscountedValue",
+            },
+            "Product.wastageCharges": {
+              mode: "$Item.wastageCharges.wastageMode",
+              calculationType: "$Item.wastageCharges.calculationType",
+              actualValue: "$Item.wastageCharges.wastageActualValue",
+              discountedPercentage: "$Item.wastageCharges.wastageDiscountedPercentage",
+              discountedValue: "$Item.wastageCharges.wastageDiscountedValue",
+            },
+            productSize: {
+              sizeValue: "$Item.sizeValue",
+              quantity: 1
+            },
+            SizeMaster: {
+              unit: "$Item.unit"
+            }
+          }
         },
 
+        // Lookup purity name
         {
-          $addFields: {
-            productSize: {
-              $arrayElemAt: [
-                {
-                  $filter: {
-                    input: "$Product.availableSizes.values",
-                    as: "size",
-                    cond: { $eq: ["$$size._id", "$sizeId"] },
-                  },
-                },
-                0,
-              ],
-            },
-          },
+          $lookup: {
+            from: "purities",
+            let: { pId: "$Item.id_purity" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: [
+                      "$_id",
+                      { $convert: { input: "$$pId", to: "objectId", onError: "$$pId", onNull: "$$pId" } }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: "purityDetails"
+          }
         },
+        { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
 
         // Lookup latest metal rate
         {
@@ -836,6 +868,7 @@ class CartRepository {
             sizeQuantity: { $ifNull: ["$productSize.quantity", 0] },
             id_metal: "$Product.id_metal",
             id_purity: "$Product.id_purity",
+            purityName: "$purityDetails.purity_name",
             makingCharges: "$Product.makingCharges",
             wastageCharges: "$Product.wastageCharges",
             sku: "$Product.sku",
@@ -868,10 +901,13 @@ class CartRepository {
           },
         },
       ]);
+      const s3Setting = await mongoose.connection.collection("s3bucketsettings").findOne({});
+      const s3display_url = s3Setting ? s3Setting.s3display_url : "";
+      
       return {
         ...item[0],
         cartId: cartData._id,
-        pathUrl: `${config.DISPLAY_IMG_URL}products/`,
+        pathurl: `${s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}products/`,
       };
     } catch (error) {
       console.error(error);

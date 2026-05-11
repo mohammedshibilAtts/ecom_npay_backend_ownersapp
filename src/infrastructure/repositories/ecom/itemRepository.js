@@ -67,7 +67,7 @@ class ItemRepository {
   }
 
   async findById(id) {
-    return await itemModel.findById(id).populate("stoneDetails");
+    return await itemModel.findById(id).populate("stoneDetails").populate("id_purity");
   }
 
   async updateStatus(id, status) {

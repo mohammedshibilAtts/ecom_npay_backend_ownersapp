@@ -2,15 +2,16 @@ import { checkQuantitySize } from "../../../utils/quantityCheckHelper.js";
 
 // src/usecases/cartUseCase.js
 class CartUseCase {
-  constructor(cartRepository, customerRepository, productRepository) {
+  constructor(cartRepository, customerRepository, productRepository, itemRepository) {
     this.cartRepository = cartRepository;
     this.customerRepository = customerRepository;
     this.productRepository = productRepository;
+    this.itemRepository = itemRepository;
   }
 
   async createCart(cartData, userData) {
     try {
-      const { productId, collectionId, sizeId } = cartData;
+      const { itemId, collectionId } = cartData;
       // Validate required fields
       if (!userData._id) {
         throw new Error("User ID not found");
@@ -35,8 +36,14 @@ class CartUseCase {
         const createCart = await this.cartRepository.create(cart);
         cartId = createCart._id;
       }
+      
+      const findItem = await this.itemRepository.findById(itemId);
+      if (!findItem) {
+        return { success: false, message: "Item Not found" };
+      }
+
       const findProduct = await this.productRepository.findById(
-        productId,
+        findItem.productId,
         userData._id
       );
 
@@ -52,25 +59,31 @@ class CartUseCase {
       }
       const {
         id_category,
-        id_purity,
         id_metal,
         product_name,
         product_image,
-        grossWt,
       } = findProduct;
+      
+      const {
+        id_purity,
+        grossWt,
+        size
+      } = findItem;
+
       const cartItem = {
         cartId: cartId,
-        productId: productId,
+        itemId: itemId,
+        productId: findItem.productId,
         collectionId: collectionId,
         categoryId: id_category,
         subCategoryId: findProduct?.subcategoryId || null,
         productName: product_name,
-        sku: findProduct?.sku || null,
+        sku: findItem?.tagNo || null,
         image: product_image[0],
         id_metal: id_metal,
         metalWeight: grossWt,
         id_purity: id_purity,
-        sizeId: sizeId,
+        sizeId: size || null,
       };
       const createItem = await this.cartRepository.addItemToCart(cartItem);
       if (!createItem) {
@@ -114,7 +127,12 @@ class CartUseCase {
       return {
         success: true,
         message: "Cart details retrieved successfully.",
-        data: {items:findAvailableStocks,overAllAmount:cartItems.overAllAmount},
+        data: {
+          items: findAvailableStocks,
+          overAllAmount: cartItems.overAllAmount,
+          pathurl: cartItems.pathurl,
+          cartId: cartItems.cartId
+        },
       };
     } catch (error) {
       throw new Error(`Failed to get cart: ${error.message}`);

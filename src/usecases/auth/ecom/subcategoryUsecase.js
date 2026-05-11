@@ -16,12 +16,10 @@ class SubCategoryUseCase {
   }
 
   async addSubCategory(subCategoryData, files, token) {
-
-
     try {
       const categoryValidation = this.validateObjectId(
         subCategoryData.categoryId,
-        "Category"
+        "Category",
       );
       if (categoryValidation) return categoryValidation;
 
@@ -32,40 +30,27 @@ class SubCategoryUseCase {
       //   return { success: false, message: "Category not found" };
       // }
 
-      const existingSubCategory =
-        await this.subCategoryRepository.findByName(subCategoryData.name);
-        
+      const existingSubCategory = await this.subCategoryRepository.findByName(
+        subCategoryData.name,
+      );
+
       if (existingSubCategory) {
         return { success: false, message: "SubCategory already exists" };
       }
 
-    
-
-
-    
       let bannerUrl = null;
       let iconUrl = null;
 
-      
-      let imageUrlFinal = null;
-      if(files && files.image){
-        imageUrlFinal=await this.handleImageUpload(files,null,token);
+      if (files && files.image) {
+        bannerUrl = await this.handleImageUpload(files, "image", token);
       }
-      if(imageUrlFinal){  
-        subCategoryData.bannerImage=imageUrlFinal
-      }
-
-      // if (files?.bannerImage) {
-      //   bannerUrl = await this.handleImageUpload(files, "bannerImage", token);
-      // }
       if (files?.icon) {
         iconUrl = await this.handleImageUpload(files, "icon", token);
       }
 
-
-      // if (bannerUrl) subCategoryData.bannerImage = bannerUrl;
+      if (bannerUrl) subCategoryData.bannerImage = bannerUrl;
       if (iconUrl) subCategoryData.icon = iconUrl;
-      
+
       const subCategoryResult =
         await this.subCategoryRepository.addSubCategory(subCategoryData);
 
@@ -78,7 +63,10 @@ class SubCategoryUseCase {
         message: "Failed to create subcategory. Please try again later.",
       };
     } catch (err) {
-      console.error("Error occurred while adding subcategory:", err.stack || err.message);
+      console.error(
+        "Error occurred while adding subcategory:",
+        err.stack || err.message,
+      );
       return {
         success: false,
         message: "An error occurred while adding subcategory.",
@@ -86,7 +74,6 @@ class SubCategoryUseCase {
       };
     }
   }
-
 
   async editSubCategory(editSubCategoryData, id, files) {
     try {
@@ -99,7 +86,7 @@ class SubCategoryUseCase {
       // Check duplicate name
       const checkAlready = await this.subCategoryRepository.findByName(
         editSubCategoryData.name,
-        id
+        id,
       );
       if (checkAlready) {
         return { success: false, message: "SubCategory already exists" };
@@ -114,40 +101,18 @@ class SubCategoryUseCase {
           updateFields[key] = editSubCategoryData[key];
         }
       }
-      
-     
 
-      if (files && files.image ) {
-      const s3Configs = await this.s3Helper(
-        editSubCategoryData._id || existingSubCategory._id
-      );
-  //     if (files && files.bannerImage) {
-  // const s3Configs = await this.s3Helper(
-  //   new mongoose.Types.ObjectId(editSubCategoryData._id || existingSubCategory._id)
-  // );
-
-
-      //  if (files?.image) {
-      //   updateFields.bannerImage = await this.handleImageUpload(
-      //     files,
-      //     "subcategories",
-      //     s3Configs
-      //   );
-      // }
-      try {
-        updateFields.bannerImage = await this.s3Service.uploadToS3(
-          files.image[0],
-          "subcategory",            
+      if (files && files.image) {
+        const s3Configs = await this.s3Helper(
+          editSubCategoryData._id || existingSubCategory._id,
+        );
+        
+        updateFields.bannerImage = await this.handleImageUpload(
+          files,
+          "image",
           s3Configs
         );
-      } catch (error) {
-        console.error("Error uploading category image:", error);
-        return {
-          success: false,
-          message: "Failed to upload category image. Please try again."
-        };
       }
-    }
       // if (files?.icon) {
       //   updateFields.icon = await this.handleImageUpload(files, "icon");
       // }
@@ -159,7 +124,7 @@ class SubCategoryUseCase {
       const updateSubCategory =
         await this.subCategoryRepository.editSubCategory(id, updateFields);
 
-      console.log ("sdfg",updateFields);
+      console.log("sdfg", updateFields);
 
       if (updateSubCategory) {
         return { success: true, message: "SubCategory edited successfully" };
@@ -221,7 +186,7 @@ class SubCategoryUseCase {
 
       const updateStatus = await this.subCategoryRepository.changeStatus(
         id,
-        existingSubCategory.active
+        existingSubCategory.active,
       );
       if (!updateStatus) {
         return { success: false, message: "Failed to change status" };
@@ -240,7 +205,6 @@ class SubCategoryUseCase {
       };
     }
   }
-
 
   async findById(id) {
     try {
@@ -267,7 +231,6 @@ class SubCategoryUseCase {
     }
   }
 
-
   async getSubCategory(query) {
     try {
       const { page, limit, from_date, to_date, categoryId, search, active } =
@@ -282,7 +245,6 @@ class SubCategoryUseCase {
       if (active !== undefined && active !== null && active !== "") {
         filter.active = active === true || active === "true";
       }
-
 
       // Date range filter
       if (from_date && to_date) {
@@ -301,7 +263,6 @@ class SubCategoryUseCase {
         filter.$or = [{ name: { $regex: searchRegex } }];
       }
 
-     
       if (isValidObjectId(categoryId)) {
         filter.categoryId = categoryId;
       }
@@ -310,7 +271,7 @@ class SubCategoryUseCase {
       const subcategories = await this.subCategoryRepository.getSubCategory(
         filter,
         skip,
-        pageSize
+        pageSize,
       );
 
       if (!subcategories) {
@@ -319,7 +280,8 @@ class SubCategoryUseCase {
 
       // const totalSubCategory =
       //   await this.subCategoryRepository.getSubCategory(filter);
-      const totalcategory = await this.subCategoryRepository.countSubCategory(filter);
+      const totalcategory =
+        await this.subCategoryRepository.countSubCategory(filter);
 
       return {
         success: true,
@@ -328,12 +290,12 @@ class SubCategoryUseCase {
         // totalDoucuments:totalcategory,
         // totalPages: Math.ceil(totalcategory / pageSize),
         // currentPage: pageNum,
-        data:{
+        data: {
           subcategories,
           totalcategory,
-          totalPages:Math.ceil(totalcategory / pageSize),
-          currentPage:pageNum
-        }
+          totalPages: Math.ceil(totalcategory / pageSize),
+          currentPage: pageNum,
+        },
       };
     } catch (err) {
       console.error(err);
@@ -345,23 +307,24 @@ class SubCategoryUseCase {
     }
   }
 
- async findByCategoryId(categoryId) {
+  async findByCategoryId(categoryId) {
     try {
       const idValidation = this.validateObjectId(categoryId, "SubCategory");
       if (idValidation) return idValidation;
 
-      const existingSubCategory = await this.subCategoryRepository.findByCategoryId(categoryId);
+      const existingSubCategory =
+        await this.subCategoryRepository.findByCategoryId(categoryId);
       if (!existingSubCategory) {
         return { success: false, message: "Category not found" };
       }
 
-       const pathUrl = `${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}subcategory/`
+      const pathUrl = `${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}subcategory/`;
 
       return {
         success: true,
         message: "SubCategory retrieved successfully",
         data: existingSubCategory,
-        pathUrl: pathUrl
+        pathUrl: pathUrl,
       };
     } catch (err) {
       console.error(err);
@@ -373,9 +336,7 @@ class SubCategoryUseCase {
     }
   }
 
-
-
-    async handleImageUpload(files, imageUrl, token) {
+  async handleImageUpload(files, imageUrl, token) {
     if (imageUrl) return imageUrl;
     if (files.image?.[0]) {
       const s3Settings = await this.s3Repo.getSetting();
@@ -383,33 +344,32 @@ class SubCategoryUseCase {
       return await this.s3Service.uploadToS3(
         files.image[0],
         "subcategory",
-        s3Settings
+        s3Settings,
       );
     }
     return null;
   }
 
+  async s3Helper() {
+    try {
+      const s3settings = await this.s3Repo.getSetting();
 
-    async s3Helper() {
-      try {
-        const s3settings = await this.s3Repo.getSetting();
-  
-        if (!s3settings) {
-          throw new Error("S3 configuration not found");
-        }
-  
-        return {
-          s3key: s3settings.s3key,
-          s3secret: s3settings.s3secret,
-          s3bucket_name: s3settings.s3bucket_name,
-          s3display_url: s3settings.s3display_url,
-          region: s3settings.region
-        };
-      } catch (error) {
-        console.error("Error in s3Helper:", error);
-        throw error;
+      if (!s3settings) {
+        throw new Error("S3 configuration not found");
       }
+
+      return {
+        s3key: s3settings.s3key,
+        s3secret: s3settings.s3secret,
+        s3bucket_name: s3settings.s3bucket_name,
+        s3display_url: s3settings.s3display_url,
+        region: s3settings.region,
+      };
+    } catch (error) {
+      console.error("Error in s3Helper:", error);
+      throw error;
     }
+  }
 }
 
 export default SubCategoryUseCase;

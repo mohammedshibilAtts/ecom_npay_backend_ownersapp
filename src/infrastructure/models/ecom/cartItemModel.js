@@ -6,12 +6,13 @@ const CartItemSchema = new Schema(
   {
     cartId: { type: Types.ObjectId, ref: "Cart", required: true, index: true },
     productId: { type: Types.ObjectId, ref: "Product", required: true },
+    itemId: { type: Types.ObjectId, ref: "Item", required: true },
     // variantId: { type: Types.ObjectId, ref: "Variant" },
     collectionId: { type:String,default:"" },
     sizeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "SizeMaster",
-      required: true,
+      required: false,
     },
     categoryId: { type: Types.ObjectId, ref: "Category" },
     subCategoryId: { type: Types.ObjectId, ref: "SubCategory" },

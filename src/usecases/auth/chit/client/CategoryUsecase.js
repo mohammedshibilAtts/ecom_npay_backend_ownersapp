@@ -1,11 +1,11 @@
 import mongoose, { isValidObjectId } from "mongoose";
 
 class CategoryUseCase {
-  constructor(categoryRepository,branchRepository,s3Repo,s3Service) {
+  constructor(categoryRepository, branchRepository, s3Repo, s3Service) {
     this.categoryRepository = categoryRepository;
-    this.branchRepository=branchRepository;
-    this.s3Repo=s3Repo;
-    this.s3Service=s3Service;
+    this.branchRepository = branchRepository;
+    this.s3Repo = s3Repo;
+    this.s3Service = s3Service;
   }
 
   validateObjectId(id, name) {
@@ -16,73 +16,74 @@ class CategoryUseCase {
   }
 
   async addCategory(categoryData, files, token) {
-  try {
-    
-    const branchValidation = this.validateObjectId(
-      categoryData.id_branch,
-      "Branch"
-    );
-    if (branchValidation) return branchValidation;
+    try {
+      const branchValidation = this.validateObjectId(
+        categoryData.id_branch,
+        "Branch",
+      );
+      if (branchValidation) return branchValidation;
 
-    const metalValidation = this.validateObjectId(
-      categoryData.id_metal,
-      "Metal"
-    );
-    if (metalValidation) return metalValidation;
+      const metalValidation = this.validateObjectId(
+        categoryData.id_metal,
+        "Metal",
+      );
+      if (metalValidation) return metalValidation;
 
-    const existingCategory = await this.categoryRepository.findByName(
-      categoryData.category_name
-    );
+      const existingCategory = await this.categoryRepository.findByName(
+        categoryData.category_name,
+      );
 
-    if (existingCategory) {
-      return { success: false, message: "Category already exists." };
-    }
-
-    // Handle main image upload
-    let imageUrlFinal = null;
-    if (files && files.image) {
-      imageUrlFinal = await this.handleImageUpload(files.image, null, token);
-      if (imageUrlFinal) {
-        categoryData.image = imageUrlFinal;
+      if (existingCategory) {
+        return { success: false, message: "Category already exists." };
       }
-    }
 
-    // Handle category banner upload
-    let categoryBannerUrlFinal = null;
-    if (files && files.categoryBanner) {
-      categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null, token);
-      if (categoryBannerUrlFinal) {
-        categoryData.categoryBanner = categoryBannerUrlFinal;
+      // Handle main image upload
+      let imageUrlFinal = null;
+      if (files && files.image) {
+        imageUrlFinal = await this.handleImageUpload(files.image, null, token);
+        if (imageUrlFinal) {
+          categoryData.image = imageUrlFinal;
+        }
       }
-    }
-  
-    const categoryResult = await this.categoryRepository.addCategory(
-      categoryData
-    );
 
-    if (categoryResult) {
-      return { success: true, message: "Category created successfully." };
-    }
+      // Handle category banner upload
+      let categoryBannerUrlFinal = null;
+      if (files && files.categoryBanner) {
+        categoryBannerUrlFinal = await this.handleImageUpload(
+          files.categoryBanner,
+          null,
+          token,
+        );
+        if (categoryBannerUrlFinal) {
+          categoryData.categoryBanner = categoryBannerUrlFinal;
+        }
+      }
 
-    return {
-      success: false,
-      message: "Failed to create category. Please try again later.",
-    };
-  } catch (err) {
-    console.error(
-      "Error occurred while adding category:",
-      err.stack || err.message
-    );
-    return {
-      success: false,
-      message: "An error occurred while adding category.",
-      error: err.message,
-    };
+      const categoryResult =
+        await this.categoryRepository.addCategory(categoryData);
+
+      if (categoryResult) {
+        return { success: true, message: "Category created successfully." };
+      }
+
+      return {
+        success: false,
+        message: "Failed to create category. Please try again later.",
+      };
+    } catch (err) {
+      console.error(
+        "Error occurred while adding category:",
+        err.stack || err.message,
+      );
+      return {
+        success: false,
+        message: "An error occurred while adding category.",
+        error: err.message,
+      };
+    }
   }
-}
 
-
-  async editCategory(editCategoryData, id,files) {
+  async editCategory(editCategoryData, id, files) {
     try {
       // if(id !== 0 && id !== ''){
       //   const idValidation = this.validateObjectId(id, "category");
@@ -109,7 +110,7 @@ class CategoryUseCase {
       }
       const checkAlready = await this.categoryRepository.findByName(
         editCategoryData.category_name,
-        id
+        id,
       );
       if (checkAlready) {
         return { success: false, message: "Category already Existing" };
@@ -121,7 +122,7 @@ class CategoryUseCase {
         if (key === "id_branch") {
           if (
             !new mongoose.Types.ObjectId(editCategoryData[key]).equals(
-              new mongoose.Types.ObjectId(existingCategory[key])
+              new mongoose.Types.ObjectId(existingCategory[key]),
             )
           ) {
             updateFields[key] = editCategoryData[key];
@@ -133,46 +134,51 @@ class CategoryUseCase {
           updateFields[key] = editCategoryData[key];
         }
       }
-      if (Object.entries(updateFields).length == 0) {
+      if (
+        Object.entries(updateFields).length == 0 &&
+        (!files || Object.keys(files).length === 0)
+      ) {
         return { success: false, message: "No changes found" };
       }
 
-    if (files && files.image) {
-      const s3Configs = await this.s3Helper(
-        editCategoryData.id_branch || existingCategory.id_branch
-      );
+      if (files && (files.image || files.categoryBanner)) {
+        const s3Configs = await this.s3Helper(
+          editCategoryData.id_branch || existingCategory.id_branch,
+        );
 
-      try {
+        try {
+          // Handle main image upload
+          let imageUrlFinal = null;
+          if (files && files.image) {
+            imageUrlFinal = await this.handleImageUpload(files.image, null);
+            if (imageUrlFinal) {
+              updateFields.image = imageUrlFinal;
+            }
+          }
 
-         // Handle main image upload
-      let imageUrlFinal = null;
-      if (files && files.image) {
-        imageUrlFinal = await this.handleImageUpload(files.image, null);
-        if (imageUrlFinal) {
-          updateFields.image = imageUrlFinal;
+          // Handle category banner upload
+          let categoryBannerUrlFinal = null;
+          if (files && files.categoryBanner) {
+            categoryBannerUrlFinal = await this.handleImageUpload(
+              files.categoryBanner,
+              null,
+            );
+            if (categoryBannerUrlFinal) {
+              updateFields.categoryBanner = categoryBannerUrlFinal;
+            }
+          }
+        } catch (error) {
+          console.error("Error uploading category image:", error);
+          return {
+            success: false,
+            message: "Failed to upload category image. Please try again.",
+          };
         }
       }
-
-      // Handle category banner upload
-      let categoryBannerUrlFinal = null;
-      if (files && files.categoryBanner) {
-        categoryBannerUrlFinal = await this.handleImageUpload(files.categoryBanner, null);
-        if (categoryBannerUrlFinal) {
-          updateFields.categoryBanner = categoryBannerUrlFinal;
-        }
-      }
-      } catch (error) {
-        console.error("Error uploading category image:", error);
-        return {
-          success: false,
-          message: "Failed to upload category image. Please try again."
-        };
-      }
-    }
 
       const updateCategory = await this.categoryRepository.editCategory(
         id,
-        updateFields
+        updateFields,
       );
       if (updateCategory) {
         return { success: true, message: "Category edited successfully" };
@@ -201,9 +207,8 @@ class CategoryUseCase {
       if (!existingCategory) {
         return { success: false, message: "Category not found" };
       }
-      const deleteCategoryResult = await this.categoryRepository.deleteCategory(
-        id
-      );
+      const deleteCategoryResult =
+        await this.categoryRepository.deleteCategory(id);
       if (deleteCategoryResult) {
         return { success: true, message: "Category deleted successfully" };
       }
@@ -233,7 +238,7 @@ class CategoryUseCase {
 
       const updateStatus = await this.categoryRepository.changeStatus(
         id,
-        existingCategory.active
+        existingCategory.active,
       );
       if (!updateStatus) {
         return { success: true, message: "Failed to change Status" };
@@ -306,7 +311,7 @@ class CategoryUseCase {
     try {
       const idValidation = this.validateObjectId(id, "Metal");
       if (idValidation) return idValidation;
-      
+
       const categoryData = await this.categoryRepository.getByMetalId(id);
 
       if (categoryData) {
@@ -329,17 +334,17 @@ class CategoryUseCase {
 
   async getCategory(query) {
     try {
-      const { page, limit, from_date, to_date, id_branch, search,active } = query;
+      const { page, limit, from_date, to_date, id_branch, search, active } =
+        query;
 
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
       const skip = (pageNum - 1) * pageSize;
       const filter = { is_deleted: false };
-    
+
       if (active !== undefined && active !== null && active !== "") {
         filter.active = active === true || active === "true";
       }
-
 
       if (from_date && to_date) {
         const startDate = new Date(from_date);
@@ -349,14 +354,14 @@ class CategoryUseCase {
         }
 
         filter.createdAt = {
-          $gte: startDate, 
-          $lte: endDate, 
+          $gte: startDate,
+          $lte: endDate,
         };
       }
-      
+
       // Search filter
       if (search) {
-        const searchRegex = new RegExp(search, "i"); 
+        const searchRegex = new RegExp(search, "i");
         filter.$or = [{ category_name: { $regex: searchRegex } }];
       }
 
@@ -368,7 +373,7 @@ class CategoryUseCase {
       const category = await this.categoryRepository.getCategory(
         filter,
         skip,
-        pageSize
+        pageSize,
       );
       if (!category.length >= 1) {
         return { success: false, message: "No category found" };
@@ -381,11 +386,11 @@ class CategoryUseCase {
         success: true,
         message: "Category retrieved successfully",
         data: {
-        category,
-        totalcategory,
-        totalPages: Math.ceil(totalcategory / pageSize),
-        currentPage: pageNum
-        }
+          category,
+          totalcategory,
+          totalPages: Math.ceil(totalcategory / pageSize),
+          currentPage: pageNum,
+        },
       };
     } catch (err) {
       console.error(err);
@@ -397,22 +402,26 @@ class CategoryUseCase {
     }
   }
 
-  async findAllActive (branchId){
-    try{
+  async findAllActive(branchId) {
+    try {
       const idValidation = this.validateObjectId(branchId, "id_branch");
       if (idValidation) return idValidation;
 
-      const checkBranch= await this.branchRepository.findById(branchId)
-      if(!checkBranch){
-        return {success:false,message:"Branch not found"}
+      const checkBranch = await this.branchRepository.findById(branchId);
+      if (!checkBranch) {
+        return { success: false, message: "Branch not found" };
       }
 
-      const data = await this.categoryRepository.findAllActive(branchId)
-      if(data.length>=0){
-        return {success:true,message:"Category retrieved successfully",data}
+      const data = await this.categoryRepository.findAllActive(branchId);
+      if (data.length >= 0) {
+        return {
+          success: true,
+          message: "Category retrieved successfully",
+          data,
+        };
       }
-      return {success:false,message:"No category found"}
-    }catch(err){
+      return { success: false, message: "No category found" };
+    } catch (err) {
       console.error(err);
       return {
         success: false,
@@ -422,7 +431,7 @@ class CategoryUseCase {
     }
   }
 
- async getAllCategories(branchId) {
+  async getAllCategories(branchId) {
     try {
       if (branchId && branchId !== "null") {
         const checkBranch = await this.branchRepository.findById(branchId);
@@ -436,9 +445,9 @@ class CategoryUseCase {
         }
         branchId = branchData._id;
       }
-  
+
       const data = await this.categoryRepository.getAllCategories(branchId);
-  
+
       if (data && data.length > 0) {
         return {
           success: true,
@@ -446,9 +455,8 @@ class CategoryUseCase {
           data,
         };
       }
-  
+
       return { success: false, message: "No categories found", data: [] };
-  
     } catch (err) {
       console.error("Error in getAllCategories:", err);
       return {
@@ -460,65 +468,59 @@ class CategoryUseCase {
   }
 
   async getAllCategoriesWithoutBranch() {
-  try {
-    const data = await this.categoryRepository.getAllCategoriesWithoutBranch();
+    try {
+      const data =
+        await this.categoryRepository.getAllCategoriesWithoutBranch();
 
-    if (data && data.length > 0) {
+      if (data && data.length > 0) {
+        return {
+          success: true,
+          message: "All categories retrieved successfully",
+          data,
+        };
+      }
+
+      return { success: false, message: "No categories found" };
+    } catch (err) {
+      console.error(err);
       return {
-        success: true,
-        message: "All categories retrieved successfully",
-        data,
+        success: false,
+        message: "An error occurred while fetching categories",
+        error: err.message,
       };
     }
-
-    return { success: false, message: "No categories found" };
-  } catch (err) {
-    console.error(err);
-    return {
-      success: false,
-      message: "An error occurred while fetching categories",
-      error: err.message,
-    };
   }
-}
-
 
   async handleImageUpload(files, imageUrl, token) {
-  
     if (imageUrl) return imageUrl;
     if (files[0]) {
       const s3Settings = await this.s3Repo.getSetting();
       if (!s3Settings) throw new Error("S3 configuration not found");
-      return await this.s3Service.uploadToS3(
-        files[0],
-        "category",
-        s3Settings
-      );
+      return await this.s3Service.uploadToS3(files[0], "category", s3Settings);
     }
     return null;
   }
 
-    async s3Helper() {
-      try {
-        const s3settings = await this.s3Repo.getSetting();
-  
-        if (!s3settings) {
-          throw new Error("S3 configuration not found");
-        }
-  
-        return {
-          s3key: s3settings.s3key,
-          s3secret: s3settings.s3secret,
-          s3bucket_name: s3settings.s3bucket_name,
-          s3display_url: s3settings.s3display_url,
-          region: s3settings.region
-        };
-      } catch (error) {
-        console.error("Error in s3Helper:", error);
-        throw error;
-      }
-    }
+  async s3Helper() {
+    try {
+      const s3settings = await this.s3Repo.getSetting();
 
+      if (!s3settings) {
+        throw new Error("S3 configuration not found");
+      }
+
+      return {
+        s3key: s3settings.s3key,
+        s3secret: s3settings.s3secret,
+        s3bucket_name: s3settings.s3bucket_name,
+        s3display_url: s3settings.s3display_url,
+        region: s3settings.region,
+      };
+    } catch (error) {
+      console.error("Error in s3Helper:", error);
+      throw error;
+    }
+  }
 }
 
 export default CategoryUseCase;

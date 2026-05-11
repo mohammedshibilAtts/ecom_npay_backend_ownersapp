@@ -5,7 +5,7 @@ export function checkQuantitySize(items) {
         
         // Iterate through items and aggregate quantities sequentially
         items.forEach((item, index) => {
-            const key = `${item.productId}_${item.sizeId}`;
+            const key = item.itemId ? item.itemId.toString() : `${item.productId}_${item.sizeId}`;
             
             if (productSizeMap.has(key)) {
                 // If combination exists, add to existing quantity
@@ -32,7 +32,7 @@ export function checkQuantitySize(items) {
         
         // Add stockAvailable field to each item based on cumulative quantity at that point
         const updatedItems = items.map((item, index) => {
-            const key = `${item.productId}_${item.sizeId}`;
+            const key = item.itemId ? item.itemId.toString() : `${item.productId}_${item.sizeId}`;
             const data = productSizeMap.get(key);
             
             // Find this item's cumulative quantity

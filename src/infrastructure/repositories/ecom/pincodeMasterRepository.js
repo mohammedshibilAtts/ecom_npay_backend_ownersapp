@@ -154,57 +154,47 @@ class pincodeMasterRepository {
   //   }
   // }
   async getpincodetable(filter, skip, limit) {
-  try {
-    const pincodeData = await PincodeMaster.aggregate([
-      { $match: filter }, // initial filter
-      {
-        $lookup: {
-          from: "statemasters", // StateMaster collection name in MongoDB
-          localField: "id_state",
-          foreignField: "id_state",
-          as: "state"
-        }
-      },
-      { $unwind: "$state" }, // flatten the state array
-      { $match: { "state.deliveryEnabled": true } }, // only enabled states
-      {
-        $lookup: {
-          from: "countries",
-          localField: "id_country",
-          foreignField: "_id",
-          as: "id_country"
-        }
-      },
-      { $unwind: "$id_country" },
-      {
-        $lookup: {
-          from: "states",
-          localField: "id_state",
-          foreignField: "_id",
-          as: "id_state"
-        }
-      },
-      { $unwind: "$id_state" },
-      {
-        $lookup: {
-          from: "cities",
-          localField: "id_city",
-          foreignField: "_id",
-          as: "id_city"
-        }
-      },
-      { $unwind: "$id_city" },
-      { $sort: { _id: -1 } },
-      { $skip: skip },
-      { $limit: limit }
-    ]).exec();
+    try {
+      const pincodeData = await PincodeMaster.aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: "countries",
+            localField: "id_country",
+            foreignField: "_id",
+            as: "id_country",
+          },
+        },
+        { $unwind: "$id_country" },
+        {
+          $lookup: {
+            from: "states",
+            localField: "id_state",
+            foreignField: "_id",
+            as: "id_state",
+          },
+        },
+        { $unwind: "$id_state" },
+        {
+          $lookup: {
+            from: "cities",
+            localField: "id_city",
+            foreignField: "_id",
+            as: "id_city",
+          },
+        },
+        { $unwind: "$id_city" },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]).exec();
 
-    return pincodeData;
-  } catch (err) {
-    console.error(err);
-    throw new Error("Database error occurred while getting subcategories");
+      return pincodeData;
+    } catch (err) {
+      console.error(err);
+      throw new Error("Database error occurred while getting pincode table");
+    }
   }
-}
 
   async countPincode(filter) {
     return await PincodeMaster.countDocuments(filter);

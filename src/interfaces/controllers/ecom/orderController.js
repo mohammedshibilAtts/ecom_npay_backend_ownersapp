@@ -85,6 +85,34 @@ class OrderController {
     }
   }
 
+  async orderNowItem(req, res) {
+    try {
+      const { addressId, itemId } = req.body;
+      const result = await this.orderUseCase.orderNowItem(
+        req.user,
+        addressId,
+        itemId,
+      );
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.data,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   async getMyOrder(req, res) {
     try {
       const result = await this.orderUseCase.getMyOrder(req.user);

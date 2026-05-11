@@ -5,18 +5,22 @@ import mongoose from "mongoose";
  * Expects the input documents to be from the 'items' collection or 
  * have the same structure as the Item model.
  */
-export const getPricingPipeline = (branchId) => {
+export const getPricingPipeline = (branchId, itemPrefix = "") => {
+  const p = itemPrefix ? `${itemPrefix}.` : "";
+  const $p = itemPrefix ? `$${itemPrefix}.` : "$";
+
   return [
-    // 1. Lookup Latest Metal Rate
+    // 1. Lookup Latest Metal Rate (ONLY if not isMrp)
     {
       $lookup: {
         from: "metalrates",
-        let: { purityId: "$id_purity", bId: { $toObjectId: branchId.startsWith("$") ? branchId : null } },
+        let: { purityId: `${$p}id_purity`, bId: { $toObjectId: branchId.startsWith("$") ? branchId : null }, isMrp: "$isMrp" },
         pipeline: [
           {
             $match: {
               $expr: {
                 $and: [
+                  { $eq: ["$$isMrp", false] }, // Only match if not MRP
                   { $eq: ["$purity_id", "$$purityId"] },
                   {
                     $eq: [
@@ -38,7 +42,13 @@ export const getPricingPipeline = (branchId) => {
     },
     {
       $addFields: {
-        currentRate: { $ifNull: [{ $arrayElemAt: ["$rateInfo.rate", 0] }, 0] },
+        currentRate: {
+          $cond: {
+            if: { $eq: ["$isMrp", true] },
+            then: { $ifNull: [`${$p}currentMetalRate`, 0] },
+            else: { $ifNull: [{ $arrayElemAt: ["$rateInfo.rate", 0] }, 0] },
+          },
+        },
       },
     },
 
@@ -46,7 +56,7 @@ export const getPricingPipeline = (branchId) => {
     {
       $lookup: {
         from: "stonedetails",
-        localField: "stoneDetails",
+        localField: `${p}stoneDetails`,
         foreignField: "_id",
         as: "stones",
       },
@@ -62,44 +72,63 @@ export const getPricingPipeline = (branchId) => {
       $addFields: {
         // Metal Value = netWeight * currentRate
         metalValue: {
-          $multiply: [{ $ifNull: ["$netWeight", 0] }, "$currentRate"],
+          $multiply: [{ $ifNull: [`${$p}netWeight`, 0] }, "$currentRate"],
         },
 
-        // Making Charges
-        // Mode 1: Fixed Amount, Mode 2: Per Gram
+        // Helper fields for weight bases based on calculationType (1 = grossWt, 2 = netWeight)
+        makingWeightBase: {
+          $cond: {
+            if: { $eq: [`${$p}makingCharges.calculationType`, 1] },
+            then: { $ifNull: [`${$p}grossWt`, 0] },
+            else: { $ifNull: [`${$p}netWeight`, 0] },
+          },
+        },
+        wastageWeightBase: {
+          $cond: {
+            if: { $eq: [`${$p}wastageCharges.calculationType`, 1] },
+            then: { $ifNull: [`${$p}grossWt`, 0] },
+            else: { $ifNull: [`${$p}netWeight`, 0] },
+          },
+        },
+
+        // Helper fields for fallback amounts
+        makingAmount: {
+          $ifNull: [
+            `${$p}makingCharges.makingDiscountedValue`,
+            { $ifNull: [`${$p}makingCharges.makingActualValue`, 0] }
+          ]
+        },
+        wastageAmount: {
+          $ifNull: [
+            `${$p}wastageCharges.wastageDiscountedValue`,
+            { $ifNull: [`${$p}wastageCharges.wastageActualValue`, 0] }
+          ]
+        }
+      },
+    },
+    {
+      $addFields: {
+        // Making Charges: Mode 1: Fixed Amount, Mode 2: Per Gram
         makingValue: {
           $cond: {
-            if: { $eq: ["$makingCharges.makingMode", 1] },
-            then: { $ifNull: ["$makingCharges.makingDiscountedValue", 0] },
+            if: { $eq: [`${$p}makingCharges.makingMode`, 1] },
+            then: "$makingAmount",
             else: {
-              $multiply: [
-                { $ifNull: ["$netWeight", 0] },
-                { $ifNull: ["$makingCharges.makingDiscountedValue", 0] },
-              ],
+              $multiply: ["$makingWeightBase", "$makingAmount"],
             },
           },
         },
 
-        // Wastage Charges
-        // Mode 1: Fixed Amount, Mode 2: Percentage
+        // Wastage Charges: Mode 1: Fixed Amount, Mode 2: Percentage
         wastageValue: {
           $cond: {
-            if: { $eq: ["$wastageCharges.wastageMode", 1] },
-            then: { $ifNull: ["$wastageCharges.wastageDiscountedValue", 0] },
+            if: { $eq: [`${$p}wastageCharges.wastageMode`, 1] },
+            then: "$wastageAmount",
             else: {
               $multiply: [
-                {
-                  $divide: [
-                    {
-                      $multiply: [
-                        { $ifNull: ["$netWeight", 0] },
-                        { $ifNull: ["$wastageCharges.wastageDiscountedValue", 0] },
-                      ],
-                    },
-                    100,
-                  ],
-                },
+                { $divide: ["$wastageAmount", 100] },
                 "$currentRate",
+                "$wastageWeightBase",
               ],
             },
           },
@@ -116,7 +145,7 @@ export const getPricingPipeline = (branchId) => {
             "$makingValue",
             "$wastageValue",
             "$totalStoneValue",
-            { $ifNull: ["$huidCharges", 0] },
+            { $ifNull: [`${$p}huidCharges`, 0] },
           ],
         },
       },
@@ -124,7 +153,7 @@ export const getPricingPipeline = (branchId) => {
     {
       $addFields: {
         gstAmount: {
-          $divide: [{ $multiply: ["$subTotal", { $ifNull: ["$gst", 0] }] }, 100],
+          $divide: [{ $multiply: ["$subTotal", { $ifNull: [`${$p}gst`, 0] }] }, 100],
         },
       },
     },
@@ -133,7 +162,7 @@ export const getPricingPipeline = (branchId) => {
     {
       $addFields: {
         calculatedPrice: { $round: ["$subTotal", 2] },
-        calculatedTotalPrice: { $round: [{ $add: ["$subTotal", "$gstAmount"] }, 0] },
+        calculatedTotalPrice: { $round: [{ $add: ["$subTotal", "$gstAmount"] }, 2] },
       },
     },
 
@@ -142,13 +171,13 @@ export const getPricingPipeline = (branchId) => {
       $project: {
         rateInfo: 0,
         stones: 0,
-        metalValue: 0,
-        makingValue: 0,
-        wastageValue: 0,
-        totalStoneValue: 0,
+        makingWeightBase: 0,
+        wastageWeightBase: 0,
+        makingAmount: 0,
+        wastageAmount: 0,
         subTotal: 0,
-        gstAmount: 0,
       },
     },
   ];
 };
+

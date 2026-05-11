@@ -10,6 +10,7 @@ import OrderRepository from '../../../infrastructure/repositories/ecom/orderRepo
 import ShipRocketUseCase from '../../../usecases/auth/ecom/shipRocketUseCase.js';
 import PincodeMasterUseCase from '../../../usecases/ecom/pincodeMasterUsecase.js';
 import DeliveryAddressRepositary from '../../../infrastructure/repositories/ecom/deliveryaddressRepositary.js';
+import ItemRepository from '../../../infrastructure/repositories/ecom/itemRepository.js';
 
 const router = express.Router();
 
@@ -21,8 +22,9 @@ const orderRepository = new OrderRepository()
 const shipRocketUseCase = new ShipRocketUseCase()
 const pincodeUseCase = new PincodeMasterUseCase()
 const deliveryAddressRepository = new DeliveryAddressRepositary()
+const itemRepository = new ItemRepository()
 
-const orderUseCase = new OrderUseCase(cartRepository,productRepository,orderRepository,shipRocketUseCase,pincodeUseCase,deliveryAddressRepository);
+const orderUseCase = new OrderUseCase(cartRepository,productRepository,orderRepository,shipRocketUseCase,pincodeUseCase,deliveryAddressRepository, itemRepository);
 const orderController = new OrderController(orderUseCase);
 const authMiddleware=new AuthMiddleware(tokenService)
 // order routes
@@ -34,6 +36,7 @@ router.get('/status',(req,res)=>orderController.verifyPaymentStatus(req,res))
 router.get('/items', (req, res) => orderController.getOrder(req, res));
 router.post('/order', (req, res) => orderController.placeOrder(req, res))
 router.post('/order-now', (req, res) => orderController.orderNow(req, res))
+router.post('/order-now-item', (req, res) => orderController.orderNowItem(req, res))
 router.get('/order', (req, res) => orderController.getMyOrder(req, res))
 router.get('/status/all', (req, res) => orderController.getOrderStatus(req, res))
 router.get('/order/items/:id', (req, res) => orderController.getOrderItems(req, res))

@@ -8,6 +8,7 @@ import orderStatusModel from "../../models/ecom/orderStatusModel.js";
 import orderPaymentModel from "../../models/ecom/orderPaymentModel.js";
 import ecomPaymentOrderModel from "../../models/ecom/ecomPaymentOrderModel.js";
 import metalRateModel from "../../models/chit/metalRateModel.js";
+import itemModel from "../../models/ecom/itemModel.js";
 import {
   ORDER_STATUS,
   ORDER_STATUS_NO,
@@ -408,7 +409,7 @@ class OrderRepository {
         // ⭐ ADD purityName here (IMPORTANT!)
         {
           $addFields: {
-            purityName: "$Purity.purity_name",
+            purityName: { $ifNull: ["$purityName", "$Purity.purity_name"] },
           },
         },
 
@@ -605,6 +606,7 @@ class OrderRepository {
           $project: {
             _id: 0,
             productName: "$product.product_name",
+            purityName: { $ifNull: ["$purityName", ""] },
             size: "$sizeValue",
             qty: "$quantity",
             img: { $arrayElemAt: ["$product.product_image", 0] },
@@ -690,7 +692,9 @@ class OrderRepository {
           $group: {
             _id: "$orderItem.productId",
             totalSold: { $sum: "$orderItem.quantity" },
-            totalAmount: { $sum: "$orderItem.discountAmount" }, // ✅ sum discountAmount here
+            totalAmount: { $sum: "$orderItem.discountAmount" },
+            totalGrossWeight: { $sum: "$orderItem.grossWeight" },
+            totalNetWeight: { $sum: "$orderItem.netWt" },
           },
         },
 
@@ -749,9 +753,11 @@ class OrderRepository {
             name: "$product.product_name",
             totalSold: 1,
             metalName: "$metal.metal_name",
-            purityName: "$purity.purity_name",
+            purityName: { $ifNull: ["$orderItem.purityName", "$purity.purity_name"] },
             categoryName: "$category.category_name",
             totalAmount: 1,
+            totalGrossWeight: 1,
+            totalNetWeight: 1,
           },
         },
       ]);
@@ -932,9 +938,20 @@ class OrderRepository {
                 },
               },
               {
+                $lookup: {
+                  from: "orderitems",
+                  localField: "_id",
+                  foreignField: "orderId",
+                  as: "items",
+                },
+              },
+              { $unwind: "$items" },
+              {
                 $group: {
                   _id: null,
-                  total: { $sum: "$totalAmount" },
+                  total: { $sum: "$items.discountAmount" },
+                  totalGrossWeight: { $sum: "$items.grossWeight" },
+                  totalNetWeight: { $sum: "$items.netWt" },
                 },
               },
             ],
@@ -966,6 +983,12 @@ class OrderRepository {
             },
             totalSales: {
               $ifNull: [{ $arrayElemAt: ["$totalSales.total", 0] }, 0],
+            },
+            totalGrossWeight: {
+              $ifNull: [{ $arrayElemAt: ["$totalSales.totalGrossWeight", 0] }, 0],
+            },
+            totalNetWeight: {
+              $ifNull: [{ $arrayElemAt: ["$totalSales.totalNetWeight", 0] }, 0],
             },
             enquiries: {
               $ifNull: [{ $arrayElemAt: ["$enquiries.count", 0] }, 0],
@@ -1421,6 +1444,8 @@ class OrderRepository {
             _id: "$orderItem.productId",
             totalSold: { $sum: "$orderItem.quantity" },
             totalAmount: { $sum: "$orderItem.discountAmount" },
+            totalGrossWeight: { $sum: "$orderItem.grossWeight" },
+            totalNetWeight: { $sum: "$orderItem.netWt" },
           },
         },
 
@@ -1485,9 +1510,11 @@ class OrderRepository {
             name: "$product.product_name",
             totalSold: 1,
             metalName: "$metal.metal_name",
-            purityName: "$purity.purity_name",
+            purityName: { $ifNull: ["$orderItem.purityName", "$purity.purity_name"] },
             categoryName: "$category.category_name",
             totalAmount: 1,
+            totalGrossWeight: 1,
+            totalNetWeight: 1,
           },
         },
       );
@@ -1601,12 +1628,17 @@ class OrderRepository {
       }
 
       for (const orderItem of orderItems) {
-        const itemToReduce = await itemModel.findOne({
-          productId: orderItem.productId,
-          sizeId: orderItem.sizeId,
-          status: 1, // Available
-          active: true,
-        });
+        let itemToReduce;
+        if (orderItem.itemId) {
+          itemToReduce = await itemModel.findOne({ _id: orderItem.itemId, status: 1 });
+        } else {
+          itemToReduce = await itemModel.findOne({
+            productId: orderItem.productId,
+            sizeId: orderItem.sizeId,
+            status: 1, // Available
+            active: true,
+          });
+        }
 
         if (itemToReduce) {
           await itemModel.findByIdAndUpdate(itemToReduce._id, {
@@ -1615,7 +1647,7 @@ class OrderRepository {
           console.error(`✅ Item ${itemToReduce.tagNo} marked as sold.`);
         } else {
           console.warn(
-            `⚠️ No available item found for Product: ${orderItem.productId}, Size: ${orderItem.sizeId}`,
+            `⚠️ No available item found for Product: ${orderItem.productId}, Item: ${orderItem.itemId}`,
           );
         }
       }
@@ -1636,13 +1668,17 @@ class OrderRepository {
       }
 
       for (const orderItem of orderItems) {
-        // Find a sold item (status 2) for this product and size to return to stock
-        const itemToIncrease = await itemModel.findOne({
-          productId: orderItem.productId,
-          sizeId: orderItem.sizeId,
-          status: 2, // Out/Sold
-          active: true,
-        });
+        let itemToIncrease;
+        if (orderItem.itemId) {
+          itemToIncrease = await itemModel.findOne({ _id: orderItem.itemId, status: 2 });
+        } else {
+          itemToIncrease = await itemModel.findOne({
+            productId: orderItem.productId,
+            sizeId: orderItem.sizeId,
+            status: 2, // Out/Sold
+            active: true,
+          });
+        }
 
         if (itemToIncrease) {
           await itemModel.findByIdAndUpdate(itemToIncrease._id, {
