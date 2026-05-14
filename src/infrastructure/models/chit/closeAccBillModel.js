@@ -70,6 +70,18 @@ const closeaccbillSchema = new mongoose.Schema(
     phonepay_amount:{
       type:Number,
       default:0
+    },
+    chitRedeemed:{
+      type:Boolean,
+      default:false
+    },
+    chitRedeemedBy:{
+      type:String,
+      default:""
+    },
+    precloseType:{
+      type:Number,
+      default:null
     }
   },
   {

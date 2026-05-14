@@ -72,6 +72,7 @@ class AppWishlistUsecase {
         delete product.updatedAt;
         delete product.__v;
 
+        product.productId = product._id;
         return product;
       });
 

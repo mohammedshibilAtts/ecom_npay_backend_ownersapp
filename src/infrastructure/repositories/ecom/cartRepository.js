@@ -23,352 +23,12 @@ class CartRepository {
     }
   }
 
-  // async findById(cartId) {
-  //   try {
-  //     const cartData = await cartModel.findById(cartId);
-
-  //     const item = await cartItemModel.aggregate([
-  //       {
-  //         $match: {
-  //           cartId: new mongoose.Types.ObjectId(cartId),
-  //           is_deleted: false,
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "products",
-  //           localField: "productId",
-  //           foreignField: "_id",
-  //           as: "Product",
-  //         },
-  //       },
-  //       { $unwind: { path: "$Product", preserveNullAndEmptyArrays: true } },
-  //       {
-  //         $lookup: {
-  //           from: "metalrates",
-  //           let: {
-  //             metalId: "$Product.id_metal",
-  //             purityId: "$Product.id_purity",
-  //           },
-  //           pipeline: [
-  //             {
-  //               $match: {
-  //                 $expr: {
-  //                   $and: [
-  //                     { $eq: ["$material_type_id", "$$metalId"] },
-  //                     { $eq: ["$purity_id", "$$purityId"] },
-  //                   ],
-  //                 },
-  //               },
-  //             },
-  //             { $sort: { createdAt: -1 } },
-  //             { $limit: 1 },
-  //           ],
-  //           as: "metalPriceInfo",
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "stonedetails",
-  //           let: { stoneIds: "$Product.stoneDetails" },
-  //           pipeline: [
-  //             {
-  //               $match: {
-  //                 $expr: {
-  //                   $cond: [
-  //                     { $gt: [{ $size: { $ifNull: ["$$stoneIds", []] } }, 0] },
-  //                     { $in: ["$_id", "$$stoneIds"] },
-  //                     false,
-  //                   ],
-  //                 },
-  //               },
-  //             },
-  //           ],
-  //           as: "stoneDiamondDetails",
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "stone_masters",
-  //           let: { ids: "$stoneDiamondDetails.itemId" },
-  //           pipeline: [
-  //             {
-  //               $match: {
-  //                 $expr: {
-  //                   $cond: [
-  //                     { $gt: [{ $size: { $ifNull: ["$$ids", []] } }, 0] },
-  //                     { $in: ["$_id", "$$ids"] },
-  //                     false,
-  //                   ],
-  //                 },
-  //               },
-  //             },
-  //           ],
-  //           as: "stoneInfo",
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           latestMetalPrice: {
-  //             $ifNull: [{ $arrayElemAt: ["$metalPriceInfo.rate", 0] }, 0],
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           baseMetalValue: {
-  //             $multiply: [
-  //               { $ifNull: ["$Product.netWeight", 0] },
-  //               { $ifNull: ["$latestMetalPrice", 0] },
-  //             ],
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           rawMakingCharge: {
-  //             $switch: {
-  //               branches: [
-  //                 {
-  //                   case: { $eq: ["$Product.makingCharges.mode", 1] },
-  //                   then: { $ifNull: ["$Product.makingCharges.actualValue", 0] },
-  //                 },
-  //                 {
-  //                   case: { $eq: ["$Product.makingCharges.mode", 2] },
-  //                   then: {
-  //                     $multiply: [
-  //                       { $ifNull: ["$Product.grossWt", 0] },
-  //                       { $ifNull: ["$Product.makingCharges.actualValue", 0] },
-  //                     ],
-  //                   },
-  //                 },
-  //               ],
-  //               default: 0,
-  //             },
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           finalMakingCharge: {
-  //             $round: [
-  //               {
-  //                 $subtract: [
-  //                   { $ifNull: ["$rawMakingCharge", 0] },
-  //                   { $ifNull: ["$Product.makingCharges.discountedValue", 0] }
-  //                 ]
-  //               },
-  //               2
-  //             ]
-  //           }
-  //         }
-  //       },
-  //       {
-  //         $addFields: {
-  //           rawWastageCharge: {
-  //             $switch: {
-  //               branches: [
-  //                 {
-  //                   case: { $eq: ["$Product.wastageCharges.mode", 1] },
-  //                   then: { $ifNull: ["$Product.wastageCharges.actualValue", 0] },
-  //                 },
-  //                 {
-  //                   case: { $eq: ["$Product.wastageCharges.mode", 2] },
-  //                   then: {
-  //                     $multiply: [
-  //                       { $ifNull: ["$baseMetalValue", 0] },
-  //                       {
-  //                         $divide: [
-  //                           { $ifNull: ["$Product.wastageCharges.actualValue", 0] },
-  //                           100,
-  //                         ],
-  //                       },
-  //                     ],
-  //                   },
-  //                 },
-  //               ],
-  //               default: 0,
-  //             },
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           finalWastageCharge: {
-  //             $round: [
-  //               {
-  //                 $subtract: [
-  //                   { $ifNull: ["$rawWastageCharge", 0] },
-  //                   { $ifNull: ["$Product.wastageCharges.discountedValue", 0] }
-  //                 ]
-  //               },
-  //               2
-  //             ]
-  //           }
-  //         }
-  //       },
-  //       {
-  //         $addFields: {
-  //           diamondValue: {
-  //             $sum: {
-  //               $map: {
-  //                 input: {
-  //                   $filter: {
-  //                     input: { $ifNull: ["$stoneDiamondDetails", []] },
-  //                     as: "sd",
-  //                     cond: { $eq: ["$$sd.type", "diamond"] },
-  //                   },
-  //                 },
-  //                 as: "diamond",
-  //                 in: { $ifNull: ["$$diamond.price", 0] },
-  //               },
-  //             },
-  //           },
-  //           stoneValue: {
-  //             $sum: {
-  //               $map: {
-  //                 input: {
-  //                   $filter: {
-  //                     input: { $ifNull: ["$stoneDiamondDetails", []] },
-  //                     as: "sd",
-  //                     cond: { $eq: ["$$sd.type", "stone"] },
-  //                   },
-  //                 },
-  //                 as: "stone",
-  //                 in: { $ifNull: ["$$stone.price", 0] },
-  //               },
-  //             },
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           discountedSubtotal: {
-  //             $add: [
-  //               { $ifNull: ["$baseMetalValue", 0] },
-  //               { $ifNull: ["$finalWastageCharge", 0] },
-  //               { $ifNull: ["$finalMakingCharge", 0] },
-  //               { $ifNull: ["$diamondValue", 0] },
-  //               { $ifNull: ["$stoneValue", 0] },
-  //             ],
-  //           },
-  //           actualSubtotal: {
-  //             $add: [
-  //               { $ifNull: ["$baseMetalValue", 0] },
-  //               { $ifNull: ["$rawWastageCharge", 0] },
-  //               { $ifNull: ["$rawMakingCharge", 0] },
-  //               { $ifNull: ["$diamondValue", 0] },
-  //               { $ifNull: ["$stoneValue", 0] },
-  //             ],
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: "gstsettings",
-  //           localField: "Product.id_branch",
-  //           foreignField: "id_branch",
-  //           as: "gstInfo",
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           gstRate: {
-  //             $ifNull: [{ $arrayElemAt: ["$gstInfo.rate", 0] }, 0]
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           discountedAmount: {
-  //             $round: [
-  //               {
-  //                 $multiply: [
-  //                   { $ifNull: ["$discountedSubtotal", 0] },
-  //                   {
-  //                     $add: [
-  //                       1,
-  //                       { $divide: [{ $ifNull: ["$gstRate", 0] }, 100] },
-  //                     ],
-  //                   },
-  //                 ],
-  //               },
-  //               2,
-  //             ],
-  //           },
-  //           totalAmount: {
-  //             $round: [
-  //               {
-  //                 $multiply: [
-  //                   { $ifNull: ["$actualSubtotal", 0] },
-  //                   {
-  //                     $add: [
-  //                       1,
-  //                       { $divide: [{ $ifNull: ["$gstRate", 0] }, 100] },
-  //                     ],
-  //                   },
-  //                 ],
-  //               },
-  //               2,
-  //             ],
-  //           },
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           _id: 0,
-  //           productId: "$Product._id",
-  //           itemId: "$_id",
-  //           productName: "$Product.product_name",
-  //           qty: "$quantity",
-  //           grossWt: "$Product.grossWt",
-  //           netWt: "$Product.netWeight",
-  //           shippingCharge: { $literal: 0 },
-  //           productImg: { $arrayElemAt: ["$Product.product_image", 0] },
-  //           price: "$totalAmount",
-  //           discount: "$discountedAmount",
-  //           sizeId: "$sizeId",
-  //           categoryId: "$Product.id_category",
-  //           subCategoryId: "$Product.subcategoryId",
-  //           collectionId: "$Product.collection",
-  //         },
-  //       },
-  //       {
-  //         $facet: {
-  //           items: [{ $match: {} }],
-  //           overAllAmount: [
-  //             {
-  //               $group: {
-  //                 _id: null,
-  //                 totalPrice: { $sum: "$price" },
-  //                 totalDiscount: { $sum: "$discount" },
-  //                 shippingCharge: { $sum: "$shippingCharge" },
-  //               },
-  //             },
-  //             { $project: { _id: 0 } },
-  //           ],
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           items: 1,
-  //           overAllAmount: { $arrayElemAt: ["$overAllAmount", 0] },
-  //         },
-  //       },
-  //     ]);
-
-  //     return {
-  //       ...item[0],
-  //       cartId: cartData._id,
-  //       pathUrl: `${config.DISPLAY_IMG_URL}products/`,
-  //     };
-  //   } catch (error) {
-  //     console.error(error);
-  //     throw new Error(`Repository Error (findCartById): ${error.message}`);
-  //   }
-  // }
   async findById(cartId) {
     try {
+      const s3Setting = await mongoose.connection.collection("s3bucketsettings").findOne({});
+      const s3display_url = s3Setting ? s3Setting.s3display_url : "";
+      const pathurl = `${s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}products/`;
+
       const cartData = await cartModel.findById(cartId);
       const item = await cartItemModel.aggregate([
         {
@@ -407,6 +67,7 @@ class CartRepository {
             "Product.stoneDetails": "$Item.stoneDetails",
             "Product.sku": "$Item.tagNo",
             "Product.id_purity": "$Item.id_purity",
+            "Product.huidCharges": "$Item.huidCharges",
             "Product.makingCharges": {
               mode: "$Item.makingCharges.makingMode",
               calculationType: "$Item.makingCharges.calculationType",
@@ -563,11 +224,21 @@ class CartRepository {
                     },
                   },
                   {
-                    case: { $eq: ["$Product.wastageCharges.mode", 2] },
+                    case: {
+                      $or: [
+                        { $eq: ["$Product.wastageCharges.mode", 2] },
+                        { $eq: ["$Product.wastageCharges.mode", 3] },
+                      ],
+                    },
                     then: {
-                      $multiply: [
-                        { $ifNull: ["$Product.grossWt", 0] },
-                        { $ifNull: ["$Product.wastageCharges.actualValue", 0] },
+                      $divide: [
+                        {
+                          $multiply: [
+                            { $ifNull: ["$baseMetalValue", 0] },
+                            { $ifNull: ["$Product.wastageCharges.actualValue", 0] },
+                          ],
+                        },
+                        100,
                       ],
                     },
                   },
@@ -616,16 +287,21 @@ class CartRepository {
                     },
                   },
                   {
-                    case: { $eq: ["$Product.wastageCharges.mode", 2] },
+                    case: {
+                      $or: [
+                        { $eq: ["$Product.wastageCharges.mode", 2] },
+                        { $eq: ["$Product.wastageCharges.mode", 3] },
+                      ],
+                    },
                     then: {
-                      $multiply: [
-                        { $ifNull: ["$Product.grossWt", 0] },
+                      $divide: [
                         {
-                          $ifNull: [
-                            "$Product.wastageCharges.discountedValue",
-                            0,
+                          $multiply: [
+                            { $ifNull: ["$baseMetalValue", 0] },
+                            { $ifNull: ["$Product.wastageCharges.discountedValue", 0] },
                           ],
                         },
+                        100,
                       ],
                     },
                   },
@@ -681,6 +357,7 @@ class CartRepository {
                 { $ifNull: ["$finalMakingCharge", 0] },
                 { $ifNull: ["$diamondValue", 0] },
                 { $ifNull: ["$stoneValue", 0] },
+                { $ifNull: ["$Product.huidCharges", 0] },
               ],
             },
             actualSubtotal: {
@@ -690,6 +367,7 @@ class CartRepository {
                 { $ifNull: ["$rawMakingCharge", 0] },
                 { $ifNull: ["$diamondValue", 0] },
                 { $ifNull: ["$stoneValue", 0] },
+                { $ifNull: ["$Product.huidCharges", 0] },
               ],
             },
           },
@@ -848,30 +526,79 @@ class CartRepository {
             grossWt: "$Product.grossWt",
             netWt: "$Product.netWeight",
             shippingCharge: { $literal: 0 },
-            productImg: { $arrayElemAt: ["$Product.product_image", 0] },
-            price: "$totalAmount",
-            discount: "$discountedAmount",
-            sizeId: "$sizeId",
-            categoryId: "$Product.id_category",
-            subCategoryId: "$Product.subcategoryId",
-            collectionId: "$Product.collection",
-            gstRate: "$gstRate",
-            productSize: {
-              $concat: [
-                { $toString: "$productSize.sizeValue" },
-                { $ifNull: ["$SizeMaster.unit", ""] },
-              ],
+            
+            // Pricing fields
+            price: { $round: ["$discountedSubtotal", 0] },
+            totalprice: { $round: ["$discountedAmount", 0] },
+            subtotal: { $round: ["$discountedSubtotal", 0] },
+            totalWithGst: { $round: ["$discountedAmount", 0] },
+            totalAmount: { $round: ["$discountedSubtotal", 0] },
+            discountedAmount: { $round: ["$discountedSubtotal", 0] },
+            
+            // Detailed values
+            metalValue: { $round: ["$baseMetalValue", 2] },
+            makingValue: { $round: ["$finalMakingCharge", 2] },
+            wastageValue: { $round: ["$finalWastageCharge", 2] },
+            stoneValue: { $round: [{ $add: ["$diamondValue", "$stoneValue"] }, 2] },
+            gstValue: { $round: ["$gstRate", 4] },
+            gstamount: { $round: ["$gstRate", 4] },
+            
+            // Breakup
+            priceBreakup: {
+              metalValue: { $round: ["$baseMetalValue", 2] },
+              makingValue: { $round: ["$finalMakingCharge", 2] },
+              wastageValue: { $round: ["$finalWastageCharge", 2] },
+              stoneValue: { $round: [{ $add: ["$diamondValue", "$stoneValue"] }, 2] },
+              gstValue: { $round: ["$gstRate", 4] },
+              huidCharges: { $ifNull: ["$Item.huidCharges", 0] }
             },
-            totalDiamondWeight: "$totalDiamondWeight",
-            totalStoneWeight: "$totalStoneWeight",
+            
+            // Other metadata
+            latestMetalPrice: { $ifNull: ["$latestMetalPrice", 0] },
             metalRate: { $ifNull: ["$latestMetalPrice", 0] },
-            sizeQuantity: { $ifNull: ["$productSize.quantity", 0] },
             id_metal: "$Product.id_metal",
             id_purity: "$Product.id_purity",
             purityName: "$purityDetails.purity_name",
             makingCharges: "$Product.makingCharges",
             wastageCharges: "$Product.wastageCharges",
+            finalMakingCharge: { $round: ["$finalMakingCharge", 2] },
+            finalWastageCharge: { $round: ["$finalWastageCharge", 2] },
+            
+            sizeId: "$sizeId",
+            categoryId: "$Product.id_category",
+            subCategoryId: "$Product.subcategoryId",
+            collectionId: "$Product.collection",
+            
+            productSize: {
+              $concat: [
+                { $ifNull: [{ $toString: "$productSize.sizeValue" }, ""] },
+                { $ifNull: ["$SizeMaster.unit", ""] },
+              ],
+            },
+            sizeValue: "$productSize.sizeValue",
+            unit: "$SizeMaster.unit",
+            
+            totalDiamondWeight: "$totalDiamondWeight",
+            totalStoneWeight: "$totalStoneWeight",
+            sizeQuantity: { $ifNull: ["$productSize.quantity", 0] },
             sku: "$Product.sku",
+            tagNo: "$Item.tagNo",
+            huidNo: "$Item.huidNo",
+            huidCharges: { $ifNull: ["$Item.huidCharges", 0] },
+            diaCertificateNo: "$Item.diaCertificateNo",
+            
+            // Image fields
+            pathurl: { $literal: pathurl },
+            productImg: { $ifNull: [{ $arrayElemAt: ["$Product.product_image", 0] }, ""] },
+            image: { $ifNull: [{ $arrayElemAt: ["$Product.product_image", 0] }, ""] },
+            product_image: "$Product.product_image",
+
+            // Added fields to match product response
+            id_category: "$Product.id_category",
+            id_branch: "$Product.id_branch",
+            gst: "$Product.gst",
+            discount: { $round: ["$discountedAmount", 0] },
+            gstRate: "$gstRate",
           },
         },
 
@@ -883,10 +610,11 @@ class CartRepository {
               {
                 $group: {
                   _id: null,
-                  totalPrice: { $sum: "$price" },
+                  totalAmount: { $sum: "$totalprice" },
+                  subTotal: { $sum: "$price" },
                   totalDiscount: { $sum: "$discount" },
                   shippingCharge: { $sum: "$shippingCharge" },
-                  gstRate: { $sum: "$gstRate" },
+                  totalGstAmount: { $sum: "$gstRate" },
                 },
               },
               { $project: { _id: 0 } },
@@ -901,13 +629,11 @@ class CartRepository {
           },
         },
       ]);
-      const s3Setting = await mongoose.connection.collection("s3bucketsettings").findOne({});
-      const s3display_url = s3Setting ? s3Setting.s3display_url : "";
       
       return {
         ...item[0],
         cartId: cartData._id,
-        pathurl: `${s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}products/`,
+        pathurl: pathurl,
       };
     } catch (error) {
       console.error(error);

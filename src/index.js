@@ -19,6 +19,7 @@ import './cron/digigoldAutoCron.js'
 import './cron/overdueAutoCron.js'
 import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
 import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
+import chitRedeemRoutes from './interfaces/routes/chitRedeem/chitRedeemRoutes.js';
 import './cron/promotionCronSetup.js'
 import { setupSwagger } from './config/swaggerConfig.js';
 import "./config/chit/cronSetup.js"
@@ -113,6 +114,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
 app.use('/api/otp',otpRoutes)
+app.use('/api/erp/chit-redeem', chitRedeemRoutes);
 
 // Setup Swagger Documentation at /api-docs
 setupSwagger(app);

@@ -792,7 +792,7 @@ class CustomerUseCase {
         id_branch: checkCusmoter.id_branch,
         mobile: checkCusmoter.mobile,
       };
-      const token = this.tokenService.generateToken(payload, "15d");
+      const token = this.tokenService.generateToken(payload, "60d");
       return { success: true, message: "Login successful", token };
     } catch (err) {
       console.error(err);

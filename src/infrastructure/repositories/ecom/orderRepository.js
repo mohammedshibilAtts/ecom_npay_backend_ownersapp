@@ -167,7 +167,10 @@ class OrderRepository {
                 if (product.wastageCharges) {
                   if (product.wastageCharges.mode === 1) {
                     rawWastageCharge = product.wastageCharges.actualValue || 0;
-                  } else if (product.wastageCharges.mode === 2) {
+                  } else if (
+                    product.wastageCharges.mode === 2 ||
+                    product.wastageCharges.mode === 3
+                  ) {
                     rawWastageCharge =
                       baseMetalValue *
                       ((product.wastageCharges.actualValue || 0) / 100);
@@ -206,13 +209,15 @@ class OrderRepository {
                   finalWastageCharge +
                   finalMakingCharge +
                   diamondValue +
-                  stoneValue;
+                  stoneValue +
+                  (product.huidCharges || 0);
                 const actualSubtotal =
                   baseMetalValue +
                   rawWastageCharge +
                   rawMakingCharge +
                   diamondValue +
-                  stoneValue;
+                  stoneValue +
+                  (product.huidCharges || 0);
 
                 // Calculate GST amounts
                 const discountedAmount =
@@ -235,11 +240,36 @@ class OrderRepository {
                   metalRate: currentMetalRate,
                   grossWeight: grossWeight,
                   netWeight: netWeight,
+                  
+                  // Primary pricing fields
+                  price: Math.round(discountedSubtotal),
+                  totalprice: Math.round(discountedAmount),
+                  subtotal: Math.round(discountedSubtotal),
+                  totalWithGst: Math.round(discountedAmount),
+                  
+                  // Detailed values
+                  metalValue: Math.round(baseMetalValue * 100) / 100,
+                  makingValue: Math.round(finalMakingCharge * 100) / 100,
+                  wastageValue: Math.round(finalWastageCharge * 100) / 100,
+                  stoneValue: Math.round((stoneValue + diamondValue) * 100) / 100,
+                  gstValue: Math.round(gstAmount * 10000) / 10000,
+                  gstamount: Math.round(gstAmount * 10000) / 10000,
+
+                  priceBreakup: {
+                    metalValue: Math.round(baseMetalValue * 100) / 100,
+                    makingValue: Math.round(finalMakingCharge * 100) / 100,
+                    wastageValue: Math.round(finalWastageCharge * 100) / 100,
+                    stoneValue: Math.round((stoneValue + diamondValue) * 100) / 100,
+                    gstValue: Math.round(gstAmount * 10000) / 10000,
+                    huidCharges: product.huidCharges || 0
+                  },
+
                   wastage: product.wastageCharges
                     ? {
                         mode: product.wastageCharges.mode,
                         percentage:
-                          product.wastageCharges.mode === 2
+                          product.wastageCharges.mode === 2 ||
+                          product.wastageCharges.mode === 3
                             ? product.wastageCharges.actualValue
                             : null,
                         amount:
@@ -328,6 +358,22 @@ class OrderRepository {
           },
         },
 
+        // Lookup item details for size/huid/etc
+        {
+          $lookup: {
+            from: "items",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "ItemInfo",
+          },
+        },
+        {
+          $unwind: {
+            path: "$ItemInfo",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+
         // Lookup purity
         {
           $lookup: {
@@ -360,11 +406,11 @@ class OrderRepository {
           },
         },
 
-        // Lookup sizeMaster
+        // Lookup sizeMaster for fallback
         {
           $lookup: {
             from: "sizemasters",
-            localField: "productId.availableSizes.sizeId",
+            localField: "productId.sizeId",
             foreignField: "_id",
             as: "SizeMaster",
           },
@@ -376,7 +422,7 @@ class OrderRepository {
           },
         },
 
-        // Find matching size object
+        // Find matching size object from product for fallback
         {
           $addFields: {
             productSize: {
@@ -394,21 +440,30 @@ class OrderRepository {
           },
         },
 
-        // Create final size text (ex: "22mm")
+        // Create final size text
         {
           $addFields: {
             size: {
-              $concat: [
-                { $toString: "$productSize.sizeValue" },
-                { $ifNull: ["$SizeMaster.unit", ""] },
+              $ifNull: [
+                "$size",
+                {
+                  $ifNull: [
+                    {
+                      $concat: [
+                        { $ifNull: ["$ItemInfo.sizeValue", ""] },
+                        { $ifNull: ["$ItemInfo.unit", ""] },
+                      ],
+                    },
+                    {
+                      $concat: [
+                        { $toString: { $ifNull: ["$productSize.sizeValue", ""] } },
+                        { $ifNull: ["$SizeMaster.unit", ""] },
+                      ],
+                    },
+                  ],
+                },
               ],
             },
-          },
-        },
-
-        // ⭐ ADD purityName here (IMPORTANT!)
-        {
-          $addFields: {
             purityName: { $ifNull: ["$purityName", "$Purity.purity_name"] },
           },
         },
@@ -418,8 +473,25 @@ class OrderRepository {
           $project: {
             SizeMaster: 0,
             productSize: 0,
-            Purity: 0, // optional
-            "productId.availableSizes": 0, // optional
+            Purity: 0,
+            ItemInfo: 0,
+            "productId.availableSizes": 0,
+            
+            // Explicitly include pricing fields for consistency
+            price: { $round: ["$price", 0] },
+            totalprice: { $round: ["$discountAmount", 0] },
+            subtotal: { $round: ["$price", 0] },
+            totalWithGst: { $round: ["$discountAmount", 0] },
+            gstamount: { $ifNull: ["$gstAmount", 0] },
+            
+            priceBreakup: {
+              metalValue: { $round: ["$calculations.baseMetalValue", 2] }, // If saved in calculations
+              makingValue: { $round: ["$makingCharges.discountedValue", 2] },
+              wastageValue: { $round: ["$wastageCharges.discountedValue", 2] },
+              stoneValue: { $round: [{ $add: ["$totalStonePrice", "$totalDiamondPrice"] }, 2] },
+              gstValue: { $round: ["$gstAmount", 4] },
+              huidCharges: { $ifNull: ["$huidCharges", 0] }
+            },
           },
         },
       ]);
@@ -607,7 +679,7 @@ class OrderRepository {
             _id: 0,
             productName: "$product.product_name",
             purityName: { $ifNull: ["$purityName", ""] },
-            size: "$sizeValue",
+            size: { $ifNull: ["$size", "$sizeValue"] },
             qty: "$quantity",
             img: { $arrayElemAt: ["$product.product_image", 0] },
             price: "$discountAmount",
@@ -618,6 +690,9 @@ class OrderRepository {
             totalStonePrice: "$totalStonePrice",
             totalDiamondPrice: "$totalDiamondPrice",
             metalRate: "$metalRate",
+            huidNo: "$huidNo",
+            huidCharges: "$huidCharges",
+            diaCertificateNo: "$diaCertificateNo",
           },
         },
       ]);
@@ -675,7 +750,14 @@ class OrderRepository {
   async getTopSellingProduct(filter) {
     try {
       const result = await Order.aggregate([
-        { $match: filter },
+        {
+          $match: {
+            ...filter,
+            orderStatus: {
+              $nin: [ORDER_STATUS_NO.CANCELLED, ORDER_STATUS_NO.PROCESSING],
+            },
+          },
+        },
 
         {
           $lookup: {
@@ -687,6 +769,23 @@ class OrderRepository {
         },
         { $unwind: "$orderItem" },
 
+        // lookup product early to filter out inactive ones
+        {
+          $lookup: {
+            from: "products",
+            localField: "orderItem.productId",
+            foreignField: "_id",
+            as: "productInfo",
+          },
+        },
+        { $unwind: "$productInfo" },
+        {
+          $match: {
+            "productInfo.active": true,
+            "productInfo.is_deleted": { $ne: true },
+          },
+        },
+
         // group by product
         {
           $group: {
@@ -695,6 +794,10 @@ class OrderRepository {
             totalAmount: { $sum: "$orderItem.discountAmount" },
             totalGrossWeight: { $sum: "$orderItem.grossWeight" },
             totalNetWeight: { $sum: "$orderItem.netWt" },
+            productName: { $first: "$productInfo.product_name" },
+            id_metal: { $first: "$productInfo.id_metal" },
+            id_category: { $first: "$productInfo.id_category" },
+            id_purity: { $first: "$productInfo.id_purity" },
           },
         },
 
@@ -704,57 +807,46 @@ class OrderRepository {
         // top 10
         { $limit: 10 },
 
-        // get product details
-        {
-          $lookup: {
-            from: "products",
-            localField: "_id",
-            foreignField: "_id",
-            as: "product",
-          },
-        },
-        { $unwind: "$product" },
-
         {
           $lookup: {
             from: "metals",
-            localField: "product.id_metal",
+            localField: "id_metal",
             foreignField: "_id",
             as: "metal",
           },
         },
-        { $unwind: "$metal" },
+        { $unwind: { path: "$metal", preserveNullAndEmptyArrays: true } },
 
         {
           $lookup: {
             from: "categories",
-            localField: "product.id_category",
+            localField: "id_category",
             foreignField: "_id",
             as: "category",
           },
         },
-        { $unwind: "$category" },
+        { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
 
         {
           $lookup: {
             from: "purities",
-            localField: "product.id_purity",
+            localField: "id_purity",
             foreignField: "_id",
             as: "purity",
           },
         },
-        { $unwind: "$purity" },
+        { $unwind: { path: "$purity", preserveNullAndEmptyArrays: true } },
 
         // final projection
         {
           $project: {
             _id: 0,
             productId: "$_id",
-            name: "$product.product_name",
+            name: "$productName",
             totalSold: 1,
-            metalName: "$metal.metal_name",
-            purityName: { $ifNull: ["$orderItem.purityName", "$purity.purity_name"] },
-            categoryName: "$category.category_name",
+            metalName: { $ifNull: ["$metal.metal_name", ""] },
+            purityName: { $ifNull: ["$purity.purity_name", ""] },
+            categoryName: { $ifNull: ["$category.category_name", ""] },
             totalAmount: 1,
             totalGrossWeight: 1,
             totalNetWeight: 1,
@@ -772,7 +864,14 @@ class OrderRepository {
   async getTopSellingCategory(filter) {
     try {
       const result = await Order.aggregate([
-        { $match: filter },
+        {
+          $match: {
+            ...filter,
+            orderStatus: {
+              $nin: [ORDER_STATUS_NO.CANCELLED, ORDER_STATUS_NO.PROCESSING],
+            },
+          },
+        },
 
         {
           $lookup: {
@@ -840,7 +939,15 @@ class OrderRepository {
 
   async findOrderStatus() {
     try {
-      return await orderStatusModel.find();
+      return await orderStatusModel.find({ isDeleted: { $ne: true } });
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async findStatusByNo(statusNo) {
+    try {
+      return await orderStatusModel.findOne({ statusNo: Number(statusNo), isDeleted: { $ne: true } });
     } catch (error) {
       return null;
     }
@@ -1427,7 +1534,14 @@ class OrderRepository {
     try {
       const skip = (page - 1) * limit;
       let basePipeline = [
-        { $match: { createdAt: filter.createdAt } },
+        {
+          $match: {
+            ...filter,
+            orderStatus: {
+              $nin: [ORDER_STATUS_NO.CANCELLED, ORDER_STATUS_NO.PROCESSING],
+            },
+          },
+        },
 
         {
           $lookup: {
@@ -1439,6 +1553,23 @@ class OrderRepository {
         },
         { $unwind: "$orderItem" },
 
+        // lookup product early to filter out inactive ones
+        {
+          $lookup: {
+            from: "products",
+            localField: "orderItem.productId",
+            foreignField: "_id",
+            as: "productInfo",
+          },
+        },
+        { $unwind: "$productInfo" },
+        {
+          $match: {
+            "productInfo.active": true,
+            "productInfo.is_deleted": { $ne: true },
+          },
+        },
+
         {
           $group: {
             _id: "$orderItem.productId",
@@ -1446,27 +1577,20 @@ class OrderRepository {
             totalAmount: { $sum: "$orderItem.discountAmount" },
             totalGrossWeight: { $sum: "$orderItem.grossWeight" },
             totalNetWeight: { $sum: "$orderItem.netWt" },
+            purityName: { $first: "$orderItem.purityName" },
+            productName: { $first: "$productInfo.product_name" },
+            id_metal: { $first: "$productInfo.id_metal" },
+            id_category: { $first: "$productInfo.id_category" },
+            id_purity: { $first: "$productInfo.id_purity" },
           },
         },
-
-        {
-          $lookup: {
-            from: "products",
-            localField: "_id",
-            foreignField: "_id",
-            as: "product",
-          },
-        },
-        { $unwind: "$product" },
       ];
 
       //  CATEGORY FILTER
       if (filter.id_category) {
         basePipeline.push({
           $match: {
-            "product.id_category": new mongoose.Types.ObjectId(
-              filter.id_category,
-            ),
+            id_category: new mongoose.Types.ObjectId(filter.id_category),
           },
         });
       }
@@ -1476,45 +1600,68 @@ class OrderRepository {
         {
           $lookup: {
             from: "metals",
-            localField: "product.id_metal",
+            localField: "id_metal",
             foreignField: "_id",
             as: "metal",
           },
         },
-        { $unwind: "$metal" },
+        { $unwind: { path: "$metal", preserveNullAndEmptyArrays: true } },
 
         {
           $lookup: {
             from: "categories",
-            localField: "product.id_category",
+            localField: "id_category",
             foreignField: "_id",
             as: "category",
           },
         },
-        { $unwind: "$category" },
+        { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
 
         {
           $lookup: {
             from: "purities",
-            localField: "product.id_purity",
+            localField: "id_purity",
             foreignField: "_id",
             as: "purity",
           },
         },
-        { $unwind: "$purity" },
+        { $unwind: { path: "$purity", preserveNullAndEmptyArrays: true } },
+
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              { $count: "count" },
+            ],
+            as: "stockData",
+          },
+        },
 
         {
           $project: {
             _id: 0,
             productId: "$_id",
-            name: "$product.product_name",
+            name: "$productName",
             totalSold: 1,
-            metalName: "$metal.metal_name",
-            purityName: { $ifNull: ["$orderItem.purityName", "$purity.purity_name"] },
-            categoryName: "$category.category_name",
+            metalName: { $ifNull: ["$metal.metal_name", ""] },
+            purityName: { $ifNull: ["$purityName", "$purity.purity_name", ""] },
+            categoryName: { $ifNull: ["$category.category_name", ""] },
             totalAmount: 1,
             totalGrossWeight: 1,
             totalNetWeight: 1,
+            totalStock: { $ifNull: [{ $arrayElemAt: ["$stockData.count", 0] }, 0] },
           },
         },
       );
@@ -1606,13 +1753,13 @@ class OrderRepository {
         },
       ]);
 
-      // If ANY order matches the condition, return false
       const hasActiveOrder = result.some(
         (item) =>
-          item.orderType === ORDER_TYPE.OFFLINE_ORDER && item.orderStatus === 5,
+          item.orderType === ORDER_TYPE.OFFLINE_ORDER && 
+          item.orderStatus === ORDER_STATUS_NO.PROCESSING,
       );
 
-      return !hasActiveOrder;
+      return { alreadyOrdered: hasActiveOrder };
     } catch (error) {
       throw error;
     }
@@ -1628,6 +1775,12 @@ class OrderRepository {
       }
 
       for (const orderItem of orderItems) {
+        const product = await productModel.findById(orderItem.productId).lean();
+        if (product && product.onlineProduct === false) {
+          console.log(`Skipping stock reduction for product ${product.product_name} because onlineProduct is false`);
+          continue;
+        }
+
         let itemToReduce;
         if (orderItem.itemId) {
           itemToReduce = await itemModel.findOne({ _id: orderItem.itemId, status: 1 });
@@ -1642,7 +1795,7 @@ class OrderRepository {
 
         if (itemToReduce) {
           await itemModel.findByIdAndUpdate(itemToReduce._id, {
-            $set: { status: 2 }, // Mark as Out/Sold
+            $set: { status: 2, active: false }, // Mark as Out/Sold and Inactive
           });
           console.error(`✅ Item ${itemToReduce.tagNo} marked as sold.`);
         } else {
@@ -1668,6 +1821,11 @@ class OrderRepository {
       }
 
       for (const orderItem of orderItems) {
+        const product = await productModel.findById(orderItem.productId).lean();
+        if (product && product.onlineProduct === false) {
+          continue;
+        }
+
         let itemToIncrease;
         if (orderItem.itemId) {
           itemToIncrease = await itemModel.findOne({ _id: orderItem.itemId, status: 2 });
@@ -1676,13 +1834,12 @@ class OrderRepository {
             productId: orderItem.productId,
             sizeId: orderItem.sizeId,
             status: 2, // Out/Sold
-            active: true,
           });
         }
 
         if (itemToIncrease) {
           await itemModel.findByIdAndUpdate(itemToIncrease._id, {
-            $set: { status: 1 }, // Mark as In/Available
+            $set: { status: 1, active: true }, // Mark as In/Available and Active
           });
           console.error(`✅ Item ${itemToIncrease.tagNo} returned to stock.`);
         }

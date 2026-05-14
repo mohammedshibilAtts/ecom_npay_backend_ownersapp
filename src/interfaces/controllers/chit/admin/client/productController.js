@@ -208,6 +208,8 @@ class ProductController {
        sort,
        priceRange,
        search,
+       from_date: req.query.from_date,
+       to_date: req.query.to_date
      };
       const result = await this.productUsecase.getProductBySubcategroy(
         id,
@@ -253,6 +255,8 @@ class ProductController {
         sort,
         priceRange:priceRange,
         search,
+        from_date: req.query.from_date,
+        to_date: req.query.to_date
       };
 
       const result = await this.productUsecase.getProductByCategory(

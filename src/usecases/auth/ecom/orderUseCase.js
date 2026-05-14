@@ -194,7 +194,7 @@ class OrderUseCase {
       }
 
       const findProductForOrderNow =
-        await this.productRepository.findProductForOrderNow(
+        await this.orderRepository.findProductForOrderNow(
           productId,
           userData._id
         );
@@ -226,19 +226,21 @@ class OrderUseCase {
         .update(raw)
         .digest("hex")
         .slice(0, 15);
+      const processingStatus = await this.orderRepository.findStatusByNo(ORDER_STATUS_NO.PROCESSING);
+
       const orderData = {
         orderId: `ORD-${transactionId}`,
         userId: userData._id,
         phone: userData?.mobile,
-        cartId: findCart._id,
+        cartId: findCart?._id || null,
         shipping_is_billing: true,
         itemsCount: 1,
-        subtotal: findProduct.totalAmount,
-        totalDiscount: findProduct.discountedAmount,
+        subtotal: findProduct.totalAmount || findProduct.price || 0,
+        totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
         shippingFee: shppingCharge,
-        totalAmount: findProduct.discountedAmount + shppingCharge,
-        savedAmount: findProduct.totalAmount - findProduct.discountedAmount,
-        status: ORDER_STATUS[1],
+        totalAmount: (findProduct.discountedAmount || findProduct.price || 0) + shppingCharge,
+        savedAmount: (findProduct.totalAmount || findProduct.price || 0) - (findProduct.discountedAmount || findProduct.price || 0),
+        status: processingStatus?.name || "Processing",
         deliveryAddress: addressId,
         active: true,
         orderStatus: ORDER_STATUS_NO.PROCESSING,
@@ -246,14 +248,14 @@ class OrderUseCase {
       };
       const orderItems = {
         productId: findProduct._id,
-        itemId: findProduct.items?.[0]?._id, // if items are populated
+        itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id, 
         productName: findProduct.product_name,
         sku: findProduct.sku,
         image: findProduct.product_image[0],
-        grossWeight: findProduct.grossWeight,
-        price: findProduct.totalAmount,
+        grossWeight: findProduct.grossWeight || findProduct.firstItem?.grossWt,
+        price: findProduct.price || findProduct.totalAmount || 0,
         quantity: 1,
-        discountAmount: findProduct.discountedAmount,
+        discountAmount: findProduct.discountedAmount || findProduct.price || 0,
         categoryId: findProduct.id_category,
         subCategoryId: findProduct.subcategoryId,
         collectionId: findProduct.collectionId,
@@ -263,13 +265,13 @@ class OrderUseCase {
         returnStatus: "none",
         refundAmount: 0,
         metalRate: findProduct?.latestMetalPrice,
-        netWt: findProduct?.netWeight,
-        id_purity: findProduct.id_purity,
+        netWt: findProduct?.netWeight || findProduct.firstItem?.netWeight,
+        id_purity: findProduct.id_purity || findProduct.firstItem?.id_purity,
         purityName: findProduct.purityName,
         id_metal: findProduct.id_metal,
         makingCharges: findProduct.makingCharges ?? null,
         wastageCharges: findProduct.wastageCharges ?? null,
-        gstAmount: findCart?.gst,
+        gstAmount: findProduct.gstValue || findCart?.gst || 0,
       };
       const createOrder = await this.orderRepository.createOrder(orderData, [
         orderItems,
@@ -281,6 +283,9 @@ class OrderUseCase {
           message: "Failed to create order now",
         };
       }
+
+      // Reduce stock immediately for offline orders
+      await this.orderRepository.reduceProductQuatityCount(createOrder.order._id);
 
       return {
         success: true,
@@ -333,7 +338,7 @@ class OrderUseCase {
       }
 
       const findProductForOrderNow =
-        await this.productRepository.findProductForOrderNow(
+        await this.orderRepository.findProductForOrderNow(
           findProduct._id,
           userData._id
         );
@@ -365,19 +370,21 @@ class OrderUseCase {
         .update(raw)
         .digest("hex")
         .slice(0, 15);
+      const processingStatus = await this.orderRepository.findStatusByNo(ORDER_STATUS_NO.PROCESSING);
+
       const orderData = {
         orderId: `ORD-${transactionId}`,
         userId: userData._id,
         phone: userData?.mobile,
-        cartId: findCart._id,
+        cartId: findCart?._id || null,
         shipping_is_billing: true,
         itemsCount: 1,
-        subtotal: findItem.totalprice || findProduct.totalAmount,
-        totalDiscount: findProduct.discountedAmount, // assuming product discount logic
+        subtotal: findItem.totalprice || findProduct.totalAmount || findProduct.price || 0,
+        totalDiscount: findProduct.discountedAmount || findProduct.price || 0, 
         shippingFee: shppingCharge,
-        totalAmount: (findItem.totalprice || findProduct.discountedAmount) + shppingCharge,
-        savedAmount: findProduct.totalAmount - findProduct.discountedAmount,
-        status: ORDER_STATUS[1],
+        totalAmount: (findItem.totalprice || findProduct.discountedAmount || findProduct.price || 0) + shppingCharge,
+        savedAmount: (findProduct.totalAmount || findProduct.price || 0) - (findProduct.discountedAmount || findProduct.price || 0),
+        status: processingStatus?.name || "Processing",
         deliveryAddress: addressId,
         active: true,
         orderStatus: ORDER_STATUS_NO.PROCESSING,
@@ -391,9 +398,9 @@ class OrderUseCase {
         sku: findItem.tagNo || findProduct.sku,
         image: findProduct.product_image[0],
         grossWeight: findItem.grossWt,
-        price: findItem.totalprice || findProduct.totalAmount,
+        price: findItem.totalprice || findProduct.totalAmount || findProduct.price || 0,
         quantity: 1,
-        discountAmount: findProduct.discountedAmount,
+        discountAmount: findProduct.discountedAmount || findProduct.price || 0,
         categoryId: findProduct.id_category,
         subCategoryId: findProduct.subcategoryId,
         collectionId: findProduct.collectionId,
@@ -404,12 +411,16 @@ class OrderUseCase {
         refundAmount: 0,
         metalRate: findItem.currentMetalRate || findProduct?.latestMetalPrice,
         netWt: findItem.netWeight || findProduct?.netWeight,
-        id_purity: findItem.id_purity || findProduct.id_purity,
+        id_purity: findItem.id_purity || findProduct.id_purity || findProduct.firstItem?.id_purity,
         purityName: findItem.purityName,
         id_metal: findProduct.id_metal,
         makingCharges: findItem.makingCharges || findProduct.makingCharges || null,
         wastageCharges: findItem.wastageCharges || findProduct.wastageCharges || null,
-        gstAmount: findItem.gst || findCart?.gst,
+        gstAmount: findItem.gst || findProduct.gstValue || findCart?.gst || 0,
+        huidNo: findItem.huidNo || null,
+        huidCharges: findItem.huidCharges || 0,
+        diaCertificateNo: findItem.diaCertificateNo || null,
+        size: `${findItem.sizeValue || ""}${findItem.unit || ""}`,
       };
       const createOrder = await this.orderRepository.createOrder(orderData, [
         orderItems,
@@ -421,6 +432,9 @@ class OrderUseCase {
           message: "Failed to create order now",
         };
       }
+
+      // Reduce stock immediately for offline orders
+      await this.orderRepository.reduceProductQuatityCount(createOrder.order._id);
 
       return {
         success: true,
@@ -588,6 +602,10 @@ class OrderUseCase {
         totalStoneWeight: item.totalStoneWeight,
         totalDiamondPrice: item.totalDiamondPrice,
         totalStonePrice: item.totalStonePrice,
+        huidNo: item.huidNo || null,
+        huidCharges: item.huidCharges || 0,
+        diaCertificateNo: item.diaCertificateNo || null,
+        size: item.productSize || null,
       }));
       const createOrder = await this.orderRepository.createOrder(
         orderData,

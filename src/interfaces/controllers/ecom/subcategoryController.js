@@ -13,10 +13,6 @@ class SubCategoryController {
 
       const validate = { categoryId, name };
 
-      // if (!files?.bannerImage) {
-      //   return res.status(400).json({ message: "Banner image is required" });
-      // }
-
       const { error } = this.validator.subCategoryValidations.validate(validate);
       if (error) {
         return res.status(400).json(error.details[0].message);
@@ -160,7 +156,6 @@ class SubCategoryController {
   }
 
   async getSubCategory(req, res) {
-    console.log(req.body)
     try {
       const result = await this.subCategoryUsecase.getSubCategory(req.body);
       if (result.success) {

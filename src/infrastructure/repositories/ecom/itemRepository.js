@@ -19,6 +19,7 @@ class ItemRepository {
     try {
       const query = {
         productId,
+        // active: true,
         is_deleted: { $ne: true },
       };
 
@@ -67,7 +68,10 @@ class ItemRepository {
   }
 
   async findById(id) {
-    return await itemModel.findById(id).populate("stoneDetails").populate("id_purity");
+    return await itemModel.findById(id).populate({
+      path: "stoneDetails",
+      populate: { path: "itemId" }
+    }).populate("id_purity");
   }
 
   async updateStatus(id, status) {

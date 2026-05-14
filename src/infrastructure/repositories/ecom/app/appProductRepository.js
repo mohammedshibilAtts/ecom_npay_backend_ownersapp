@@ -42,7 +42,7 @@ class AppProductRepository {
   }
 
   async findById(id) {
-    try {
+    try { 
       const pipeline = [
         {
           $match: {
@@ -116,7 +116,7 @@ class AppProductRepository {
         {
           $lookup: {
             from: "purities",
-            let: { metalId: "$id_metal", branchId: "$id_branch" },
+            let: { metalId: "$id_metal", productId: "$_id" },
             pipeline: [
               {
                 $match: {
@@ -128,7 +128,31 @@ class AppProductRepository {
                     ]
                   }
                 }
-              }
+              },
+              {
+                $lookup: {
+                  from: "items",
+                  let: { purityId: "$_id" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $and: [
+                            { $eq: ["$productId", "$$productId"] },
+                            { $eq: ["$id_purity", "$$purityId"] },
+                            { $eq: ["$active", true] },
+                            { $ne: ["$is_deleted", true] }
+                          ]
+                        }
+                      }
+                    },
+                    { $limit: 1 }
+                  ],
+                  as: "hasItem"
+                }
+              },
+              { $match: { "hasItem.0": { $exists: true } } },
+              { $project: { hasItem: 0 } }
             ],
             as: "purityList"
           }
@@ -230,6 +254,10 @@ class AppProductRepository {
             gstValue: 1,
             firstItem: 1,
             purityList: 1,
+            huid: "$firstItem.huidNo",
+            huidCharges: "$firstItem.huidCharges",
+            showHuidCharge: "$firstItem.showHuidCharge",
+            showHuidNo: "$firstItem.showHuidNo",
             pathurl: {
               $concat: [
                 { $ifNull: ["$s3Details.s3display_url", ""] },

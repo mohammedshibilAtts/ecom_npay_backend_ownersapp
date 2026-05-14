@@ -23,13 +23,6 @@ class SubCategoryUseCase {
       );
       if (categoryValidation) return categoryValidation;
 
-      // const categoryExists = await this.categoryRepository.findById(
-      //   subCategoryData.categoryId
-      // );
-      // if (!categoryExists) {
-      //   return { success: false, message: "Category not found" };
-      // }
-
       const existingSubCategory = await this.subCategoryRepository.findByName(
         subCategoryData.name,
       );
@@ -113,9 +106,6 @@ class SubCategoryUseCase {
           s3Configs
         );
       }
-      // if (files?.icon) {
-      //   updateFields.icon = await this.handleImageUpload(files, "icon");
-      // }
 
       if (Object.entries(updateFields).length === 0) {
         return { success: false, message: "No changes found" };
@@ -278,18 +268,12 @@ class SubCategoryUseCase {
         return { success: false, message: "No category found" };
       }
 
-      // const totalSubCategory =
-      //   await this.subCategoryRepository.getSubCategory(filter);
       const totalcategory =
         await this.subCategoryRepository.countSubCategory(filter);
 
       return {
         success: true,
         message: "SubCategories retrieved successfully",
-        // data:subcategories,
-        // totalDoucuments:totalcategory,
-        // totalPages: Math.ceil(totalcategory / pageSize),
-        // currentPage: pageNum,
         data: {
           subcategories,
           totalcategory,
@@ -336,13 +320,14 @@ class SubCategoryUseCase {
     }
   }
 
-  async handleImageUpload(files, imageUrl, token) {
-    if (imageUrl) return imageUrl;
-    if (files.image?.[0]) {
-      const s3Settings = await this.s3Repo.getSetting();
+  async handleImageUpload(files, fieldName, s3Configs) {
+    const fileArray = fieldName ? files?.[fieldName] : files;
+
+    if (fileArray?.[0]) {
+      const s3Settings = s3Configs || (await this.s3Repo.getSetting());
       if (!s3Settings) throw new Error("S3 configuration not found");
       return await this.s3Service.uploadToS3(
-        files.image[0],
+        fileArray[0],
         "subcategory",
         s3Settings,
       );

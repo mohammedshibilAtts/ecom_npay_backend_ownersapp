@@ -187,9 +187,11 @@ class SchemeAccountUseCase {
     if (latestCloseBill) {
       arraydata.bill_no = latestCloseBill.bill_no;
       arraydata.bill_date = latestCloseBill.bill_date;
+      arraydata.chitRedeemed = latestCloseBill.chitRedeemed;
     } else {
       arraydata.bill_no = "";
       arraydata.bill_date = "";
+      arraydata.chitRedeemed = false;
     }
     return arraydata;
   };
@@ -661,6 +663,15 @@ class SchemeAccountUseCase {
         return { success: false, message: "Already deleted scheme account" };
       }
 
+      const billrow = await this.closeAccRepo.getCloseaccount(id);
+      if (billrow?.chitRedeemed) {
+        return {
+          success: false,
+          message:
+            "This account has already been redeemed and cannot be deleted.",
+        };
+      }
+
       const result = await this.schemeAccountRepository.deleteSchemeAccount(id);
 
       if (!result) {
@@ -815,6 +826,7 @@ class SchemeAccountUseCase {
 
       arrobject.bill_no = billrow?.bill_no;
       arrobject.bill_date = billrow?.bill_date;
+      arrobject.chitRedeemed = billrow?.chitRedeemed;
       arrobject.return_amount = billrow?.return_amount;
       // arrobject.word_convert = this.convertNumberToWord(billrow?.return_amount);
 
@@ -895,7 +907,19 @@ class SchemeAccountUseCase {
       }
 
       if (deletedData.previousStatus == 2) {
-        return { success: false, message: "Operation not allowed" };
+        return {
+          success: false,
+          message:
+            "This account has already been Completed and cannot be reverted.",
+        };
+      }
+
+      if (deletedData?.chitRedeemed) {
+        return {
+          success: false,
+          message:
+            "This account has already been redeemed and cannot be reverted.",
+        };
       }
 
       const createdBy = tokenData.id_employee;
@@ -936,7 +960,7 @@ class SchemeAccountUseCase {
     }
   }
 
-  async closeSchemeAccount(id, data, tokenData) {
+  async closeSchemeAccount(id, data, tokenData, closedThroughErp = false) {
     try {
       if (!isValidObjectId(id)) {
         return {
@@ -944,16 +968,6 @@ class SchemeAccountUseCase {
           message: "Provided id is not a valid object id",
         };
       }
-
-      const employee = await this.employeeRepository.findOne({
-        _id: tokenData?.id_employee,
-        active: true,
-        is_deleted: false,
-      });
-
-      // if (!employee || !tokenData?.id_role || tokenData.id_role.id_role !== 2) {
-      //   return { success: false, message: "Operation not permitted" };
-      // }
 
       const schemeAccount = await this.schemeAccountRepository.findById(id);
 
@@ -963,7 +977,6 @@ class SchemeAccountUseCase {
 
       const {
         status,
-        id_scheme_account,
         id_branch,
         comments,
         bill_no,
@@ -971,9 +984,15 @@ class SchemeAccountUseCase {
         total_paidamount,
         closingBonus = 0,
         refund_paymenttype,
+        chitRedeemed = false,
+        chitRedeemedBy = "",
+        precloseType,
       } = data;
 
-      const createdBy = tokenData.id_employee;
+      let createdBy = null;
+      if (!closedThroughErp) {
+        createdBy = tokenData?.id_employee;
+      }
       const newcloseaccount = {
         comments,
         id_scheme_account: id,
@@ -985,16 +1004,20 @@ class SchemeAccountUseCase {
         return_amount: total_paidamount,
         refund_paymenttype,
         previousStatus: schemeAccount?.status,
+        chitRedeemed,
+        chitRedeemedBy,
+        precloseType: precloseType,
       };
 
-      const billNoExists = await this.closeAccRepo.findByBillNmber(bill_no);
-
-      if (billNoExists) {
-        return { success: false, message: "Bill number already exists" };
+      if (!closedThroughErp) {
+        const billNoExists = await this.closeAccRepo.findByBillNmber(bill_no);
+        if (billNoExists) {
+          return { success: false, message: "Bill number already exists" };
+        }
       }
 
       let newClosedAccount = "";
-      if (refund_paymenttype !== "") {
+      if (refund_paymenttype && refund_paymenttype !== "") {
         newClosedAccount =
           await this.closeAccRepo.addCloseAccount(newcloseaccount);
       } else {

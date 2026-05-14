@@ -124,6 +124,10 @@ const OrderItemSchema = new Schema(
       required: true,
     },
     purityName: { type: String },
+    huidNo: { type: String },
+    huidCharges: { type: Number, default: 0 },
+    diaCertificateNo: { type: String },
+    size: { type: String },
   },
 
   { timestamps: true }

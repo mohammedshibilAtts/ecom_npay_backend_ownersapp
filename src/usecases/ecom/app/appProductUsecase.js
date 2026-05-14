@@ -53,7 +53,8 @@ class AppProductUsecase {
       }
 
       // If not found by product ID, try as an item ID
-      const itemData = await this.itemRepository.findById(id);
+      const itemData = await this.itemRepository.findById(id)
+
       if (itemData) {
         const parentProduct = await this.productRepository.findById(
           itemData.productId,
@@ -90,12 +91,11 @@ class AppProductUsecase {
   _mergeItemData(product, item) {
     const calculations = this._calculateItemPricing(item);
     
-    // Remove unwanted nested fields from the parent product before merging
     const { firstItem, purityList, ...cleanProduct } = product;
 
     return {
       ...cleanProduct,
-      _id: item._id, // This is the item ID
+      _id: item._id, 
       itemId: item._id,
       productId: item.productId || product._id,
       purityName: product.purityName || item.purityName || 
@@ -104,7 +104,7 @@ class AppProductUsecase {
       grossWeight: item.grossWt,
       netWeight: item.netWeight,
       tagNo: item.tagNo,
-      sku: item.tagNo || product.sku,
+      sku: product.sku || item.tagNo,
       sizeId: item.size || product.sizeId,
       sizeValue: item.sizeValue,
       unit: item.unit,
@@ -114,16 +114,25 @@ class AppProductUsecase {
       diamondcts: item.diamondcts,
       diamondwt: item.diamondwt,
       diaCertificateNo: item.diaCertificateNo,
-      huidCharges: item.huidCharges,
-      huidNo: item.huidNo,
-      price: product.price || calculations.price,
-      totalprice: product.totalprice || calculations.totalprice,
+      // huidCharges: item.huidCharges,
+      // huidNo: item.huidNo,
+      
+      // 🔥 Prioritize Item Calculations
+      price: calculations.price,
+      subtotal: calculations.price,
+      totalWithGst: calculations.totalprice,
+      totalAmount: calculations.price,
+      discountedAmount: calculations.price,
+      totalprice: calculations.totalprice,
+      gstamount: calculations.gstValue,
+      
       priceBreakup: {
-        metalValue: product.metalValue || calculations.metalValue,
-        makingValue: product.makingValue || calculations.makingValue,
-        wastageValue: product.wastageValue || calculations.wastageValue,
-        stoneValue: product.stoneValue || calculations.stoneValue,
-        gstValue: product.gstValue || calculations.gstValue,
+        metalValue: calculations.metalValue,
+        makingValue: calculations.makingValue,
+        wastageValue: calculations.wastageValue,
+        stoneValue: calculations.stoneValue,
+        gstValue: calculations.gstValue,
+        huidCharges: item.huidCharges || 0
       },
       gst: item.gst !== undefined ? item.gst : product.gst,
       latestMetalPrice: item.currentMetalRate || product.latestMetalPrice,
@@ -138,8 +147,10 @@ class AppProductUsecase {
         discountedPercentage:
           item.makingCharges?.makingDiscountedPercentage !== undefined ? item.makingCharges?.makingDiscountedPercentage :
           product.makingCharges?.discountedPercentage,
-        discountView: product.makingCharges?.discountView,
-        mcView: product.makingCharges?.mcView,
+        discountView: item.makingCharges?.discountView ?? product.makingCharges?.discountView ?? true,
+        mcView: item.makingCharges?.mcView ?? product.makingCharges?.mcView ?? true,
+        _id: item.makingCharges?._id || product.makingCharges?._id || "MC001",
+        wastageView: item.makingCharges?.wastageView ?? product.makingCharges?.wastageView ?? false,
       },
       wastageCharges: {
         mode: item.wastageCharges?.wastageMode || product.wastageCharges?.mode,
@@ -152,9 +163,29 @@ class AppProductUsecase {
         discountedPercentage:
           item.wastageCharges?.wastageDiscountedPercentage !== undefined ? item.wastageCharges?.wastageDiscountedPercentage :
           product.wastageCharges?.discountedPercentage,
-        discountView: product.wastageCharges?.discountView,
-        wastageView: product.wastageCharges?.wastageView,
+        discountView: item.wastageCharges?.discountView ?? product.wastageCharges?.discountView ?? true,
+        mcView: item.wastageCharges?.mcView ?? product.wastageCharges?.mcView ?? false,
+        _id: item.wastageCharges?._id || product.wastageCharges?._id || "WC001",
+        wastageView: item.wastageCharges?.wastageView ?? product.wastageCharges?.wastageView ?? true,
       },
+      orderStatus: {
+        alreadyOrdered: false,
+        orderId: ""
+      },
+      stoneDiamondDetails: calculations.stoneDiamondDetails,
+      totalDiamondWeight: calculations.totalDiamondWeight,
+      totalDiamondCost: calculations.totalDiamondCost,
+      totalDiamondPrice: calculations.totalDiamondPrice,
+      totalDiamondCount: calculations.totalDiamondCount,
+      totalStoneWeight: calculations.totalStoneWeight,
+      totalStoneCost: calculations.totalStoneCost,
+      totalStonePrice: calculations.totalStonePrice,
+      totalStoneCount: calculations.totalStoneCount,
+      finalMakingCharge: calculations.makingValue,
+      finalWastageCharge: calculations.wastageValue,
+      huidCharges: item.huidCharges,
+      showHuidCharge: item?.showHuidCharge,
+      showHuidNo: item?.showHuidNo,
     };
   }
 
@@ -164,47 +195,67 @@ class AppProductUsecase {
     const grossWt = Number(item.grossWt || 0);
     const metalValue = netWt * rate;
 
-    // Making Charges
     let makingValue = 0;
     const mc = item.makingCharges || {};
-    // mode 1: Amount, mode 2: Weight
+    // Synchronize with ItemPriceSection logic
     if (Number(mc.makingMode) === 1) {
-      makingValue =
-        Number(mc.makingActualValue || 0) -
-        Number(mc.makingDiscountedValue || 0);
+      makingValue = Number(mc.makingDiscountedValue || mc.makingActualValue || 0);
     } else if (Number(mc.makingMode) === 2) {
-      makingValue =
-        Number(mc.makingActualValue || 0) * grossWt -
-        Number(mc.makingDiscountedValue || 0);
+      const weightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
+      makingValue = Number(mc.makingDiscountedValue || mc.makingActualValue || 0) * weightBase;
     }
 
-    // Wastage Charges
     let wastageValue = 0;
     const wc = item.wastageCharges || {};
-    // mode 1: Amount, mode 2: Percentage
     if (Number(wc.wastageMode) === 1) {
-      wastageValue =
-        Number(wc.wastageActualValue || 0) -
-        Number(wc.wastageDiscountedValue || 0);
+      wastageValue = Number(wc.wastageDiscountedValue || wc.wastageActualValue || 0);
     } else if (Number(wc.wastageMode) === 2) {
-      wastageValue =
-        metalValue * (Number(wc.wastageActualValue || 0) / 100) -
-        Number(wc.wastageDiscountedValue || 0);
+      const weightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
+      const percent = Number(wc.wastageDiscountedValue || wc.wastageActualValue || 0);
+      wastageValue = (percent / 100) * rate * weightBase;
     }
 
-    // Stones (Calculated if populated, otherwise use 0)
     let stoneValue = 0;
+    let totalDiamondWeight = 0, totalDiamondCost = 0, totalDiamondPrice = 0, totalDiamondCount = 0;
+    let totalStoneWeight = 0, totalStoneCost = 0, totalStonePrice = 0, totalStoneCount = 0;
+    let stoneDiamondDetails = [];
+
     if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
-      stoneValue = item.stoneDetails.reduce(
-        (sum, stone) => sum + Number(stone.price || 0),
-        0
-      );
+      item.stoneDetails.forEach(stone => {
+        const price = Number(stone.price || 0);
+        stoneValue += price;
+
+        const detail = {
+          _id: stone._id,
+          type: stone.type ? stone.type.charAt(0).toUpperCase() + stone.type.slice(1) : "",
+          weight: stone.weight,
+          cost: stone.cost,
+          price: price,
+          stoneInfo: stone.itemId ? {
+            _id: stone.itemId._id,
+            stonename: stone.itemId.stonename,
+            percraterate: stone.itemId.percraterate
+          } : null
+        };
+        stoneDiamondDetails.push(detail);
+
+        if (stone.type === 'diamond') {
+          totalDiamondWeight += Number(stone.weight || 0);
+          totalDiamondCost += Number(stone.cost || 0);
+          totalDiamondPrice += price;
+          totalDiamondCount += 1;
+        } else if (stone.type === 'stone') {
+          totalStoneWeight += Number(stone.weight || 0);
+          totalStoneCost += Number(stone.cost || 0);
+          totalStonePrice += price;
+          totalStoneCount += 1;
+        }
+      });
     }
 
     const huid = Number(item.huidCharges || 0);
-    const subTotal =
-      metalValue + makingValue + wastageValue + stoneValue + huid;
-    const gstValue = (subTotal * Number(item.gst || 0)) / 100;
+    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
+    const gstValue = (subTotal * Number(item.gst || 3)) / 100;
     const totalPrice = subTotal + gstValue;
 
     return {
@@ -215,6 +266,15 @@ class AppProductUsecase {
       wastageValue,
       stoneValue,
       gstValue,
+      stoneDiamondDetails,
+      totalDiamondWeight,
+      totalDiamondCost,
+      totalDiamondPrice,
+      totalDiamondCount,
+      totalStoneWeight,
+      totalStoneCost,
+      totalStonePrice,
+      totalStoneCount
     };
   }
 

@@ -143,22 +143,23 @@ class SubCategoryRepository {
   
           {
             $project: {
-              // categoryId: "$categories.category_name",
                categoryName: "$category.category_name",
               name:1,
               description: 1,
               active: 1,
               isDeleted: 1,
-              bannerImage:1,
-              createdAt:1,
+              bannerImage: 1,
+              icon: 1,
+              image: "$categoryBanner",
+              createdAt: 1,
               pathurl: {
                 $concat: [
-                  "$s3Details.s3display_url",
-                  `${config?.AWS_LOCAL_PATH}subcategory/`,
+                  { $ifNull: ["$s3Details.s3display_url", ""] },
+                  `${config?.AWS_LOCAL_PATH || ""}subcategory/`,
                 ],
               },
+            },
           },
-        }
         ]);
   
         return categories;

@@ -47,7 +47,7 @@ class ProductRepository {
         {
           $match: {
             _id: new mongoose.Types.ObjectId(id),
-            is_deleted: false,
+            is_deleted: false
           },
         },
         {
@@ -71,15 +71,43 @@ class ProductRepository {
         {
           $lookup: {
             from: "purities",
-            let: { metalId: "$id_metal" },
+            let: { metalId: "$id_metal", productId: "$_id" },
             pipeline: [
               {
                 $match: {
-                  $expr: { $eq: ["$id_metal", "$$metalId"] },
-                  is_deleted: false,
-                  active: true
+                  $expr: {
+                    $and: [
+                      { $eq: ["$id_metal", "$$metalId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] }
+                    ]
+                  }
                 }
-              }
+              },
+              {
+                $lookup: {
+                  from: "items",
+                  let: { purityId: "$_id" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $and: [
+                            { $eq: ["$productId", "$$productId"] },
+                            { $eq: ["$id_purity", "$$purityId"] },
+                            { $eq: ["$active", true] },
+                            { $ne: ["$is_deleted", true] }
+                          ]
+                        }
+                      }
+                    },
+                    { $limit: 1 }
+                  ],
+                  as: "hasItem"
+                }
+              },
+              { $match: { "hasItem.0": { $exists: true } } },
+              { $project: { hasItem: 0 } }
             ],
             as: "purityList"
           }
@@ -168,6 +196,25 @@ class ProductRepository {
               },
               { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
               {
+                $lookup: {
+                  from: "stonedetails",
+                  localField: "stoneDetails",
+                  foreignField: "_id",
+                  as: "stoneDetails",
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: "stone_masters",
+                        localField: "itemId",
+                        foreignField: "_id",
+                        as: "itemId"
+                      }
+                    },
+                    { $unwind: { path: "$itemId", preserveNullAndEmptyArrays: true } }
+                  ]
+                }
+              },
+              {
                 $addFields: {
                   purityName: "$purityDetails.purity_name",
                 },
@@ -230,6 +277,8 @@ class ProductRepository {
           bestSeller: 1,
           active: 1,
           onlineProduct: 1,
+          makingCharges: 1,
+          wastageCharges: 1,
           collection: 1,
           createdAt: 1,
           updatedAt: 1,
@@ -238,6 +287,9 @@ class ProductRepository {
           latestMetalPrice: { $ifNull: [{ $arrayElemAt: ["$metalRateInfo.rate", 0] }, 0] },
           price: "$calculatedPrice",
           totalprice: "$calculatedTotalPrice",
+          totalAmount: "$calculatedPrice", // Alias for OrderUseCase
+          discountedAmount: "$calculatedPrice", // Alias for OrderUseCase
+          id_purity: "$firstItem.id_purity",
           purityName: 1,
           metalValue: 1,
           makingValue: 1,
@@ -245,6 +297,10 @@ class ProductRepository {
           stoneValue: 1,
           gstValue: 1,
           firstItem: 1,
+          huid: 1,
+          huidCharges: 1,
+          showHuidCharge: 1,
+          showHuidNo: 1,
           isWishlisted: customerId ? { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] } : { $literal: false },
           purityList: {
             $map: {
@@ -338,6 +394,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
                     ],
                   },
                 },
@@ -358,6 +415,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
                     ],
                   },
                 },
@@ -440,13 +498,33 @@ class ProductRepository {
   async getProductBySubcategory(id, page, limit, filter, customerId = null) {
     try {
       const skip = (page - 1) * limit;
+      const match = {
+        subcategoryId: new mongoose.Types.ObjectId(id),
+        is_deleted: false,
+        active: true,
+      };
+
+      if (filter.from_date && filter.to_date) {
+        match.createdAt = {
+          $gte: new Date(filter.from_date),
+          $lte: new Date(filter.to_date),
+        };
+      }
+
+      const sortValue = {};
+      if (filter.sort === "latest") {
+        sortValue.createdAt = -1;
+      } else if (filter.sort === "price_lth") {
+        sortValue.calculatedTotalPrice = 1;
+      } else if (filter.sort === "price_htl") {
+        sortValue.calculatedTotalPrice = -1;
+      } else {
+        sortValue.createdAt = -1;
+      }
+
       const pipeline = [
         {
-          $match: {
-            subcategoryId: new mongoose.Types.ObjectId(id),
-            is_deleted: false,
-            active: true,
-          },
+          $match: match,
         },
         {
           $lookup: {
@@ -485,6 +563,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
                     ],
                   },
                 },
@@ -505,17 +584,44 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
                     ],
                   },
                 },
               },
-              { $sort: { createdAt: 1 } },
+              {
+                $lookup: {
+                  from: "stonedetails",
+                  localField: "stoneDetails",
+                  foreignField: "_id",
+                  as: "stoneDetails",
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: "stone_masters",
+                        localField: "itemId",
+                        foreignField: "_id",
+                        as: "itemId"
+                      }
+                    },
+                    { $unwind: { path: "$itemId", preserveNullAndEmptyArrays: true } }
+                  ]
+                }
+              },
               { $limit: 1 },
             ],
             as: "firstItem",
           },
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
+          },
+        },
+        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
         ...getPricingPipeline("$id_branch", "firstItem")
       ];
 
@@ -541,6 +647,7 @@ class ProductRepository {
         });
       }
 
+      pipeline.push({ $sort: sortValue });
       pipeline.push({
         $facet: {
           metadata: [{ $count: "total" }],
@@ -552,7 +659,6 @@ class ProductRepository {
                 _id: 1,
                 product_name: 1,
                 product_image: 1,
-                createdAt: 1,
                 bestSeller: 1,
                 price: "$calculatedPrice",
                 totalprice: "$calculatedTotalPrice",
@@ -588,49 +694,368 @@ class ProductRepository {
     }
   }
 
-  async getProductByCategory(id, page, limit, filter) {
+  async getProductByCategory(id, page, limit, filter, customerId = null) {
     try {
       const skip = (page - 1) * limit;
-      const query = { id_category: id, is_deleted: false };
-      const products = await ProductModel.find(query)
-        .populate("id_category id_metal id_branch subcategoryId sizeId")
-        .skip(skip)
-        .limit(limit);
-      const total = await ProductModel.countDocuments(query);
+      const match = {
+        id_category: new mongoose.Types.ObjectId(id),
+        is_deleted: false,
+        active: true,
+      };
+
+      if (filter.from_date && filter.to_date) {
+        match.createdAt = {
+          $gte: new Date(filter.from_date),
+          $lte: new Date(filter.to_date),
+        };
+      }
+
+      const sortValue = {};
+      if (filter.sort === "latest") {
+        sortValue.createdAt = -1;
+      } else if (filter.sort === "price_lth") {
+        sortValue.calculatedTotalPrice = 1;
+      } else if (filter.sort === "price_htl") {
+        sortValue.calculatedTotalPrice = -1;
+      } else {
+        sortValue.createdAt = -1;
+      }
+
+      const pipeline = [
+        {
+          $match: match,
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              { $count: "stockCount" },
+            ],
+            as: "stockData",
+          },
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              {
+                $lookup: {
+                  from: "stonedetails",
+                  localField: "stoneDetails",
+                  foreignField: "_id",
+                  as: "stoneDetails",
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: "stone_masters",
+                        localField: "itemId",
+                        foreignField: "_id",
+                        as: "itemId"
+                      }
+                    },
+                    { $unwind: { path: "$itemId", preserveNullAndEmptyArrays: true } }
+                  ]
+                }
+              },
+              { $limit: 1 },
+            ],
+            as: "firstItem",
+          },
+        },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
+          },
+        },
+        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        ...getPricingPipeline("$id_branch", "firstItem")
+      ];
+
+      if (customerId) {
+        pipeline.push({
+          $lookup: {
+            from: "wishlists",
+            let: { pId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$itemId", "$$pId"] },
+                      { $eq: ["$id_customer", new mongoose.Types.ObjectId(customerId)] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: "wishlistData"
+          }
+        });
+      }
+
+      pipeline.push({ $sort: sortValue });
+      pipeline.push({
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [
+            { $skip: skip },
+            { $limit: parseInt(limit) },
+            {
+              $project: {
+                _id: 1,
+                product_name: 1,
+                product_image: 1,
+                bestSeller: 1,
+                isWishlisted: {
+                  $cond: [
+                    { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] },
+                    true,
+                    false
+                  ]
+                },
+                price: "$calculatedPrice",
+                totalprice: "$calculatedTotalPrice",
+                stockStatus: {
+                  $cond: [
+                    { $gt: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
+                    "In Stock",
+                    "Out of Stock"
+                  ]
+                },
+                pathurl: {
+                  $concat: [
+                    { $ifNull: ["$s3Details.s3display_url", ""] },
+                    `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
+                  ],
+                },
+              }
+            }
+          ]
+        }
+      });
+
+      const result = await ProductModel.aggregate(pipeline);
+      const products = result[0].data;
+      const total = result[0].metadata[0]?.total || 0;
+
       return {
         products,
-        currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalCount: total
+        pagination: {
+          total,
+          page,
+          pages: Math.ceil(total / limit),
+        }
       };
     } catch (err) {
+      console.error(err);
       throw new Error("Database error fetching products by category");
     }
   }
 
   async getProductStockReport(page, limit, filters) {
     try {
-      const skip = (page - 1) * limit;
-      const query = { is_deleted: false };
-      const data = await ProductModel.find(query)
-        .populate("id_category id_metal id_branch subcategoryId sizeId")
-        .skip(skip)
-        .limit(limit);
-      const total = await ProductModel.countDocuments(query);
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const query = { is_deleted: false, active: true };
+
+      if (filters.category) {
+        query.id_category = new mongoose.Types.ObjectId(filters.category);
+      }
+      if (filters.subcategory) {
+        query.subcategoryId = new mongoose.Types.ObjectId(filters.subcategory);
+      }
+      if (filters.search) {
+        query.product_name = { $regex: filters.search, $options: "i" };
+      }
+
+      const pipeline = [
+        { $match: query },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "id_category",
+          },
+        },
+        { $unwind: { path: "$id_category", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "subcategoryId",
+          },
+        },
+        { $unwind: { path: "$subcategoryId", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "sizeId",
+            foreignField: "_id",
+            as: "sizeId",
+          },
+        },
+        { $unwind: { path: "$sizeId", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+            ],
+            as: "items",
+          },
+        },
+        {
+          $addFields: {
+            totalStock: { $size: "$items" },
+          },
+        },
+        { $project: { items: 0 } },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: parseInt(limit) },
+      ];
+
+      const data = await ProductModel.aggregate(pipeline);
+      const totalCount = await ProductModel.countDocuments(query);
+
       return {
         data,
         currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalCount: total
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount: totalCount,
       };
     } catch (err) {
+      console.error(err);
       throw new Error("Database error fetching stock report");
+    }
+  }
+
+  async getProductLowStockReport(page, limit, lowstockThreshold) {
+    try {
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const threshold = parseInt(lowstockThreshold) || 5;
+
+      const pipeline = [
+        { $match: { is_deleted: false, active: true } },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+            ],
+            as: "items",
+          },
+        },
+        {
+          $addFields: {
+            totalStock: { $size: "$items" },
+          },
+        },
+        { $match: { totalStock: { $lte: threshold } } },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "id_category",
+          },
+        },
+        { $unwind: { path: "$id_category", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "subcategoryId",
+          },
+        },
+        { $unwind: { path: "$subcategoryId", preserveNullAndEmptyArrays: true } },
+        { $sort: { totalStock: 1 } },
+        {
+          $facet: {
+            metadata: [{ $count: "totalCount" }],
+            data: [
+              { $skip: skip },
+              { $limit: parseInt(limit) },
+            ],
+          },
+        },
+      ];
+
+      const result = await ProductModel.aggregate(pipeline);
+      const data = result[0]?.data || [];
+      const totalCount = result[0]?.metadata[0]?.totalCount || 0;
+
+      return {
+        success: true,
+        data: {
+          products: data,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalCount / limit),
+            totalDocs: totalCount,
+          },
+        },
+      };
+    } catch (err) {
+      console.error(err);
+      throw new Error("Database error fetching low stock report");
     }
   }
 
   async findByBranchId(id) {
     try {
-      return await ProductModel.find({ id_branch: id, is_deleted: false }).populate(
+      return await ProductModel.find({ id_branch: id, is_deleted: false, active: true }).populate(
         "id_category id_metal id_branch subcategoryId sizeId"
       );
     } catch (err) {
