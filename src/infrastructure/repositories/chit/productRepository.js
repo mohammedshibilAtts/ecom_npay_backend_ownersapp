@@ -660,6 +660,8 @@ class ProductRepository {
                 product_name: 1,
                 product_image: 1,
                 bestSeller: 1,
+                meta: 1,
+                metalrate: 1,
                 price: "$calculatedPrice",
                 totalprice: "$calculatedTotalPrice",
                 categoryName: "$categoryDetails.category_name",
@@ -681,6 +683,7 @@ class ProductRepository {
       const result = await ProductModel.aggregate(pipeline);
       const total = result[0].metadata[0]?.total || 0;
       const products = result[0].data;
+      console.log(products)
 
       return {
         products,

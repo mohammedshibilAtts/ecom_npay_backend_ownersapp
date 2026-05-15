@@ -10,7 +10,7 @@ class AuthMiddleware {
      const token = req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
        ? req.headers.authorization.split(' ')[1] 
       : null;
-        
+        console.log(token);
     if (!token) {
        throw new AppError('You are not logged in! Please log in to get access.', 401);
      }

@@ -1,35 +1,21 @@
 import mongoose from "mongoose";
 
-/**
- * Generates a reusable MongoDB aggregation pipeline for Item pricing.
- * Expects the input documents to be from the 'items' collection or 
- * have the same structure as the Item model.
- */
 export const getPricingPipeline = (branchId, itemPrefix = "") => {
   const p = itemPrefix ? `${itemPrefix}.` : "";
   const $p = itemPrefix ? `$${itemPrefix}.` : "$";
 
   return [
-    // 1. Lookup Latest Metal Rate (ONLY if not isMrp)
     {
       $lookup: {
         from: "metalrates",
-        let: { purityId: `${$p}id_purity`, bId: { $toObjectId: branchId.startsWith("$") ? branchId : null }, isMrp: "$isMrp" },
+        let: { purityId: `${$p}id_purity`, isMrp: "$isMrp" },
         pipeline: [
           {
             $match: {
               $expr: {
                 $and: [
-                  { $eq: ["$$isMrp", false] }, // Only match if not MRP
+                  { $eq: ["$$isMrp", false] },
                   { $eq: ["$purity_id", "$$purityId"] },
-                  {
-                    $eq: [
-                      "$id_branch",
-                      branchId.startsWith("$") 
-                        ? "$$bId" 
-                        : (mongoose.Types.ObjectId.isValid(branchId) ? new mongoose.Types.ObjectId(branchId) : branchId)
-                    ],
-                  },
                 ],
               },
             },
@@ -52,37 +38,57 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
       },
     },
 
-    // 2. Lookup and Sum Stone Details
     {
       $lookup: {
         from: "stonedetails",
         localField: `${p}stoneDetails`,
         foreignField: "_id",
-        as: "stones",
+        as: "lookupStones",
       },
     },
     {
       $addFields: {
-        totalStoneValue: { $sum: "$stones.price" },
+        // Use lookupStones if they were fetched here, otherwise fallback to existing stoneDetails if they were already objects
+        stonesToSum: {
+          $cond: {
+            if: { $gt: [{ $size: "$lookupStones" }, 0] },
+            then: "$lookupStones",
+            else: {
+              $cond: {
+                if: { $isArray: [`$${p}stoneDetails`] },
+                then: `$${p}stoneDetails`,
+                else: [],
+              },
+            },
+          },
+        },
       },
     },
-
-    // 3. Calculate Base Components
     {
       $addFields: {
-        // Metal Value calculation
-        // If isMrp is true, metalValue is just the rate. Else, it is grossWt * currentRate.
+        totalStoneValue: {
+          $sum: {
+            $map: {
+              input: "$stonesToSum",
+              as: "s",
+              in: { $ifNull: ["$$s.price", 0] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
         metalValue: {
           $cond: {
             if: { $eq: ["$isMrp", true] },
             then: "$currentRate",
             else: {
-              $multiply: [{ $ifNull: [`${$p}grossWt`, 0] }, "$currentRate"],
+              $multiply: [{ $ifNull: [`${$p}netWeight`, 0] }, "$currentRate"],
             },
           },
         },
 
-        // Helper fields for weight bases based on calculationType (1 = grossWt, 2 = netWeight)
         makingWeightBase: {
           $cond: {
             if: { $eq: [`${$p}makingCharges.calculationType`, 1] },
@@ -90,6 +96,7 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
             else: { $ifNull: [`${$p}netWeight`, 0] },
           },
         },
+
         wastageWeightBase: {
           $cond: {
             if: { $eq: [`${$p}wastageCharges.calculationType`, 1] },
@@ -98,35 +105,30 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
           },
         },
 
-        // Helper fields for fallback amounts
         makingAmount: {
-          $ifNull: [
-            `${$p}makingCharges.makingDiscountedValue`,
-            { $ifNull: [`${$p}makingCharges.makingActualValue`, 0] }
-          ]
+          $ifNull: [`${$p}makingCharges.makingDiscountedValue`, 0],
         },
         wastageAmount: {
-          $ifNull: [
-            `${$p}wastageCharges.wastageDiscountedValue`,
-            { $ifNull: [`${$p}wastageCharges.wastageActualValue`, 0] }
-          ]
-        }
+          $ifNull: [`${$p}wastageCharges.wastageDiscountedValue`, 0],
+        },
+
+        actualMakingAmount: {
+          $ifNull: [`${$p}makingCharges.makingActualValue`, 0],
+        },
+        actualWastageAmount: {
+          $ifNull: [`${$p}wastageCharges.wastageActualValue`, 0],
+        },
       },
     },
     {
       $addFields: {
-        // Making Charges: Mode 1: Fixed Amount, Mode 2: Per Gram
         makingValue: {
           $cond: {
             if: { $eq: [`${$p}makingCharges.makingMode`, 1] },
             then: "$makingAmount",
-            else: {
-              $multiply: ["$makingWeightBase", "$makingAmount"],
-            },
+            else: { $multiply: ["$makingWeightBase", "$makingAmount"] },
           },
         },
-
-        // Wastage Charges: Mode 1: Fixed Amount, Mode 2: Percentage
         wastageValue: {
           $cond: {
             if: { $eq: [`${$p}wastageCharges.wastageMode`, 1] },
@@ -140,10 +142,29 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
             },
           },
         },
+
+        actualMakingValue: {
+          $cond: {
+            if: { $eq: [`${$p}makingCharges.makingMode`, 1] },
+            then: "$actualMakingAmount",
+            else: { $multiply: ["$makingWeightBase", "$actualMakingAmount"] },
+          },
+        },
+        actualWastageValue: {
+          $cond: {
+            if: { $eq: [`${$p}wastageCharges.wastageMode`, 1] },
+            then: "$actualWastageAmount",
+            else: {
+              $multiply: [
+                { $divide: ["$actualWastageAmount", 100] },
+                "$currentRate",
+                "$wastageWeightBase",
+              ],
+            },
+          },
+        },
       },
     },
-
-    // 4. Calculate Subtotal and GST
     {
       $addFields: {
         subTotal: {
@@ -155,36 +176,65 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
             { $ifNull: [`${$p}huidCharges`, 0] },
           ],
         },
+        actualSubTotal: {
+          $add: [
+            "$metalValue",
+            "$actualMakingValue",
+            "$actualWastageValue",
+            "$totalStoneValue",
+            { $ifNull: [`${$p}huidCharges`, 0] },
+          ],
+        },
       },
     },
     {
       $addFields: {
         gstAmount: {
-          $divide: [{ $multiply: ["$subTotal", { $ifNull: [`${$p}gst`, 0] }] }, 100],
+          $divide: [
+            { $multiply: ["$subTotal", { $ifNull: [`${$p}gst`, 3] }] },
+            100,
+          ],
+        },
+        actualGstAmount: {
+          $divide: [
+            { $multiply: ["$actualSubTotal", { $ifNull: [`${$p}gst`, 3] }] },
+            100,
+          ],
         },
       },
     },
-
-    // 5. Final Result Fields
     {
       $addFields: {
-        calculatedPrice: { $round: ["$subTotal", 2] },
-        calculatedTotalPrice: { $round: [{ $add: ["$subTotal", "$gstAmount"] }, 2] },
+        calculatedPrice: { $round: [{ $add: ["$subTotal", "$gstAmount"] }, 2] }, // outprice
+        calculatedTotalPrice: {
+          $round: [{ $add: ["$actualSubTotal", "$actualGstAmount"] }, 2],
+        }, // totalPrice
       },
     },
-
-    // Cleanup temporary fields
+    {
+      $addFields: {
+        rateInfo: { $arrayElemAt: ["$rateInfo", 0] },
+        metalrate: "$currentRate",
+      },
+    },
     {
       $project: {
-        rateInfo: 0,
+        lookupStones: 0,
+        stonesToSum: 0,
         stones: 0,
         makingWeightBase: 0,
         wastageWeightBase: 0,
         makingAmount: 0,
         wastageAmount: 0,
+        actualMakingAmount: 0,
+        actualWastageAmount: 0,
+        actualMakingValue: 0,
+        actualWastageValue: 0,
         subTotal: 0,
+        actualSubTotal: 0,
+        gstAmount: 0,
+        actualGstAmount: 0,
       },
     },
   ];
 };
-

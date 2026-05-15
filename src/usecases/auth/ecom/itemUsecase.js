@@ -1,4 +1,4 @@
-// src/usecases/itemUseCase.js
+import mongoose from "mongoose";
 
 class ItemUseCase {
   constructor(itemRepository, productRepository, stoneDetailsRepository) {

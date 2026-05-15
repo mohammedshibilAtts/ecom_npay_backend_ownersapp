@@ -10,7 +10,7 @@ class AppProductUsecase {
     s3Respo,
     subCategoryRepository,
     itemRepository,
-    wishlistRepository
+    wishlistRepository,
   ) {
     this.productRepository = productRepository;
     this.branchRepository = branchRepository;
@@ -30,7 +30,6 @@ class AppProductUsecase {
       const customerId = user && user._id ? user._id : null;
       let productData = await this.productRepository.findById(id, customerId);
 
-
       if (productData) {
         let finalData = productData;
         if (productData.firstItem) {
@@ -45,22 +44,23 @@ class AppProductUsecase {
           message: "Product retrieved successfully",
           data: {
             ...restData,
-            purityName: finalData.purityName || (firstItem && firstItem.purityName ? firstItem.purityName : null),
+            purityName:
+              finalData.purityName ||
+              (firstItem && firstItem.purityName ? firstItem.purityName : null),
             isWishlisted: productData.isWishlisted || false,
             purity: productData.purityList || [],
           },
         };
       }
 
-      // If not found by product ID, try as an item ID
-      const itemData = await this.itemRepository.findById(id)
+      const itemData = await this.itemRepository.findById(id);
 
       if (itemData) {
         const parentProduct = await this.productRepository.findById(
           itemData.productId,
-          customerId
+          customerId,
         );
-        
+
         if (parentProduct) {
           const mergedData = this._mergeItemData(parentProduct, itemData);
           const { purityList, firstItem, ...restData } = mergedData;
@@ -89,18 +89,29 @@ class AppProductUsecase {
   }
 
   _mergeItemData(product, item) {
-    const calculations = this._calculateItemPricing({ ...item, isMrp: product?.isMrp || false });
-    
+    const calculations = this._calculateItemPricing({
+      ...item,
+      isMrp: product?.isMrp || false,
+    });
+
     const { firstItem, purityList, ...cleanProduct } = product;
 
     return {
       ...cleanProduct,
-      _id: item._id, 
+      _id: item._id,
       itemId: item._id,
       productId: item.productId || product._id,
-      purityName: product.purityName || item.purityName || 
-        (item.id_purity && product.purityList && product.purityList.find(p => p._id.toString() === item.id_purity.toString())?.purity_name) || 
-        (item.id_purity && typeof item.id_purity === 'object' ? item.id_purity.purity_name : null),
+      purityName:
+        product.purityName ||
+        item.purityName ||
+        (item.id_purity &&
+          product.purityList &&
+          product.purityList.find(
+            (p) => p._id.toString() === item.id_purity.toString(),
+          )?.purity_name) ||
+        (item.id_purity && typeof item.id_purity === "object"
+          ? item.id_purity.purity_name
+          : null),
       grossWeight: item.grossWt,
       netWeight: item.netWeight,
       tagNo: item.tagNo,
@@ -115,8 +126,8 @@ class AppProductUsecase {
       diamondwt: item.diamondwt,
       diaCertificateNo: item.diaCertificateNo,
       // huidCharges: item.huidCharges,
-      // huidNo: item.huidNo,
-      
+      huidNo: item.huidNo,
+
       // 🔥 Prioritize Item Calculations
       price: calculations.price,
       subtotal: calculations.price,
@@ -125,52 +136,74 @@ class AppProductUsecase {
       discountedAmount: calculations.price,
       totalprice: calculations.totalprice,
       gstamount: calculations.gstValue,
-      
+
       priceBreakup: {
         metalValue: calculations.metalValue,
         makingValue: calculations.makingValue,
         wastageValue: calculations.wastageValue,
         stoneValue: calculations.stoneValue,
         gstValue: calculations.gstValue,
-        huidCharges: item.huidCharges || 0
+        huidCharges: item.huidCharges || 0,
       },
       gst: item.gst !== undefined ? item.gst : product.gst,
       latestMetalPrice: item.currentMetalRate || product.latestMetalPrice,
       makingCharges: {
         mode: item.makingCharges?.makingMode || product.makingCharges?.mode,
         actualValue:
-          item.makingCharges?.makingActualValue !== undefined ? item.makingCharges?.makingActualValue :
-          product.makingCharges?.actualValue,
+          item.makingCharges?.makingActualValue !== undefined
+            ? item.makingCharges?.makingActualValue
+            : product.makingCharges?.actualValue,
         discountedValue:
-          item.makingCharges?.makingDiscountedValue !== undefined ? item.makingCharges?.makingDiscountedValue :
-          product.makingCharges?.discountedValue,
+          item.makingCharges?.makingDiscountedValue !== undefined
+            ? item.makingCharges?.makingDiscountedValue
+            : product.makingCharges?.discountedValue,
         discountedPercentage:
-          item.makingCharges?.makingDiscountedPercentage !== undefined ? item.makingCharges?.makingDiscountedPercentage :
-          product.makingCharges?.discountedPercentage,
-        discountView: item.makingCharges?.discountView ?? product.makingCharges?.discountView ?? true,
-        mcView: item.makingCharges?.mcView ?? product.makingCharges?.mcView ?? true,
+          item.makingCharges?.makingDiscountedPercentage !== undefined
+            ? item.makingCharges?.makingDiscountedPercentage
+            : product.makingCharges?.discountedPercentage,
+        discountView:
+          item.makingCharges?.discountView ??
+          product.makingCharges?.discountView ??
+          true,
+        mcView:
+          item.makingCharges?.mcView ?? product.makingCharges?.mcView ?? true,
         _id: item.makingCharges?._id || product.makingCharges?._id || "MC001",
-        wastageView: item.makingCharges?.wastageView ?? product.makingCharges?.wastageView ?? false,
+        wastageView:
+          item.makingCharges?.wastageView ??
+          product.makingCharges?.wastageView ??
+          false,
       },
       wastageCharges: {
         mode: item.wastageCharges?.wastageMode || product.wastageCharges?.mode,
         actualValue:
-          item.wastageCharges?.wastageActualValue !== undefined ? item.wastageCharges?.wastageActualValue :
-          product.wastageCharges?.actualValue,
+          item.wastageCharges?.wastageActualValue !== undefined
+            ? item.wastageCharges?.wastageActualValue
+            : product.wastageCharges?.actualValue,
         discountedValue:
-          item.wastageCharges?.wastageDiscountedValue !== undefined ? item.wastageCharges?.wastageDiscountedValue :
-          product.wastageCharges?.discountedValue,
+          item.wastageCharges?.wastageDiscountedValue !== undefined
+            ? item.wastageCharges?.wastageDiscountedValue
+            : product.wastageCharges?.discountedValue,
         discountedPercentage:
-          item.wastageCharges?.wastageDiscountedPercentage !== undefined ? item.wastageCharges?.wastageDiscountedPercentage :
-          product.wastageCharges?.discountedPercentage,
-        discountView: item.wastageCharges?.discountView ?? product.wastageCharges?.discountView ?? true,
-        mcView: item.wastageCharges?.mcView ?? product.wastageCharges?.mcView ?? false,
+          item.wastageCharges?.wastageDiscountedPercentage !== undefined
+            ? item.wastageCharges?.wastageDiscountedPercentage
+            : product.wastageCharges?.discountedPercentage,
+        discountView:
+          item.wastageCharges?.discountView ??
+          product.wastageCharges?.discountView ??
+          true,
+        mcView:
+          item.wastageCharges?.mcView ??
+          product.wastageCharges?.mcView ??
+          false,
         _id: item.wastageCharges?._id || product.wastageCharges?._id || "WC001",
-        wastageView: item.wastageCharges?.wastageView ?? product.wastageCharges?.wastageView ?? true,
+        wastageView:
+          item.wastageCharges?.wastageView ??
+          product.wastageCharges?.wastageView ??
+          true,
       },
       orderStatus: {
         alreadyOrdered: false,
-        orderId: ""
+        orderId: "",
       },
       stoneDiamondDetails: calculations.stoneDiamondDetails,
       totalDiamondWeight: calculations.totalDiamondWeight,
@@ -190,63 +223,106 @@ class AppProductUsecase {
   }
 
   _calculateItemPricing(item) {
-    const rate = Number(item.currentMetalRate || 0);
-    const netWt = Number(item.netWeight || 0);
-    const grossWt = Number(item.grossWt || 0);
+    const rate = Number(item.currentMetalRate || item?._doc?.currentMetalRate || 0);
+    const netWt = Number(item.netWeight || item?._doc?.netWeight || 0);
+    const grossWt = Number(item.grossWt || item?._doc?.grossWt || 0);
 
-    // If isMrp is true, metalValue is just the rate. Else, it is grossWt * rate.
-    const metalValue = item.isMrp ? rate : (grossWt * rate);
+    const metalValue = item.isMrp ? rate : netWt * rate;
 
     let makingValue = 0;
-    const mc = item.makingCharges || {};
-    // Synchronize with ItemPriceSection logic
+    const mc = item.makingCharges || item?._doc?.makingCharges || {};
     if (Number(mc.makingMode) === 1) {
-      makingValue = Number(mc.makingDiscountedValue || mc.makingActualValue || 0);
+      makingValue = Number(mc.makingDiscountedValue || 0);
     } else if (Number(mc.makingMode) === 2) {
       const weightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
-      makingValue = Number(mc.makingDiscountedValue || mc.makingActualValue || 0) * weightBase;
+      makingValue = Number(mc.makingDiscountedValue || 0) * weightBase;
     }
 
     let wastageValue = 0;
-    const wc = item.wastageCharges || {};
+    const wc = item.wastageCharges || item?._doc?.wastageCharges || {};
     if (Number(wc.wastageMode) === 1) {
-      wastageValue = Number(wc.wastageDiscountedValue || wc.wastageActualValue || 0);
+      wastageValue = Number(wc.wastageDiscountedValue || 0);
     } else if (Number(wc.wastageMode) === 2) {
       const weightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
-      const percent = Number(wc.wastageDiscountedValue || wc.wastageActualValue || 0);
+      const percent = Number(wc.wastageDiscountedValue || 0);
       wastageValue = (percent / 100) * rate * weightBase;
     }
 
     let stoneValue = 0;
-    let totalDiamondWeight = 0, totalDiamondCost = 0, totalDiamondPrice = 0, totalDiamondCount = 0;
-    let totalStoneWeight = 0, totalStoneCost = 0, totalStonePrice = 0, totalStoneCount = 0;
+    let totalDiamondWeight = 0,
+      totalDiamondCost = 0,
+      totalDiamondPrice = 0,
+      totalDiamondCount = 0;
+    let totalStoneWeight = 0,
+      totalStoneCost = 0,
+      totalStonePrice = 0,
+      totalStoneCount = 0;
     let stoneDiamondDetails = [];
 
     if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
-      item.stoneDetails.forEach(stone => {
+      item.stoneDetails.forEach((stone) => {
         const price = Number(stone.price || 0);
         stoneValue += price;
 
         const detail = {
           _id: stone._id,
-          type: stone.type ? stone.type.charAt(0).toUpperCase() + stone.type.slice(1) : "",
+          type: stone.type
+            ? stone.type.charAt(0).toUpperCase() + stone.type.slice(1)
+            : "",
           weight: stone.weight,
           cost: stone.cost,
           price: price,
-          stoneInfo: stone.itemId ? {
-            _id: stone.itemId._id,
-            stonename: stone.itemId.stonename,
-            percraterate: stone.itemId.percraterate
-          } : null
+          stoneInfo: stone.itemId
+            ? {
+                _id: stone.itemId._id,
+                stonename: stone.itemId.stonename,
+                percraterate: stone.itemId.percraterate,
+              }
+            : null,
         };
         stoneDiamondDetails.push(detail);
 
-        if (stone.type === 'diamond') {
+        if (stone.type === "diamond") {
           totalDiamondWeight += Number(stone.weight || 0);
           totalDiamondCost += Number(stone.cost || 0);
           totalDiamondPrice += price;
           totalDiamondCount += 1;
-        } else if (stone.type === 'stone') {
+        } else if (stone.type === "stone") {
+          totalStoneWeight += Number(stone.weight || 0);
+          totalStoneCost += Number(stone.cost || 0);
+          totalStonePrice += price;
+          totalStoneCount += 1;
+        }
+      });
+    }else if(item?._doc?.stoneDetails && Array.isArray(item._doc.stoneDetails)){
+      item._doc.stoneDetails.forEach((stone) => {
+        const price = Number(stone.price || 0);
+        stoneValue += price;
+
+        const detail = {
+          _id: stone._id,
+          type: stone.type
+            ? stone.type.charAt(0).toUpperCase() + stone.type.slice(1)
+            : "",
+          weight: stone.weight,
+          cost: stone.cost,
+          price: price,
+          stoneInfo: stone.itemId
+            ? {
+                _id: stone.itemId._id,
+                stonename: stone.itemId.stonename,
+                percraterate: stone.itemId.percraterate,
+              }
+            : null,
+        };
+        stoneDiamondDetails.push(detail);
+
+        if (stone.type === "diamond") {
+          totalDiamondWeight += Number(stone.weight || 0);
+          totalDiamondCost += Number(stone.cost || 0);
+          totalDiamondPrice += price;
+          totalDiamondCount += 1;
+        } else if (stone.type === "stone") {
           totalStoneWeight += Number(stone.weight || 0);
           totalStoneCost += Number(stone.cost || 0);
           totalStonePrice += price;
@@ -255,28 +331,30 @@ class AppProductUsecase {
       });
     }
 
-    const huid = Number(item.huidCharges || 0);
+    const huid = Number(item.huidCharges || item?._doc?.huidCharges || 0);
+    const gstRate = Number(item.gst || item?._doc?.gst || 3);
+    
     const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
-    const gstValue = (subTotal * Number(item.gst || 3)) / 100;
-    const totalPrice = subTotal + gstValue;
+    const outprice = Math.round((subTotal + (subTotal * gstRate) / 100) * 100) / 100;
+
+    const makingActualValue = Number(mc.makingActualValue || 0);
+    const wastageActualValue = Number(wc.wastageActualValue || 0);
+    const makingActualChargeValue = Number(mc.makingMode) === 1 ? makingActualValue : (Number(mc.calculationType) === 1 ? grossWt : netWt) * makingActualValue;
+    const wastageActualChargeValue = Number(wc.wastageMode) === 1 ? wastageActualValue : (wastageActualValue / 100) * rate * (Number(wc.calculationType) === 1 ? grossWt : netWt);
+
+    const totalOut = metalValue + makingActualChargeValue + wastageActualChargeValue + stoneValue + huid;
+    const totalPrice = Math.round((totalOut + (totalOut * gstRate) / 100) * 100) / 100;
 
     return {
-      price: Math.round(subTotal),
-      totalprice: Math.round(totalPrice),
+      price: outprice,
+      totalprice: totalPrice,
+      metalrate: rate,
       metalValue,
       makingValue,
       wastageValue,
       stoneValue,
-      gstValue,
-      stoneDiamondDetails,
-      totalDiamondWeight,
-      totalDiamondCost,
-      totalDiamondPrice,
-      totalDiamondCount,
-      totalStoneWeight,
-      totalStoneCost,
-      totalStonePrice,
-      totalStoneCount
+      gstValue: Math.round(((subTotal * gstRate) / 100) * 100) / 100,
+      discount: Math.round((totalPrice - outprice) * 100) / 100,
     };
   }
 
@@ -291,7 +369,7 @@ class AppProductUsecase {
 
       const sizes = await this.itemRepository.getSizesByPurity(
         productId,
-        purityId
+        purityId,
       );
 
       return {
@@ -321,7 +399,7 @@ class AppProductUsecase {
       const items = await this.itemRepository.getItemsByCriteria(
         productId,
         sizeValue,
-        purityId
+        purityId,
       );
       const product = await this.productRepository.findById(productId);
 
@@ -330,7 +408,10 @@ class AppProductUsecase {
       }
 
       const simplifiedItems = items.map((item) => {
-        const calculations = this._calculateItemPricing({ ...item, isMrp: product?.isMrp || false });
+        const calculations = this._calculateItemPricing({
+          ...item,
+          isMrp: product?.isMrp || false,
+        });
         return {
           _id: item._id,
           tagNo: item.tagNo,
@@ -368,16 +449,23 @@ class AppProductUsecase {
     }
   }
 
-  async getProductBySubcategory(id, page = 1, limit = 10, sort = "latest", user) {
+  async getProductBySubcategory(
+    id,
+    page = 1,
+    limit = 10,
+    sort = "latest",
+    user,
+  ) {
     try {
       const customerId = user && user._id ? user._id : null;
-      const { products, currentPage, totalPages, totalDocs } = await this.productRepository.getProductBySubcategory(
-        id,
-        page,
-        limit,
-        sort,
-        customerId
-      );
+      const { products, currentPage, totalPages, totalDocs } =
+        await this.productRepository.getProductBySubcategory(
+          id,
+          page,
+          limit,
+          sort,
+          customerId,
+        );
 
       return {
         success: true,

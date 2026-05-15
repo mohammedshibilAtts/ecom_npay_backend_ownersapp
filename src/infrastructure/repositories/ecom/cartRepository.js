@@ -190,7 +190,7 @@ class CartRepository {
           },
         },
 
-        // Base metal value
+        // 1. Calculate Metal Value
         {
           $addFields: {
             baseMetalValue: {
@@ -199,7 +199,7 @@ class CartRepository {
                 then: "$latestMetalPrice",
                 else: {
                   $multiply: [
-                    { $ifNull: ["$Product.grossWt", 0] },
+                    { $ifNull: ["$Product.netWeight", 0] },
                     { $ifNull: ["$latestMetalPrice", 0] },
                   ],
                 }
@@ -207,132 +207,76 @@ class CartRepository {
             },
           },
         },
+
+        // 2. Weight Bases for Charges
         {
           $addFields: {
-            rawMakingCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$Product.makingCharges.mode", 1] },
-                    then: {
-                      $ifNull: ["$Product.makingCharges.actualValue", 0],
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Product.makingCharges.mode", 2] },
-                    then: {
-                      $multiply: [
-                        { $ifNull: ["$Product.grossWt", 0] },
-                        { $ifNull: ["$Product.makingCharges.actualValue", 0] },
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
+            makingWeightBase: {
+              $cond: {
+                if: { $eq: ["$Product.makingCharges.calculationType", 1] },
+                then: { $ifNull: ["$Product.grossWt", 0] },
+                else: { $ifNull: ["$Product.netWeight", 0] },
+              },
+            },
+            wastageWeightBase: {
+              $cond: {
+                if: { $eq: ["$Product.wastageCharges.calculationType", 1] },
+                then: { $ifNull: ["$Product.grossWt", 0] },
+                else: { $ifNull: ["$Product.netWeight", 0] },
               },
             },
           },
         },
-        {
-          $addFields: {
-            rawWastageCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$Product.wastageCharges.mode", 1] },
-                    then: {
-                      $ifNull: ["$Product.wastageCharges.actualValue", 0],
-                    },
-                  },
-                  {
-                    case: {
-                      $or: [
-                        { $eq: ["$Product.wastageCharges.mode", 2] },
-                        { $eq: ["$Product.wastageCharges.mode", 3] },
-                      ],
-                    },
-                    then: {
-                      $divide: [
-                        {
-                          $multiply: [
-                            { $ifNull: ["$baseMetalValue", 0] },
-                            { $ifNull: ["$Product.wastageCharges.actualValue", 0] },
-                          ],
-                        },
-                        100,
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
-              },
-            },
-          },
-        },
+
+        // 3. Discounted and Actual Charges
         {
           $addFields: {
             finalMakingCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$Product.makingCharges.mode", 1] },
-                    then: {
-                      $ifNull: ["$Product.makingCharges.discountedValue", 0],
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Product.makingCharges.mode", 2] },
-                    then: {
-                      $multiply: [
-                        { $ifNull: ["$Product.grossWt", 0] },
-                        {
-                          $ifNull: [
-                            "$Product.makingCharges.discountedValue",
-                            0,
-                          ],
-                        },
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
+              $cond: {
+                if: { $eq: ["$Product.makingCharges.mode", 1] },
+                then: { $ifNull: ["$Product.makingCharges.discountedValue", 0] },
+                else: { $multiply: ["$makingWeightBase", { $ifNull: ["$Product.makingCharges.discountedValue", 0] }] },
               },
             },
             finalWastageCharge: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$Product.wastageCharges.mode", 1] },
-                    then: {
-                      $ifNull: ["$Product.wastageCharges.discountedValue", 0],
-                    },
-                  },
-                  {
-                    case: {
-                      $or: [
-                        { $eq: ["$Product.wastageCharges.mode", 2] },
-                        { $eq: ["$Product.wastageCharges.mode", 3] },
-                      ],
-                    },
-                    then: {
-                      $divide: [
-                        {
-                          $multiply: [
-                            { $ifNull: ["$baseMetalValue", 0] },
-                            { $ifNull: ["$Product.wastageCharges.discountedValue", 0] },
-                          ],
-                        },
-                        100,
-                      ],
-                    },
-                  },
-                ],
-                default: 0,
+              $cond: {
+                if: { $eq: ["$Product.wastageCharges.mode", 1] },
+                then: { $ifNull: ["$Product.wastageCharges.discountedValue", 0] },
+                else: {
+                  $multiply: [
+                    { $divide: [{ $ifNull: ["$Product.wastageCharges.discountedValue", 0] }, 100] },
+                    "$latestMetalPrice",
+                    "$wastageWeightBase",
+                  ],
+                },
+              },
+            },
+
+            // --- Actual Charges ---
+            rawMakingCharge: {
+              $cond: {
+                if: { $eq: ["$Product.makingCharges.mode", 1] },
+                then: { $ifNull: ["$Product.makingCharges.actualValue", 0] },
+                else: { $multiply: ["$makingWeightBase", { $ifNull: ["$Product.makingCharges.actualValue", 0] }] },
+              },
+            },
+            rawWastageCharge: {
+              $cond: {
+                if: { $eq: ["$Product.wastageCharges.mode", 1] },
+                then: { $ifNull: ["$Product.wastageCharges.actualValue", 0] },
+                else: {
+                  $multiply: [
+                    { $divide: [{ $ifNull: ["$Product.wastageCharges.actualValue", 0] }, 100] },
+                    "$latestMetalPrice",
+                    "$wastageWeightBase",
+                  ],
+                },
               },
             },
           },
         },
-        // Diamond & Stone values
+
+        // 4. Diamond & Stone values
         {
           $addFields: {
             diamondValue: {
@@ -368,7 +312,7 @@ class CartRepository {
           },
         },
 
-        // Subtotals
+        // 5. Subtotals
         {
           $addFields: {
             discountedSubtotal: {
@@ -394,148 +338,25 @@ class CartRepository {
           },
         },
 
+        // 6. GST Calculation
         {
           $addFields: {
             gstRate: {
-              $cond: {
-                if: {
-                  $and: [
-                    { $gt: ["$Product.gst", 0] },
-                    { $gt: ["$discountedSubtotal", 0] },
-                  ],
-                },
-                then: {
-                  $divide: [
-                    { $multiply: ["$discountedSubtotal", "$Product.gst"] },
-                    100,
-                  ],
-                },
-                else: 0,
-              },
+              $divide: [
+                { $multiply: ["$discountedSubtotal", { $ifNull: ["$Product.gst", 3] }] },
+                100,
+              ],
             },
-          },
-        },
-        {
-          $addFields: {
             actualGstRate: {
-              $cond: {
-                if: {
-                  $and: [
-                    { $gt: ["$Product.gst", 0] },
-                    { $gt: ["$actualSubtotal", 0] },
-                  ],
-                },
-                then: {
-                  $divide: [
-                    { $multiply: ["$actualSubtotal", "$Product.gst"] },
-                    100,
-                  ],
-                },
-                else: 0,
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            discountedAmount: {
-              // $round: [
-              //   {
-                  $add: [
-                    { $ifNull: ["$discountedSubtotal", 0] },
-                    { $ifNull: ["$gstRate", 0] },
-                  ],
-              //   },
-              //   2,
-              // ],
-            },
-
-            totalAmount: {
-              // $round: [
-                // {
-                  $add: [
-                    { $ifNull: ["$actualSubtotal", 0] },
-                    { $ifNull: ["$actualGstRate", 0] },
-                  ],
-                // },
-              //   2,
-              // ],
+              $divide: [
+                { $multiply: ["$actualSubtotal", { $ifNull: ["$Product.gst", 3] }] },
+                100,
+              ],
             },
           },
         },
 
-        {
-          $addFields: {
-            totalDiamondWeight: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "item",
-                      cond: { $eq: ["$$item.type", "diamond"] },
-                    },
-                  },
-                  as: "d",
-                  in: { $ifNull: ["$$d.weight", 0] },
-                },
-              },
-            },
-
-            totalStoneWeight: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "item",
-                      cond: { $eq: ["$$item.type", "stone"] },
-                    },
-                  },
-                  as: "s",
-                  in: { $ifNull: ["$$s.weight", 0] },
-                },
-              },
-            },
-          },
-        },
-        {
-          $addFields: {
-            totalDiamondPrice: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "item",
-                      cond: { $eq: ["$$item.type", "diamond"] },
-                    },
-                  },
-                  as: "d",
-                  in: { $ifNull: ["$$d.price", 0] },
-                },
-              },
-            },
-
-            totalStonePrice: {
-              $sum: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: "$stoneDiamondDetails",
-                      as: "item",
-                      cond: { $eq: ["$$item.type", "stone"] },
-                    },
-                  },
-                  as: "s",
-                  in: { $ifNull: ["$$s.price", 0] },
-                },
-              },
-            },
-          },
-        },
-
-        // Final projection
+        // 7. Final Projection
         {
           $project: {
             _id: 0,
@@ -543,26 +364,20 @@ class CartRepository {
             itemId: "$_id",
             productName: "$Product.product_name",
             onlineProduct: "$Product.onlineProduct",
-            qty: "$quantity",
+            qty: { $ifNull: ["$quantity", 1] },
             grossWt: "$Product.grossWt",
             netWt: "$Product.netWeight",
             shippingCharge: { $literal: 0 },
             
-            // Pricing fields
-            price: { $round: ["$discountedSubtotal", 0] },
-            totalprice: { $round: ["$discountedAmount", 0] },
-            subtotal: { $round: ["$discountedSubtotal", 0] },
-            totalWithGst: { $round: ["$discountedAmount", 0] },
-            totalAmount: { $round: ["$discountedSubtotal", 0] },
-            discountedAmount: { $round: ["$discountedSubtotal", 0] },
-            
-            // Detailed values
+            price: { $round: [{ $multiply: [{ $add: ["$discountedSubtotal", "$gstRate"] }, { $ifNull: ["$quantity", 1] }] }, 2] },
+            totalprice: { $round: [{ $multiply: [{ $add: ["$actualSubtotal", "$actualGstRate"] }, { $ifNull: ["$quantity", 1] }] }, 2] },
+
             metalValue: { $round: ["$baseMetalValue", 2] },
             makingValue: { $round: ["$finalMakingCharge", 2] },
             wastageValue: { $round: ["$finalWastageCharge", 2] },
             stoneValue: { $round: [{ $add: ["$diamondValue", "$stoneValue"] }, 2] },
-            gstValue: { $round: ["$gstRate", 4] },
-            gstamount: { $round: ["$gstRate", 4] },
+            gstValue: { $round: ["$gstRate", 2] },
+            gstamount: { $round: [{ $multiply: ["$gstRate", { $ifNull: ["$quantity", 1] }] }, 2] },
             
             // Breakup
             priceBreakup: {
@@ -570,7 +385,7 @@ class CartRepository {
               makingValue: { $round: ["$finalMakingCharge", 2] },
               wastageValue: { $round: ["$finalWastageCharge", 2] },
               stoneValue: { $round: [{ $add: ["$diamondValue", "$stoneValue"] }, 2] },
-              gstValue: { $round: ["$gstRate", 4] },
+              gstValue: { $round: ["$gstRate", 2] },
               huidCharges: { $ifNull: ["$Item.huidCharges", 0] }
             },
             
@@ -614,16 +429,14 @@ class CartRepository {
             image: { $ifNull: [{ $arrayElemAt: ["$Product.product_image", 0] }, ""] },
             product_image: "$Product.product_image",
 
-            // Added fields to match product response
             id_category: "$Product.id_category",
             id_branch: "$Product.id_branch",
             gst: "$Product.gst",
-            discount: { $round: ["$discountedAmount", 0] },
+            discount: { $round: [{ $multiply: [{ $subtract: [{ $add: ["$actualSubtotal", "$actualGstRate"] }, { $add: ["$discountedSubtotal", "$gstRate"] }] }, { $ifNull: ["$quantity", 1] }] }, 2] },
             gstRate: "$gstRate",
           },
         },
 
-        // Facet for totals
         {
           $facet: {
             items: [{ $match: {} }],
@@ -636,8 +449,8 @@ class CartRepository {
                   totalPrice: { $sum: "$price" },
                   totalDiscount: { $sum: "$discount" },
                   shippingCharge: { $sum: "$shippingCharge" },
-                  totalGstAmount: { $sum: "$gstRate" },
-                  gstRate: { $sum: "$gstRate" },
+                  totalGstAmount: { $sum: "$gstamount" },
+                  gstRate: { $sum: "$gstamount" },
                 },
               },
               { $project: { _id: 0 } },

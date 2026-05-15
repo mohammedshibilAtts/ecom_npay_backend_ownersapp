@@ -1774,7 +1774,7 @@ class OrderRepository {
   }
 
   async reduceProductQuatityCount(orderId) {
-    try {
+    try { console.log(orderId)
       const orderItems = await OrderItem.find({ orderId }).lean();
 
       if (!orderItems.length) {

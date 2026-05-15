@@ -8,7 +8,7 @@ class AppWishlistController {
       const { productId } = req.body;
       const customerId = req.user.id || req.user._id;
       const id_branch = req.user.id_branch;
-console.log(productId,"idididididiid");
+
       if (!productId) {
         return res.status(400).json({ message: "Product ID is required" });
       }

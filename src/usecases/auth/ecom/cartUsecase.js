@@ -104,7 +104,7 @@ class CartUseCase {
   }
 
   async getCart(userData) {
-    try {
+    try { 
       if (!userData._id) {
         throw new Error("User ID not found");
       }
@@ -116,7 +116,7 @@ class CartUseCase {
       }
 
       const cartItems = await this.cartRepository.findById(findCart._id);
-      console.log(cartItems, "cartItems");
+
       if (!cartItems) {
         return {
           success: false,
