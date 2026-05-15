@@ -85,50 +85,6 @@ class OrderUseCase {
       },
       customerId
     );
-
-    // if (
-    //   notificationData.whatsapp.enabled &&
-    //   notificationData.whatsapp.topupCount > 0
-    // ) {
-    //   const whatsappInfo = await this.smsRepo.findOne({ active: true });
-    //   if (whatsappInfo) {
-    //     const whatsappData = {
-    //       numbers: [data.mobile],
-    //       message: whatsappInfo.whatsappPayment,
-    //       templateParams: { paymentAmount: data.payment_amount },
-    //       channel: "whatsapp",
-    //       customUrl: whatsappInfo.payment_url,
-    //     };
-
-    //     const whatsappOutput = await smsService.sendNotification(
-    //       whatsappData
-    //     );
-    //     if (whatsappOutput) {
-    //       await this.topupRepo.decrementField({}, "WhatsApp", 1);
-    //     }
-    //   }
-    // }
-
-    // if (notificationData.sms.enabled && notificationData.sms.topupCount > 0) {
-    //   const smsInfo = await this.smsRepo.findOne({ active: true });
-    //   if (smsInfo) {
-    //     const smsData = {
-    //       numbers: [data.mobile],
-    //       message: smsInfo.payment_content,
-    //       templateParams: { paymentAmount: data.payment_amount },
-    //       sms_type: "",
-    //       channel: "sms",
-    //       delayBetweenSMS: 1000,
-    //       customUrl: smsInfo.payment_url,
-    //     };
-
-    //     const smsSendStatus = await smsService.sendNotification(smsData);
-    //     if (smsSendStatus) {
-    //       await this.topupRepo.decrementField({}, "SMS", 1);
-    //       message = "Payment added successfully, SMS delivered to customer";
-    //     }
-    //   }
-    // }
   }
 
   async getOrder(userData) {
@@ -451,11 +407,10 @@ class OrderUseCase {
     userData,
     addressId,
     token,
-    redeemedSchemeAccounts,
     isStorePickup
-  ) {
+  ) {  
     try {
-      if (!userData._id) {
+      if (!token._id) {
         throw new Error("User ID not found");
       }
       if (!addressId) {
@@ -471,13 +426,15 @@ class OrderUseCase {
           message: "Invalid Address Id",
         };
       }
-      const findCart = await this.cartRepository.findCartByUserId(userData._id);
+      const findCart = await this.cartRepository.findCartByUserId(token._id);
+
       if (!findCart) {
         return {
           success: false,
           message: "Cart not found",
         };
       }
+
       const cartItems = await this.cartRepository.findById(findCart._id);
       if (!cartItems) {
         return {
@@ -486,10 +443,12 @@ class OrderUseCase {
           data: cartItems,
         };
       }
+
       const findAvailableStocks = checkQuantitySize(cartItems.items);
       const isOutOfStock = findAvailableStocks?.some(
         (item) => item.stockAvailable === false
       );
+
       if (isOutOfStock) {
         return { success: false, message: "Product out of stock" };
       }
@@ -547,17 +506,14 @@ class OrderUseCase {
         cartId: findCart._id,
         shipping_is_billing: true,
         itemsCount: cartItems.items.length,
-        subtotal: cartItems.overAllAmount.totalPrice,
-        totalDiscount: cartItems.overAllAmount.totalDiscount,
+        subtotal: cartItems.overAllAmount?.subTotal || cartItems.overAllAmount?.totalPrice || 0,
+        totalDiscount: cartItems.overAllAmount?.totalDiscount || 0,
         shippingFee: shppingCharge,
-        totalAmount:
-          cartItems.overAllAmount.totalDiscount ,
-        totalGstAmount: cartItems.overAllAmount.gstRate,
-        // couponCode: "NEWUSER100",
-        // payment: "68899df2c34cf80f45b7ed1c",
+        totalAmount: cartItems.overAllAmount?.totalAmount || 0,
+        totalGstAmount: cartItems.overAllAmount?.totalGstAmount || cartItems.overAllAmount?.gstRate || 0,
         savedAmount:
-          cartItems.overAllAmount.totalPrice -
-          cartItems.overAllAmount.totalDiscount,
+          (cartItems.overAllAmount?.subTotal || 0) -
+          (cartItems.overAllAmount?.totalAmount || 0) > 0 ? (cartItems.overAllAmount?.subTotal || 0) - (cartItems.overAllAmount?.totalAmount || 0) : 0,
         status: "Payment Pending",
         deliveryAddress: addressId,
         estimatedDeliveryDays,
@@ -570,6 +526,14 @@ class OrderUseCase {
         totalDiamondPrice: totals.totalDiamondPrice,
         totalStonePrice: totals.totalStonePrice,
       };
+
+      if (!orderData.totalAmount || orderData.totalAmount <= 0) {
+        return {
+          success: false,
+          message: "Unable to calculate order total. Please verify item prices.",
+        };
+      }
+
       const orderItems = cartItems.items.map((item) => ({
         productId: item.productId,
         itemId: item.itemId,
@@ -623,11 +587,6 @@ class OrderUseCase {
           message: "Failed to create order",
         };
       }
-
-      await this.schemeAccountRepo.closeSchemeAccount(
-        redeemedSchemeAccounts,
-        token?._id
-      );
 
       return {
         success: true,

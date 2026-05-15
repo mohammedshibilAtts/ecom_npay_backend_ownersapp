@@ -415,8 +415,11 @@ class SchemeAccountRepository {
 
   async closeSchemeAccount(id, data) {
     try {
-      const newSchemeAcc = await schemeAccountModel.updateOne(
-        { _id: id },
+      // Ensure id is treated as an array for $in
+      const ids = Array.isArray(id) ? id : [id];
+      
+      const newSchemeAcc = await schemeAccountModel.updateMany(
+        { _id: { $in: ids } },
         {
           $set: data,
         }

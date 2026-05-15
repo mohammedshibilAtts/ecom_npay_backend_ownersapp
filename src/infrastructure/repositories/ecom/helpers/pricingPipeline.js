@@ -70,9 +70,16 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
     // 3. Calculate Base Components
     {
       $addFields: {
-        // Metal Value = netWeight * currentRate
+        // Metal Value calculation
+        // If isMrp is true, metalValue is just the rate. Else, it is grossWt * currentRate.
         metalValue: {
-          $multiply: [{ $ifNull: [`${$p}netWeight`, 0] }, "$currentRate"],
+          $cond: {
+            if: { $eq: ["$isMrp", true] },
+            then: "$currentRate",
+            else: {
+              $multiply: [{ $ifNull: [`${$p}grossWt`, 0] }, "$currentRate"],
+            },
+          },
         },
 
         // Helper fields for weight bases based on calculationType (1 = grossWt, 2 = netWeight)

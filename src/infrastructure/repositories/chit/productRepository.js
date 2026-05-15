@@ -613,7 +613,7 @@ class ProductRepository {
             as: "firstItem",
           },
         },
-        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: false } },
         {
           $lookup: {
             from: "s3bucketsettings",
@@ -786,7 +786,7 @@ class ProductRepository {
             as: "firstItem",
           },
         },
-        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: false } },
         {
           $lookup: {
             from: "s3bucketsettings",

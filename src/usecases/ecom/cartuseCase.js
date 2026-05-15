@@ -12,7 +12,7 @@ class CartUseCase {
   }
 
   async getCart(cartId) {
-    try {
+    try { console.log(cartId, "c")
       return await this.cartRepo.findCartById(cartId);
     } catch (error) {
       throw new Error(`UseCase Error (getCart): ${error.message}`);

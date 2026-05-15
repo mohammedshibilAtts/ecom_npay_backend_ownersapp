@@ -476,21 +476,29 @@ class OrderRepository {
             Purity: 0,
             ItemInfo: 0,
             "productId.availableSizes": 0,
-            
+          },
+        },
+        {
+          $addFields: {
             // Explicitly include pricing fields for consistency
             price: { $round: ["$price", 0] },
             totalprice: { $round: ["$discountAmount", 0] },
             subtotal: { $round: ["$price", 0] },
             totalWithGst: { $round: ["$discountAmount", 0] },
             gstamount: { $ifNull: ["$gstAmount", 0] },
-            
+
             priceBreakup: {
               metalValue: { $round: ["$calculations.baseMetalValue", 2] }, // If saved in calculations
               makingValue: { $round: ["$makingCharges.discountedValue", 2] },
               wastageValue: { $round: ["$wastageCharges.discountedValue", 2] },
-              stoneValue: { $round: [{ $add: ["$totalStonePrice", "$totalDiamondPrice"] }, 2] },
+              stoneValue: {
+                $round: [
+                  { $add: ["$totalStonePrice", "$totalDiamondPrice"] },
+                  2,
+                ],
+              },
               gstValue: { $round: ["$gstAmount", 4] },
-              huidCharges: { $ifNull: ["$huidCharges", 0] }
+              huidCharges: { $ifNull: ["$huidCharges", 0] },
             },
           },
         },

@@ -177,11 +177,20 @@ class ItemUseCase {
         order,
       });
 
+      const processedItems = result.data.map(item => {
+        const calculations = this._calculateItemPricing({ ...item, isMrp: findProduct?.isMrp || false });
+        return {
+          ...item,
+          price: calculations.price,
+          totalprice: calculations.totalprice
+        };
+      });
+
       return {
         success: true,
         message: "Items fetched successfully",
         data: {
-          items: result.data,
+          items: processedItems,
           pagination: result.pagination,
           productData: findProduct,
         },
@@ -303,9 +312,55 @@ class ItemUseCase {
       message: "Item updated successfully",
       data: updatedItem,
     };
-   }catch(error){
-    console.error(error)
-   }
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Edit Item Failed: ${error.message}`);
+    }
+  }
+
+  _calculateItemPricing(item) {
+    const rate = Number(item.currentMetalRate || 0);
+    const netWt = Number(item.netWeight || 0);
+    const grossWt = Number(item.grossWt || 0);
+    
+    // If isMrp is true, metalValue is just the rate. Else, it is grossWt * rate.
+    const metalValue = item.isMrp ? rate : (grossWt * rate);
+
+    let makingValue = 0;
+    const mc = item.makingCharges || {};
+    if (Number(mc.makingMode) === 1) {
+      makingValue = Number(mc.makingDiscountedValue || mc.makingActualValue || 0);
+    } else if (Number(mc.makingMode) === 2) {
+      const weightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
+      makingValue = Number(mc.makingDiscountedValue || mc.makingActualValue || 0) * weightBase;
+    }
+
+    let wastageValue = 0;
+    const wc = item.wastageCharges || {};
+    if (Number(wc.wastageMode) === 1) {
+      wastageValue = Number(wc.wastageDiscountedValue || wc.wastageActualValue || 0);
+    } else if (Number(wc.wastageMode) === 2) {
+      const weightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
+      const percent = Number(wc.wastageDiscountedValue || wc.wastageActualValue || 0);
+      wastageValue = (percent / 100) * rate * weightBase;
+    }
+
+    let stoneValue = 0;
+    if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
+      item.stoneDetails.forEach(stone => {
+        stoneValue += Number(stone.price || 0);
+      });
+    }
+
+    const huid = Number(item.huidCharges || 0);
+    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
+    const gstValue = (subTotal * Number(item.gst || 3)) / 100;
+    const totalPrice = subTotal + gstValue;
+
+    return {
+      price: Math.round(subTotal),
+      totalprice: Math.round(totalPrice)
+    };
   }
 }
 

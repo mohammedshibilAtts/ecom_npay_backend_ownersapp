@@ -28,11 +28,4 @@ router.get('/carts', (req, res) => cartController.getCart(req, res));
 router.post('/carts/items', (req, res) => cartController.addItem(req, res));
 router.delete('/carts/items', (req, res) => cartController.removeItem(req, res));
 
-// router.put('/carts/items/quantity', (req, res) => cartController.updateQuantity(req, res));
-// router.post('/carts/coupon', (req, res) => cartController.applyCoupon(req, res));
-// router.delete('/carts/coupon', (req, res) => cartController.removeCoupon(req, res));
-// router.put('/carts/address', (req, res) => cartController.updateAddress(req, res));
-// router.post('/carts/merge', (req, res) => cartController.mergeCarts(req, res));
-// router.post('/carts/abandon', (req, res) => cartController.abandonCart(req, res));
-
 export default router;

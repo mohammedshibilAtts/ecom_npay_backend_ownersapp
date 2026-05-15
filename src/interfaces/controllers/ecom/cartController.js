@@ -5,7 +5,7 @@ class CartController {
   }
 
   async createCart(req, res) {
-    try {
+    try { console.log(req.body)
       const cartData = req.body;
       const cart = await this.cartUseCase.createCart(cartData, req.user);
       console.error(cart.success);

@@ -89,7 +89,7 @@ class AppProductUsecase {
   }
 
   _mergeItemData(product, item) {
-    const calculations = this._calculateItemPricing(item);
+    const calculations = this._calculateItemPricing({ ...item, isMrp: product?.isMrp || false });
     
     const { firstItem, purityList, ...cleanProduct } = product;
 
@@ -193,7 +193,9 @@ class AppProductUsecase {
     const rate = Number(item.currentMetalRate || 0);
     const netWt = Number(item.netWeight || 0);
     const grossWt = Number(item.grossWt || 0);
-    const metalValue = netWt * rate;
+
+    // If isMrp is true, metalValue is just the rate. Else, it is grossWt * rate.
+    const metalValue = item.isMrp ? rate : (grossWt * rate);
 
     let makingValue = 0;
     const mc = item.makingCharges || {};
@@ -328,7 +330,7 @@ class AppProductUsecase {
       }
 
       const simplifiedItems = items.map((item) => {
-        const calculations = this._calculateItemPricing(item);
+        const calculations = this._calculateItemPricing({ ...item, isMrp: product?.isMrp || false });
         return {
           _id: item._id,
           tagNo: item.tagNo,
