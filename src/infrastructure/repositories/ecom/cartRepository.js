@@ -17,7 +17,7 @@ class CartRepository {
 
   async findCartByUserId(userId) {
     try {
-      return cartModel.findOne({ userId });
+      return await cartModel.findOne({ userId });
     } catch (error) {
       throw new Error(`Repository Error (findCartByuserId): ${error.message}`);
     }
@@ -361,7 +361,7 @@ class CartRepository {
           $project: {
             _id: 0,
             productId: "$Product._id",
-            itemId: "$_id",
+            itemId: "$itemId",
             productName: "$Product.product_name",
             onlineProduct: "$Product.onlineProduct",
             qty: { $ifNull: ["$quantity", 1] },
@@ -466,8 +466,9 @@ class CartRepository {
         },
       ]);
       
+      const result = item[0] ?? { items: [], overAllAmount: {} };
       return {
-        ...item[0],
+        ...result,
         cartId: cartData._id,
         pathurl: pathurl,
       };
@@ -493,6 +494,25 @@ class CartRepository {
     } catch (error) {
       console.error(error);
       throw new Error(`Repository Error (addItemToCart): ${error.message}`);
+    }
+  }
+
+  async updateCartTotals(cartId) {
+    try {
+      const cartData = await this.findById(cartId);
+      const overAll = cartData?.overAllAmount ?? {};
+
+      const subtotal = overAll.subTotal ?? 0;
+      const grandTotal = overAll.totalAmount ?? subtotal;
+      const taxTotal = overAll.totalGstAmount ?? 0;
+      const itemDiscountTotal = overAll.totalDiscount ?? 0;
+
+      await cartModel.findByIdAndUpdate(cartId, {
+        $set: { subtotal, grandTotal, taxTotal, itemDiscountTotal },
+      });
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Repository Error (updateCartTotals): ${error.message}`);
     }
   }
 

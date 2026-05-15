@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { checkQuantitySize } from "../../../utils/quantityCheckHelper.js";
 
 // src/usecases/cartUseCase.js
@@ -67,20 +68,25 @@ class CartUseCase {
       const {
         id_purity,
         grossWt,
-        size
+        size,
+        id_metal: itemMetal,
       } = findItem;
+
+      const safeCollectionId = collectionId && mongoose.isValidObjectId(collectionId)
+        ? collectionId
+        : null;
 
       const cartItem = {
         cartId: cartId,
         itemId: itemId,
         productId: findItem.productId,
-        collectionId: collectionId,
+        collectionId: safeCollectionId,
         categoryId: id_category,
         subCategoryId: findProduct?.subcategoryId || null,
         productName: product_name,
         sku: findItem?.tagNo || null,
         image: product_image[0],
-        id_metal: id_metal,
+        id_metal: id_metal || itemMetal,
         metalWeight: grossWt,
         id_purity: id_purity,
         sizeId: size || null,
@@ -92,6 +98,7 @@ class CartUseCase {
           message: "Unable to add the product to your cart. Please try again.",
         };
       }
+      await this.cartRepository.updateCartTotals(cartId);
       return {
         success: true,
         message: "Product added to cart",
@@ -193,6 +200,9 @@ class CartUseCase {
       if (!userData._id) {
         throw new Error("User ID not found");
       }
+      const findCart = await this.cartRepository.findCartByUserId(userData._id);
+      if (!findCart) throw new Error("Cart not found");
+
       const deleteItem = await this.cartRepository.removeItem(
         itemId,
         userData._id
@@ -205,6 +215,7 @@ class CartUseCase {
             "Unable to remove the item from your cart. Please try again.",
         };
       }
+      await this.cartRepository.updateCartTotals(findCart._id);
       return {
         success: true,
         message: "Item has been successfully removed from your cart.",

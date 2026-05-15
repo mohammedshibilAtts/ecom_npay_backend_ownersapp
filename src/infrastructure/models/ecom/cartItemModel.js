@@ -8,7 +8,7 @@ const CartItemSchema = new Schema(
     productId: { type: Types.ObjectId, ref: "Product", required: true },
     itemId: { type: Types.ObjectId, ref: "Item", required: true },
     // variantId: { type: Types.ObjectId, ref: "Variant" },
-    collectionId: { type:String,default:"" },
+    collectionId: { type: Types.ObjectId, ref: "Collection", default: null },
     sizeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "SizeMaster",
@@ -19,19 +19,12 @@ const CartItemSchema = new Schema(
     productName: { type: String, required: true },
     sku: { type: String },
     image: { type: String },
-
-    // currency: { type: String, default: "INR" },
-    // unitPrice: { type: Number, required: true },
-    // taxRate: { type: Number, default: 0 },
-    // discountPerUnit: { type: Number, default: 0 },
     quantity: { type: Number, min: 1, default: 1 },
-
     id_metal: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Metal",
       required: true,
     },
-    // metalRate: { type: Number },
     metalWeight: { type: Number },
 
     id_purity: {
@@ -39,18 +32,10 @@ const CartItemSchema = new Schema(
       ref: "Purity",
       required: true,
     },
-    id_metal: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Metal",
-      required: true,
-    },
     is_deleted: {
       type: Boolean,
       default: false,
     },
-    // lineSubtotal: { type: Number, default: 0 },
-    // lineTax: { type: Number, default: 0 },
-    // lineTotal: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
