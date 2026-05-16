@@ -476,7 +476,7 @@ class OrderUseCase {
         };
       }
       const shppingCharge = 0;
-      const raw = `${userData._id}${Date.now()}`;
+      const raw = `${token._id}${Date.now()}`;
       const transactionId = crypto
         .createHash("sha256")
         .update(raw)
@@ -501,8 +501,8 @@ class OrderUseCase {
 
       const orderData = {
         orderId: `ORD-${transactionId}`,
-        userId: userData._id,
-        phone: userData?.mobile,
+        userId: token._id,
+        phone: token?.mobile,
         cartId: findCart._id,
         shipping_is_billing: true,
         itemsCount: cartItems.items.length,
