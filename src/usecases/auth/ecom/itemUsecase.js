@@ -355,10 +355,19 @@ class ItemUseCase {
     const huid = Number(item.huidCharges || 0);
     const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
     const gstValue = (subTotal * Number(item.gst || 3)) / 100;
-    const totalPrice = subTotal + gstValue;
+    const outprice = subTotal + gstValue
+    console.log(metalValue, makingValue, wastageValue, stoneValue, huid, gstValue, outprice)
+
+    const makingActualValue = Number(mc.makingActualValue || 0);
+    const wastageActualValue = Number(wc.wastageActualValue || 0);
+    const makingActualChargeValue = Number(mc.makingMode) === 1 ? makingActualValue : (Number(mc.calculationType) === 1 ? grossWt : netWt) * makingActualValue;
+    const wastageActualChargeValue = Number(wc.wastageMode) === 1 ? wastageActualValue : (wastageActualValue / 100) * rate * (Number(wc.calculationType) === 1 ? grossWt : netWt);
+    const finalOut = metalValue + makingActualChargeValue + wastageActualChargeValue + stoneValue + huid;
+    const findGst = (finalOut * Number(item.gst || 3)) / 100;
+    const totalPrice = finalOut + findGst;
 
     return {
-      price: Math.round(subTotal),
+      price: Math.round(outprice),
       totalprice: Math.round(totalPrice)
     };
   }

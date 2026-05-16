@@ -436,6 +436,8 @@ class OrderUseCase {
       }
 
       const cartItems = await this.cartRepository.findById(findCart._id);
+      console.log(cartItems,'cartItems')
+
       if (!cartItems) {
         return {
           success: false,
@@ -543,6 +545,7 @@ class OrderUseCase {
         image: item.productImg,
         grossWeight: item.grossWt,
         price: item.price,
+        totalPrice: item.totalprice,
         quantity: item.qty,
         discountAmount: item.discount,
         categoryId: item.categoryId,
@@ -571,6 +574,7 @@ class OrderUseCase {
         diaCertificateNo: item.diaCertificateNo || null,
         size: item.productSize || null,
       }));
+
       const createOrder = await this.orderRepository.createOrder(
         orderData,
         orderItems
@@ -641,6 +645,7 @@ class OrderUseCase {
           message: "Order not found",
         };
       }
+
       const findOrderItems = await this.orderRepository.findOrderItems(
         findOrder._id
       );
@@ -650,7 +655,8 @@ class OrderUseCase {
           message: "Failed to get orders",
         };
       }
-      findOrderItems.overAll.orderType = ORDER_TYPE_NAME[findOrder.orderType];
+      findOrderItems.overAll.orderType = ORDER_TYPE_NAME[findOrder.orderType]; 
+console.log(findOrderItems)
       return {
         success: true,
         message: "order retrieved successfully.",

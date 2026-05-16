@@ -44,31 +44,21 @@ const OrderItemSchema = new Schema(
     sizeId: { type: Types.ObjectId, ref: "SizeMaster", required: false },
     categoryId: { type: Types.ObjectId, ref: "Category" },
     subCategoryId: { type: Types.ObjectId, ref: "SubCategory" },
-    // collectionId: { type: String,default:"" },
-
-    // Product snapshot (immutable after order)
     productName: { type: String, required: true },
     sku: { type: String },
     image: { type: String },
 
-    // Pricing snapshot
     grossWeight: { type: Number, required: true },
     netWt: { type: Number, required: true },
     metalRate: { type: Number, required: true },
     price: { type: Number, required: true },
+    totalPrice: { type: Number, required: true },
     quantity: { type: Number, min: 1, required: true, default: 1 },
     discountAmount: { type: Number, default: 0 },
     totalStoneWeight: { type: Number, default: 0 },
     totalDiamondWeight: { type: Number, default: 0 },
     totalStonePrice: { type: Number, default: 0 },
     totalDiamondPrice: { type: Number, default: 0 },
-    // taxRate: { type: Number, default: 0 }, // percent
-    // lineSubtotal: { type: Number, required: true }, // unitPrice * quantity
-    // lineDiscount: { type: Number, default: 0 },     // discountPerUnit * quantity
-    // lineTax: { type: Number, default: 0 },
-    // lineTotal: { type: Number, required: true },    // subtotal - discount + tax
-
-    // Fulfillment
     status: {
       type: String,
       enum: [

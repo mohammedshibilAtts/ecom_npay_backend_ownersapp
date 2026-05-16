@@ -19,7 +19,6 @@ class ItemRepository {
     try {
       const query = {
         productId,
-        // active: true,
         is_deleted: { $ne: true },
       };
 

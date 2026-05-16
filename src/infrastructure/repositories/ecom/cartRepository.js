@@ -30,6 +30,7 @@ class CartRepository {
       const pathurl = `${s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}products/`;
 
       const cartData = await cartModel.findById(cartId);
+      
       const item = await cartItemModel.aggregate([
         {
           $match: {
@@ -432,8 +433,15 @@ class CartRepository {
             id_category: "$Product.id_category",
             id_branch: "$Product.id_branch",
             gst: "$Product.gst",
-            discount: { $round: [{ $multiply: [{ $subtract: [{ $add: ["$actualSubtotal", "$actualGstRate"] }, { $add: ["$discountedSubtotal", "$gstRate"] }] }, { $ifNull: ["$quantity", 1] }] }, 2] },
+            discountAmount: { $round: [{ $multiply: [{ $subtract: [{ $add: ["$actualSubtotal", "$actualGstRate"] }, { $add: ["$discountedSubtotal", "$gstRate"] }] }, { $ifNull: ["$quantity", 1] }] }, 2] },
             gstRate: "$gstRate",
+            soldOut: {
+              $cond: {
+                if: { $and: [{ $eq: ["$Item.active", false] }, { $eq: ["$Item.status", 2] }] },
+                then: true,
+                else: false,
+              },
+            },
           },
         },
 
@@ -447,7 +455,7 @@ class CartRepository {
                   totalAmount: { $sum: "$totalprice" },
                   subTotal: { $sum: "$price" },
                   totalPrice: { $sum: "$price" },
-                  totalDiscount: { $sum: "$discount" },
+                  totalDiscount: { $sum: "$discountAmount" },
                   shippingCharge: { $sum: "$shippingCharge" },
                   totalGstAmount: { $sum: "$gstamount" },
                   gstRate: { $sum: "$gstamount" },
@@ -516,11 +524,21 @@ class CartRepository {
     }
   }
 
-  async removeItem(itemId, userId) {
+  async findCartItemByItemId(cartId, itemId) {
     try {
-      return await cartItemModel.findByIdAndUpdate(
-        { _id: itemId, userId },
-        { $set: { is_deleted: true } }
+      return await cartItemModel.findOne({ cartId, itemId, is_deleted: { $ne: true } }).lean();
+    } catch (error) {
+      console.error(error);
+      throw new Error(`Repository Error (findCartItemByItemId): ${error.message}`);
+    }
+  }
+
+  async removeItem(itemId, cartId) {
+    try {
+      return await cartItemModel.findOneAndUpdate(
+        { itemId, cartId },
+        { $set: { is_deleted: true } },
+        { new: true }
       );
     } catch (error) {
       console.error(error);

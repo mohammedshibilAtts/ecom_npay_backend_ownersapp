@@ -32,7 +32,7 @@ class OrderPaymentUsecase {
       }
 
       const { order, items } = orderData;
-
+console.log(orderData,"orderData")
       const userData = await this.customerRepo.findOne({
         mobile: token.mobile,
       });
@@ -56,7 +56,7 @@ class OrderPaymentUsecase {
         idBranch: token.id_branch,
         totalProducts: items.length,
         platform: extraData?.platform || 0,
-        totalAmount: order.totalAmount || 0,
+        totalAmount: order.subtotal || 0,
         trans_date: new Date(),
         mobile: token.mobile || "",
         paymentStatus: 2,
@@ -83,9 +83,9 @@ class OrderPaymentUsecase {
         payment_type: 2,
         id_branch: token.id_branch,
         id_customer: token._id,
-        payment_amount: order.totalAmount || 0,
+        payment_amount: order.subtotal || 0,
         discount: order.discount || 0,
-        order_total: order.totalAmount || 0,};
+        order_total: order.subtotal || 0,};
 
       const savedPayment = await this.paymentRepository.addPayment(paymentData);
 
@@ -93,7 +93,6 @@ class OrderPaymentUsecase {
         return { success: false, message: "Failed to save payment" };
       }
 
-      // await this.orderRepo.updatePaymentId(savedPayment?._id)
 
       for (const item of items) {
         const amount = item.price * item.quantity - (item.discountAmount || 0);
@@ -116,7 +115,7 @@ class OrderPaymentUsecase {
         await this.transactionRepository.addTransaction(subtransaction);
       }
 
-      const totalData = this.sanitizeAmount(order.totalAmount);
+      const totalData = this.sanitizeAmount(order.subtotal);
 
       const customerOrderData = {
         order_id: transactionId,

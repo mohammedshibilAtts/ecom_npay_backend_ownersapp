@@ -90,10 +90,8 @@ class OrderRepository {
         .sort({ createdAt: -1 })
         .lean();
 
-      // Rest of your code remains the same...
       const ordersWithDetails = await Promise.all(
         findOrder.map(async (order) => {
-          // Your existing processing logic...
           if (order.deliveryAddress) {
             const addr = order.deliveryAddress;
             const fullAddress = [
@@ -114,8 +112,6 @@ class OrderRepository {
               order.items.map(async (item) => {
                 const product = item.productId;
                 if (!product) return item;
-
-                // Get latest metal rate
                 const metalRate = await metalRateModel
                   .findOne({
                     material_type_id: product.id_metal?._id,
@@ -125,8 +121,6 @@ class OrderRepository {
                   .lean();
 
                 const currentMetalRate = metalRate?.rate || 0;
-
-                // Get GST rate
                 const gstInfo = await GstSetting.findOne({
                   id_branch: product.id_branch?._id,
                 }).lean();
@@ -139,8 +133,6 @@ class OrderRepository {
 
                 // Calculate base metal value
                 const baseMetalValue = netWeight * currentMetalRate;
-
-                // Calculate making charges
                 let rawMakingCharge = 0;
                 let finalMakingCharge = 0;
 
@@ -240,18 +232,19 @@ class OrderRepository {
                   metalRate: currentMetalRate,
                   grossWeight: grossWeight,
                   netWeight: netWeight,
-                  
+
                   // Primary pricing fields
                   price: Math.round(discountedSubtotal),
                   totalprice: Math.round(discountedAmount),
                   subtotal: Math.round(discountedSubtotal),
                   totalWithGst: Math.round(discountedAmount),
-                  
+
                   // Detailed values
                   metalValue: Math.round(baseMetalValue * 100) / 100,
                   makingValue: Math.round(finalMakingCharge * 100) / 100,
                   wastageValue: Math.round(finalWastageCharge * 100) / 100,
-                  stoneValue: Math.round((stoneValue + diamondValue) * 100) / 100,
+                  stoneValue:
+                    Math.round((stoneValue + diamondValue) * 100) / 100,
                   gstValue: Math.round(gstAmount * 10000) / 10000,
                   gstamount: Math.round(gstAmount * 10000) / 10000,
 
@@ -259,9 +252,10 @@ class OrderRepository {
                     metalValue: Math.round(baseMetalValue * 100) / 100,
                     makingValue: Math.round(finalMakingCharge * 100) / 100,
                     wastageValue: Math.round(finalWastageCharge * 100) / 100,
-                    stoneValue: Math.round((stoneValue + diamondValue) * 100) / 100,
+                    stoneValue:
+                      Math.round((stoneValue + diamondValue) * 100) / 100,
                     gstValue: Math.round(gstAmount * 10000) / 10000,
-                    huidCharges: product.huidCharges || 0
+                    huidCharges: product.huidCharges || 0,
                   },
 
                   wastage: product.wastageCharges
@@ -456,7 +450,11 @@ class OrderRepository {
                     },
                     {
                       $concat: [
-                        { $toString: { $ifNull: ["$productSize.sizeValue", ""] } },
+                        {
+                          $toString: {
+                            $ifNull: ["$productSize.sizeValue", ""],
+                          },
+                        },
                         { $ifNull: ["$SizeMaster.unit", ""] },
                       ],
                     },
@@ -481,10 +479,10 @@ class OrderRepository {
         {
           $addFields: {
             // Explicitly include pricing fields for consistency
-            price: { $round: ["$price", 0] },
-            totalprice: { $round: ["$discountAmount", 0] },
-            subtotal: { $round: ["$price", 0] },
-            totalWithGst: { $round: ["$discountAmount", 0] },
+            price: "$price",
+            totalprice: "$discountAmount",
+            subtotal: "$price",
+            totalWithGst: "$discountAmount",
             gstamount: { $ifNull: ["$gstAmount", 0] },
 
             priceBreakup: {
@@ -955,7 +953,10 @@ class OrderRepository {
 
   async findStatusByNo(statusNo) {
     try {
-      return await orderStatusModel.findOne({ statusNo: Number(statusNo), isDeleted: { $ne: true } });
+      return await orderStatusModel.findOne({
+        statusNo: Number(statusNo),
+        isDeleted: { $ne: true },
+      });
     } catch (error) {
       return null;
     }
@@ -1100,7 +1101,10 @@ class OrderRepository {
               $ifNull: [{ $arrayElemAt: ["$totalSales.total", 0] }, 0],
             },
             totalGrossWeight: {
-              $ifNull: [{ $arrayElemAt: ["$totalSales.totalGrossWeight", 0] }, 0],
+              $ifNull: [
+                { $arrayElemAt: ["$totalSales.totalGrossWeight", 0] },
+                0,
+              ],
             },
             totalNetWeight: {
               $ifNull: [{ $arrayElemAt: ["$totalSales.totalNetWeight", 0] }, 0],
@@ -1669,7 +1673,9 @@ class OrderRepository {
             totalAmount: 1,
             totalGrossWeight: 1,
             totalNetWeight: 1,
-            totalStock: { $ifNull: [{ $arrayElemAt: ["$stockData.count", 0] }, 0] },
+            totalStock: {
+              $ifNull: [{ $arrayElemAt: ["$stockData.count", 0] }, 0],
+            },
           },
         },
       );
@@ -1763,7 +1769,7 @@ class OrderRepository {
 
       const hasActiveOrder = result.some(
         (item) =>
-          item.orderType === ORDER_TYPE.OFFLINE_ORDER && 
+          item.orderType === ORDER_TYPE.OFFLINE_ORDER &&
           item.orderStatus === ORDER_STATUS_NO.PROCESSING,
       );
 
@@ -1774,7 +1780,8 @@ class OrderRepository {
   }
 
   async reduceProductQuatityCount(orderId) {
-    try { console.log(orderId)
+    try {
+      console.log(orderId);
       const orderItems = await OrderItem.find({ orderId }).lean();
 
       if (!orderItems.length) {
@@ -1785,13 +1792,18 @@ class OrderRepository {
       for (const orderItem of orderItems) {
         const product = await productModel.findById(orderItem.productId).lean();
         if (product && product.onlineProduct === false) {
-          console.log(`Skipping stock reduction for product ${product.product_name} because onlineProduct is false`);
+          console.log(
+            `Skipping stock reduction for product ${product.product_name} because onlineProduct is false`,
+          );
           continue;
         }
 
         let itemToReduce;
         if (orderItem.itemId) {
-          itemToReduce = await itemModel.findOne({ _id: orderItem.itemId, status: 1 });
+          itemToReduce = await itemModel.findOne({
+            _id: orderItem.itemId,
+            status: 1,
+          });
         } else {
           itemToReduce = await itemModel.findOne({
             productId: orderItem.productId,
@@ -1836,7 +1848,10 @@ class OrderRepository {
 
         let itemToIncrease;
         if (orderItem.itemId) {
-          itemToIncrease = await itemModel.findOne({ _id: orderItem.itemId, status: 2 });
+          itemToIncrease = await itemModel.findOne({
+            _id: orderItem.itemId,
+            status: 2,
+          });
         } else {
           itemToIncrease = await itemModel.findOne({
             productId: orderItem.productId,

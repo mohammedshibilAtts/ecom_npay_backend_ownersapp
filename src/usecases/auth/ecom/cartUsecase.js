@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { checkQuantitySize } from "../../../utils/quantityCheckHelper.js";
 
-// src/usecases/cartUseCase.js
+// src/usecases/cartUseCase.js //using
 class CartUseCase {
   constructor(cartRepository, customerRepository, productRepository, itemRepository) {
     this.cartRepository = cartRepository;
@@ -13,11 +13,12 @@ class CartUseCase {
   async createCart(cartData, userData) {
     try {
       const { itemId, collectionId } = cartData;
-      // Validate required fields
+
       if (!userData._id) {
         throw new Error("User ID not found");
       }
       const findUser = await this.customerRepository.findInfo(userData._id);
+
       if (findUser.active === false) {
         throw new Error("User account is inactive. Please contact support.");
       }
@@ -75,6 +76,11 @@ class CartUseCase {
       const safeCollectionId = collectionId && mongoose.isValidObjectId(collectionId)
         ? collectionId
         : null;
+
+      const existingCartItem = await this.cartRepository.findCartItemByItemId(cartId, itemId);
+      if (existingCartItem) {
+        return { success: false, message: "Item already exists in your cart." };
+      }
 
       const cartItem = {
         cartId: cartId,
@@ -196,16 +202,18 @@ class CartUseCase {
     }
   }
   async removeItemFromCart(itemId, userData) {
-    try {
+    try { console.log(itemId,userData)
       if (!userData._id) {
         throw new Error("User ID not found");
       }
+
       const findCart = await this.cartRepository.findCartByUserId(userData._id);
+
       if (!findCart) throw new Error("Cart not found");
 
       const deleteItem = await this.cartRepository.removeItem(
         itemId,
-        userData._id
+        findCart._id
       );
 
       if (!deleteItem) {
