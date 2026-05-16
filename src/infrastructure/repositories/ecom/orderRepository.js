@@ -15,6 +15,7 @@ import {
   ORDER_TYPE,
   ORDER_TYPE_NAME,
 } from "../../../config/chit/const.js";
+import orderTransactionModel from "../../models/ecom/orderTransactionModel.js";
 
 class OrderRepository {
   async createOrder(orderData, orderItems) {
@@ -127,7 +128,6 @@ class OrderRepository {
 
                 const gstRate = gstInfo?.rate || 0;
 
-                // Calculate weights
                 const grossWeight = product.grossWt || 0;
                 const netWeight = product.netWeight || product.grossWt || 0;
 
@@ -466,6 +466,7 @@ class OrderRepository {
           },
         },
 
+
         // Final Project
         {
           $project: {
@@ -478,11 +479,11 @@ class OrderRepository {
         },
         {
           $addFields: {
-            // Explicitly include pricing fields for consistency
             price: "$price",
-            totalprice: "$discountAmount",
+            totalprice: "$totalPrice",
             subtotal: "$price",
-            totalWithGst: "$discountAmount",
+            // totalWithGst: "$discountAmount",
+            discountAmount: { $round: [{ $subtract: ["$totalPrice", "$price"] }, 1] },
             gstamount: { $ifNull: ["$gstAmount", 0] },
 
             priceBreakup: {
@@ -688,7 +689,8 @@ class OrderRepository {
             size: { $ifNull: ["$size", "$sizeValue"] },
             qty: "$quantity",
             img: { $arrayElemAt: ["$product.product_image", 0] },
-            price: "$discountAmount",
+            // price: "$discountAmount",
+            price: { $ifNull: ["$price", "$discountAmount"] },
             grossWt: "$grossWeight",
             netWt: "$netWt",
             totalStoneWeight: "$totalStoneWeight",
@@ -1065,7 +1067,7 @@ class OrderRepository {
               {
                 $group: {
                   _id: null,
-                  total: { $sum: "$items.discountAmount" },
+                  total: { $sum: "$items.price" },
                   totalGrossWeight: { $sum: "$items.grossWeight" },
                   totalNetWeight: { $sum: "$items.netWt" },
                 },
@@ -1198,116 +1200,6 @@ class OrderRepository {
       throw error;
     }
   }
-
-  // async getPaymentReport(page=1,limit=10,filter={},search=""){
-  //   try{
-  //     const skip =(page-1)*limit ;
-
-  //     const result = await ecomPaymentOrderModel.find(filter)
-  //     .populate("id_customer","firstname lastname mobile")
-  //     .sort({createdAt:-1})
-  //     .skip(skip)
-  //     .limit(limit)
-
-  //      const totalCount = await ecomPaymentOrderModel.countDocuments(filter);
-
-  //      return {
-  //       result,
-  //       totalCount,
-  //       totalPages:Math.ceil(totalCount/limit),
-  //      }
-  //   }catch(error){
-  //     console.error(error)
-  //     return null
-  //   }
-  // }
-
-  // async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
-  //   try{
-  //     page = Number(page);
-  //     limit = Number(limit);
-  //     const skip = (page - 1) * limit;
-
-  //     const pipeline = [
-  //       { $match: {...filter,status:1,payment_amount: { $gt: 0 }} },
-  //       {
-  //         $lookup: {
-  //           from: "customers",
-  //           localField: "id_customer",
-  //           foreignField: "_id",
-  //           as: "customer",
-  //         },
-  //       },
-  //       { $unwind: "$customer" },
-  //     ];
-
-  //     if (search && search.trim() !== "") {
-  //       const searchRegex = new RegExp(search.trim(), "i");
-  //       pipeline.push({
-  //         $match: {
-  //           $or: [
-  //             { orderId: { $regex: searchRegex } },
-  //             { "customer.firstname": { $regex: searchRegex } },
-  //             { "customer.lastname": { $regex: searchRegex } },
-  //             // { "customer.mobile": { $regex: searchRegex } },
-  //             {
-  //               $expr: {
-  //                 $regexMatch: {
-  //                   input: { $toString: "$customer.mobile" },
-  //                   regex: searchRegex,
-  //                 },
-  //               },
-  //             },
-  //           ],
-  //         },
-  //       });
-  //     }
-  //     const countPipeline = [...pipeline, { $count: "totalCount" }];
-  //     const countResult = await ecomPaymentOrderModel.aggregate(countPipeline);
-  //     const totalCount = countResult[0]?.totalCount || 0;
-
-  //     pipeline.push({ $sort: { createdAt: -1 } });
-  //     pipeline.push({ $skip: skip });
-  //     pipeline.push({ $limit: limit });
-
-  //     pipeline.push({
-  //       $project: {
-  //         _id: 1,
-  //         orderId: 1,
-  //         cf_payment_id: 1,
-  //         cf_order_id: 1,
-  //         payment_session_id: 1,
-  //         payment_amount: 1,
-  //         status: 1,
-  //         active: 1,
-  //         is_deleted: 1,
-  //         orderObjId: 1,
-  //         createdAt: 1,
-  //         updatedAt: 1,
-  //         id_customer: {
-  //           _id: "$customer._id",
-  //           firstname: "$customer.firstname",
-  //           lastname: "$customer.lastname",
-  //           mobile: "$customer.mobile",
-  //         },
-  //         product_payment_ids: 1,
-  //       },
-  //     });
-
-  //     const result = await ecomPaymentOrderModel.aggregate(pipeline);
-
-  //     return {
-  //       result,
-  //       totalCount,
-  //       totalPages: Math.ceil(totalCount / limit),
-  //       currentPage: page,
-  //       limit,
-  //     };
-  //   } catch (error) {
-  //     console.error(error);
-  //     return null;
-  //   }
-  // }
 
   async getPaymentReport(page = 1, limit = 10, filter = {}, search = "") {
     try {
@@ -1444,99 +1336,6 @@ class OrderRepository {
     }
   }
 
-  // async getTopSellingProducttable(page=1,limit=10,filter) {
-  //   try {
-  //     const result = await Order.aggregate([
-  //       { $match: filter },
-
-  //       {
-  //         $lookup: {
-  //           from: "orderitems",
-  //           localField: "_id",
-  //           foreignField: "orderId",
-  //           as: "orderItem",
-  //         },
-  //       },
-  //       { $unwind: "$orderItem" },
-
-  //       // group by product
-  //       {
-  //         $group: {
-  //           _id: "$orderItem.productId",
-  //           totalSold: { $sum: "$orderItem.quantity" },
-  //           totalAmount: { $sum: "$orderItem.discountAmount" },
-  //         },
-  //       },
-
-  //       // sort by total sold
-  //       { $sort: { totalSold: -1 } },
-
-  //       // top 10
-  //       { $limit: 10 },
-
-  //       // get product details
-  //       {
-  //         $lookup: {
-  //           from: "products",
-  //           localField: "_id",
-  //           foreignField: "_id",
-  //           as: "product",
-  //         },
-  //       },
-  //       { $unwind: "$product" },
-
-  //       {
-  //         $lookup: {
-  //           from: "metals",
-  //           localField: "product.id_metal",
-  //           foreignField: "_id",
-  //           as: "metal",
-  //         },
-  //       },
-  //       { $unwind: "$metal" },
-
-  //       {
-  //         $lookup: {
-  //           from: "categories",
-  //           localField: "product.id_category",
-  //           foreignField: "_id",
-  //           as: "category",
-  //         },
-  //       },
-  //       { $unwind: "$category" },
-
-  //       {
-  //         $lookup: {
-  //           from: "purities",
-  //           localField: "product.id_purity",
-  //           foreignField: "_id",
-  //           as: "purity",
-  //         },
-  //       },
-  //       { $unwind: "$purity" },
-
-  //       // final projection
-  //       {
-  //         $project: {
-  //           _id: 0,
-  //           productId: "$_id",
-  //           name: "$product.product_name",
-  //           totalSold: 1,
-  //           metalName: "$metal.metal_name",
-  //           purityName: "$purity.purity_name",
-  //           categoryName: "$category.category_name",
-  //           totalAmount: 1,
-  //         },
-  //       },
-  //     ]);
-
-  //     return result;
-  //   } catch (err) {
-  //     console.error("Error in getTopSellingProduct:", err);
-  //     throw err;
-  //   }
-  // }
-
   async getTopSellingProducttable(
     page = 1,
     limit = 10,
@@ -1579,6 +1378,7 @@ class OrderRepository {
           $match: {
             "productInfo.active": true,
             "productInfo.is_deleted": { $ne: true },
+            "productInfo.onlineProduct": { $eq: true },
           },
         },
 
@@ -1586,7 +1386,7 @@ class OrderRepository {
           $group: {
             _id: "$orderItem.productId",
             totalSold: { $sum: "$orderItem.quantity" },
-            totalAmount: { $sum: "$orderItem.discountAmount" },
+            totalAmount: { $sum: "$orderItem.price" },
             totalGrossWeight: { $sum: "$orderItem.grossWeight" },
             totalNetWeight: { $sum: "$orderItem.netWt" },
             purityName: { $first: "$orderItem.purityName" },

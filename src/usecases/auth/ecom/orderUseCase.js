@@ -24,7 +24,7 @@ class OrderUseCase {
     shipRocketUseCase,
     pincodeUseCase,
     deliveryAddressRepository,
-    itemRepository
+    itemRepository,
   ) {
     this.cartRepository = cartRepository;
     this.productRepository = productRepository;
@@ -36,13 +36,13 @@ class OrderUseCase {
 
     this.baseUrl = config.CASH_FREE_URL || "https://sandbox.cashfree.com";
     this.url = `${this.baseUrl}/pg/orders`;
-    (this.mail = "test@gmail.com"), (this.password = "12345");
+    ((this.mail = "test@gmail.com"), (this.password = "12345"));
     this.orderpaymentUsecase = new OrderPaymentUsecase();
     this.ecomPaymentReopo = new EcomPaymentOrderRepository();
     this.schemeAccountRepo = new SchemeAccountRepository();
     this.saveNotificationRepo = new SaveNotificationRepo();
     this.saveNotificationUsecase = new SaveNotificationUsecase(
-      this.saveNotificationRepo
+      this.saveNotificationRepo,
     );
   }
 
@@ -83,7 +83,7 @@ class OrderUseCase {
         type: "alert",
         category: "Order",
       },
-      customerId
+      customerId,
     );
   }
 
@@ -130,9 +130,8 @@ class OrderUseCase {
       if (!productId) {
         throw new Error("Address Id is required");
       }
-      const findAddress = await this.deliveryAddressRepository.findById(
-        addressId
-      );
+      const findAddress =
+        await this.deliveryAddressRepository.findById(addressId);
 
       if (!findAddress) {
         return {
@@ -152,7 +151,7 @@ class OrderUseCase {
       const findProductForOrderNow =
         await this.orderRepository.findProductForOrderNow(
           productId,
-          userData._id
+          userData._id,
         );
       if (findProductForOrderNow.alreadyOrdered) {
         return {
@@ -182,7 +181,9 @@ class OrderUseCase {
         .update(raw)
         .digest("hex")
         .slice(0, 15);
-      const processingStatus = await this.orderRepository.findStatusByNo(ORDER_STATUS_NO.PROCESSING);
+      const processingStatus = await this.orderRepository.findStatusByNo(
+        ORDER_STATUS_NO.PROCESSING,
+      );
 
       const orderData = {
         orderId: `ORD-${transactionId}`,
@@ -194,8 +195,12 @@ class OrderUseCase {
         subtotal: findProduct.totalAmount || findProduct.price || 0,
         totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
         shippingFee: shppingCharge,
-        totalAmount: (findProduct.discountedAmount || findProduct.price || 0) + shppingCharge,
-        savedAmount: (findProduct.totalAmount || findProduct.price || 0) - (findProduct.discountedAmount || findProduct.price || 0),
+        totalAmount:
+          (findProduct.discountedAmount || findProduct.price || 0) +
+          shppingCharge,
+        savedAmount:
+          (findProduct.totalAmount || findProduct.price || 0) -
+          (findProduct.discountedAmount || findProduct.price || 0),
         status: processingStatus?.name || "Processing",
         deliveryAddress: addressId,
         active: true,
@@ -204,12 +209,17 @@ class OrderUseCase {
       };
       const orderItems = {
         productId: findProduct._id,
-        itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id, 
+        itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id,
         productName: findProduct.product_name,
         sku: findProduct.sku,
         image: findProduct.product_image[0],
         grossWeight: findProduct.grossWeight || findProduct.firstItem?.grossWt,
-        price: findProduct.price || findProduct.totalAmount || 0,
+        price: findProduct.discountedAmount || findProduct.price || 0,
+        totalPrice:
+          findProduct.totalprice ||
+          findProduct.totalAmount ||
+          findProduct.price ||
+          0,
         quantity: 1,
         discountAmount: findProduct.discountedAmount || findProduct.price || 0,
         categoryId: findProduct.id_category,
@@ -241,7 +251,9 @@ class OrderUseCase {
       }
 
       // Reduce stock immediately for offline orders
-      await this.orderRepository.reduceProductQuatityCount(createOrder.order._id);
+      await this.orderRepository.reduceProductQuatityCount(
+        createOrder.order._id,
+      );
 
       return {
         success: true,
@@ -265,9 +277,8 @@ class OrderUseCase {
       if (!itemId) {
         throw new Error("Item Id is required");
       }
-      const findAddress = await this.deliveryAddressRepository.findById(
-        addressId
-      );
+      const findAddress =
+        await this.deliveryAddressRepository.findById(addressId);
 
       if (!findAddress) {
         return {
@@ -284,7 +295,9 @@ class OrderUseCase {
         };
       }
 
-      const findProduct = await this.productRepository.findById(findItem.productId);
+      const findProduct = await this.productRepository.findById(
+        findItem.productId,
+      );
 
       if (!findProduct && findProduct.onlineProduct) {
         return {
@@ -296,7 +309,7 @@ class OrderUseCase {
       const findProductForOrderNow =
         await this.orderRepository.findProductForOrderNow(
           findProduct._id,
-          userData._id
+          userData._id,
         );
       if (findProductForOrderNow.alreadyOrdered) {
         return {
@@ -326,7 +339,9 @@ class OrderUseCase {
         .update(raw)
         .digest("hex")
         .slice(0, 15);
-      const processingStatus = await this.orderRepository.findStatusByNo(ORDER_STATUS_NO.PROCESSING);
+      const processingStatus = await this.orderRepository.findStatusByNo(
+        ORDER_STATUS_NO.PROCESSING,
+      );
 
       const orderData = {
         orderId: `ORD-${transactionId}`,
@@ -335,11 +350,21 @@ class OrderUseCase {
         cartId: findCart?._id || null,
         shipping_is_billing: true,
         itemsCount: 1,
-        subtotal: findItem.totalprice || findProduct.totalAmount || findProduct.price || 0,
-        totalDiscount: findProduct.discountedAmount || findProduct.price || 0, 
+        subtotal:
+          findItem.totalprice ||
+          findProduct.totalAmount ||
+          findProduct.price ||
+          0,
+        totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
         shippingFee: shppingCharge,
-        totalAmount: (findItem.totalprice || findProduct.discountedAmount || findProduct.price || 0) + shppingCharge,
-        savedAmount: (findProduct.totalAmount || findProduct.price || 0) - (findProduct.discountedAmount || findProduct.price || 0),
+        totalAmount:
+          (findItem.totalprice ||
+            findProduct.discountedAmount ||
+            findProduct.price ||
+            0) + shppingCharge,
+        savedAmount:
+          (findProduct.totalAmount || findProduct.price || 0) -
+          (findProduct.discountedAmount || findProduct.price || 0),
         status: processingStatus?.name || "Processing",
         deliveryAddress: addressId,
         active: true,
@@ -354,7 +379,17 @@ class OrderUseCase {
         sku: findItem.tagNo || findProduct.sku,
         image: findProduct.product_image[0],
         grossWeight: findItem.grossWt,
-        price: findItem.totalprice || findProduct.totalAmount || findProduct.price || 0,
+        price:
+          findItem.price ||
+          findProduct.discountedAmount ||
+          findProduct.price ||
+          0,
+        totalPrice:
+          findItem.totalprice ||
+          findProduct.totalprice ||
+          findProduct.totalAmount ||
+          findProduct.price ||
+          0,
         quantity: 1,
         discountAmount: findProduct.discountedAmount || findProduct.price || 0,
         categoryId: findProduct.id_category,
@@ -367,11 +402,16 @@ class OrderUseCase {
         refundAmount: 0,
         metalRate: findItem.currentMetalRate || findProduct?.latestMetalPrice,
         netWt: findItem.netWeight || findProduct?.netWeight,
-        id_purity: findItem.id_purity || findProduct.id_purity || findProduct.firstItem?.id_purity,
+        id_purity:
+          findItem.id_purity ||
+          findProduct.id_purity ||
+          findProduct.firstItem?.id_purity,
         purityName: findItem.purityName,
         id_metal: findProduct.id_metal,
-        makingCharges: findItem.makingCharges || findProduct.makingCharges || null,
-        wastageCharges: findItem.wastageCharges || findProduct.wastageCharges || null,
+        makingCharges:
+          findItem.makingCharges || findProduct.makingCharges || null,
+        wastageCharges:
+          findItem.wastageCharges || findProduct.wastageCharges || null,
         gstAmount: findItem.gst || findProduct.gstValue || findCart?.gst || 0,
         huidNo: findItem.huidNo || null,
         huidCharges: findItem.huidCharges || 0,
@@ -390,7 +430,9 @@ class OrderUseCase {
       }
 
       // Reduce stock immediately for offline orders
-      await this.orderRepository.reduceProductQuatityCount(createOrder.order._id);
+      await this.orderRepository.reduceProductQuatityCount(
+        createOrder.order._id,
+      );
 
       return {
         success: true,
@@ -403,12 +445,7 @@ class OrderUseCase {
     }
   }
 
-  async placeOrder(
-    userData,
-    addressId,
-    token,
-    isStorePickup
-  ) {  
+  async placeOrder(userData, addressId, token, isStorePickup) {
     try {
       if (!token._id) {
         throw new Error("User ID not found");
@@ -416,9 +453,8 @@ class OrderUseCase {
       if (!addressId) {
         throw new Error("Address Id is required");
       }
-      const findAddress = await this.deliveryAddressRepository.findById(
-        addressId
-      );
+      const findAddress =
+        await this.deliveryAddressRepository.findById(addressId);
 
       if (!findAddress) {
         return {
@@ -436,7 +472,7 @@ class OrderUseCase {
       }
 
       const cartItems = await this.cartRepository.findById(findCart._id);
-      console.log(cartItems,'cartItems')
+      console.log(cartItems, "cartItems");
 
       if (!cartItems) {
         return {
@@ -448,7 +484,7 @@ class OrderUseCase {
 
       const findAvailableStocks = checkQuantitySize(cartItems.items);
       const isOutOfStock = findAvailableStocks?.some(
-        (item) => item.stockAvailable === false
+        (item) => item.stockAvailable === false,
       );
 
       if (isOutOfStock) {
@@ -498,7 +534,7 @@ class OrderUseCase {
           totalStoneWeight: 0,
           totalDiamondPrice: 0,
           totalStonePrice: 0,
-        }
+        },
       );
 
       const orderData = {
@@ -508,14 +544,24 @@ class OrderUseCase {
         cartId: findCart._id,
         shipping_is_billing: true,
         itemsCount: cartItems.items.length,
-        subtotal: cartItems.overAllAmount?.subTotal || cartItems.overAllAmount?.totalPrice || 0,
+        subtotal:
+          cartItems.overAllAmount?.subTotal ||
+          cartItems.overAllAmount?.totalPrice ||
+          0,
         totalDiscount: cartItems.overAllAmount?.totalDiscount || 0,
         shippingFee: shppingCharge,
         totalAmount: cartItems.overAllAmount?.totalAmount || 0,
-        totalGstAmount: cartItems.overAllAmount?.totalGstAmount || cartItems.overAllAmount?.gstRate || 0,
+        totalGstAmount:
+          cartItems.overAllAmount?.totalGstAmount ||
+          cartItems.overAllAmount?.gstRate ||
+          0,
         savedAmount:
           (cartItems.overAllAmount?.subTotal || 0) -
-          (cartItems.overAllAmount?.totalAmount || 0) > 0 ? (cartItems.overAllAmount?.subTotal || 0) - (cartItems.overAllAmount?.totalAmount || 0) : 0,
+            (cartItems.overAllAmount?.totalAmount || 0) >
+          0
+            ? (cartItems.overAllAmount?.subTotal || 0) -
+              (cartItems.overAllAmount?.totalAmount || 0)
+            : 0,
         status: "Payment Pending",
         deliveryAddress: addressId,
         estimatedDeliveryDays,
@@ -532,7 +578,8 @@ class OrderUseCase {
       if (!orderData.totalAmount || orderData.totalAmount <= 0) {
         return {
           success: false,
-          message: "Unable to calculate order total. Please verify item prices.",
+          message:
+            "Unable to calculate order total. Please verify item prices.",
         };
       }
 
@@ -577,12 +624,12 @@ class OrderUseCase {
 
       const createOrder = await this.orderRepository.createOrder(
         orderData,
-        orderItems
+        orderItems,
       );
 
       const paymentData = await this.orderpaymentUsecase.orderPaymentCreation(
         createOrder,
-        token
+        token,
       );
 
       if (!paymentData) {
@@ -647,16 +694,18 @@ class OrderUseCase {
       }
 
       const findOrderItems = await this.orderRepository.findOrderItems(
-        findOrder._id
+        findOrder._id,
       );
+
       if (!findOrderItems) {
         return {
           success: false,
           message: "Failed to get orders",
         };
       }
-      findOrderItems.overAll.orderType = ORDER_TYPE_NAME[findOrder.orderType]; 
-console.log(findOrderItems)
+      console.log(findOrderItems);
+      findOrderItems.overAll.orderType = ORDER_TYPE_NAME[findOrder.orderType];
+
       return {
         success: true,
         message: "order retrieved successfully.",
@@ -739,7 +788,7 @@ console.log(findOrderItems)
       const orders = await this.orderRepository.getAllOrders(
         page,
         limit,
-        filter
+        filter,
       );
 
       if (!orders) {
@@ -845,7 +894,7 @@ console.log(findOrderItems)
   }
 
   async getOrderItemReport(orderId) {
-    try {
+    try { 
       const findOrder = await this.orderRepository.findById(orderId);
       if (!findOrder) {
         return {
@@ -939,7 +988,7 @@ console.log(findOrderItems)
 
       const result = await this.orderRepository.getOverAllReport(
         startDate,
-        endDate
+        endDate,
       );
       if (!result) {
         return {
@@ -991,9 +1040,8 @@ console.log(findOrderItems)
           };
         }
 
-        const orderItems = await this.orderRepository.findOrderItemsByCartId(
-          orderId
-        );
+        const orderItems =
+          await this.orderRepository.findOrderItemsByCartId(orderId);
 
         if (!orderItems || orderItems.length === 0) {
           return {
@@ -1008,13 +1056,13 @@ console.log(findOrderItems)
               await this.productRepository.reduceProductQuantity(
                 item.productId,
                 item.sizeId,
-                item.quantity || 1
+                item.quantity || 1,
               );
 
             if (!reductionResult.success) {
               console.error(
                 `Failed to reduce quantity for product ${item.productId}, size ${item.sizeId}:`,
-                reductionResult.message
+                reductionResult.message,
               );
             }
           }
@@ -1024,7 +1072,7 @@ console.log(findOrderItems)
       const result = await this.orderRepository.changeOrderStatus(
         statusId,
         orderId,
-        orderStatusData
+        orderStatusData,
       );
 
       if (result) {
@@ -1089,7 +1137,7 @@ console.log(findOrderItems)
         page,
         limit,
         filter,
-        search
+        search,
       );
       if (result) {
         return {
@@ -1112,7 +1160,7 @@ console.log(findOrderItems)
     page,
     limit,
     search,
-    id_category
+    id_category,
   ) {
     try {
       const { startDate, endDate } = await this.getDateRange(fromDate, toDate);
@@ -1131,7 +1179,7 @@ console.log(findOrderItems)
         page,
         limit,
         filter,
-        search
+        search,
       );
       if (!result) {
         return {
