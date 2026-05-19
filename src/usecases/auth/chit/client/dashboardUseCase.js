@@ -3,6 +3,12 @@ import axios from "axios";
 import config from "../../../../config/chit/env.js";
 import SchemeAccountRepository from "../../../../infrastructure/repositories/chit/schemeAccountRepository.js";
 
+const getISTToday = () => {
+  const utcDate = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  return new Date(utcDate.getTime() + istOffset);
+};
+
 class DashboardUseCase {
   constructor(branchRepository, dashboardRepository) {
     this.branchRepository = branchRepository;
@@ -313,9 +319,9 @@ class DashboardUseCase {
         }
       }
 
-      const today = new Date();
-      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-      const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+      const istToday = getISTToday();
+      const startOfToday = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 0, 0, 0, 0);
+      const endOfToday = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 23, 59, 59, 999);
 
       if (startDate && endDate) {
         const parsedStartDate = new Date(startDate);
@@ -373,7 +379,6 @@ class DashboardUseCase {
 
       const pageSize = parseInt(limit);
 
-      const today = new Date();
       let parsedStartDate, parsedEndDate;
 
       if (startDate && endDate) {
@@ -388,8 +393,9 @@ class DashboardUseCase {
           return { success: false, message: "Invalid end date format." };
         }
       } else {
-        parsedStartDate = new Date(today.setHours(0, 0, 0, 0));
-        parsedEndDate = new Date(new Date().setHours(23, 59, 59, 999));
+        const istToday = getISTToday();
+        parsedStartDate = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 0, 0, 0, 0);
+        parsedEndDate = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 23, 59, 59, 999);
       }
 
       // Convert date to YYYY-MM-DD string, then append exact IST time string
@@ -515,7 +521,6 @@ class DashboardUseCase {
       const pageSize = parseInt(limit);
       const skip = (pageNum - 1) * pageSize;
 
-      const today = new Date();
       let parsedStartDate, parsedEndDate;
 
       if (startDate && endDate) {
@@ -529,8 +534,9 @@ class DashboardUseCase {
           return { success: false, message: "Invalid end date format." };
         }
       } else {
-        parsedStartDate = new Date(today.setHours(0, 0, 0, 0));
-        parsedEndDate = new Date(new Date().setHours(23, 59, 59, 999));
+        const istToday = getISTToday();
+        parsedStartDate = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 0, 0, 0, 0);
+        parsedEndDate = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 23, 59, 59, 999);
       }
 
       // Cashfree max date range is 30 days
