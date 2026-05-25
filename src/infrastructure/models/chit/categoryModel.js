@@ -34,13 +34,10 @@ const categorySchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      // default:null
       required: true,
     },
     categoryBanner: {
       type: String,
-      // default:null
-      // required:true
     },
   },
   {

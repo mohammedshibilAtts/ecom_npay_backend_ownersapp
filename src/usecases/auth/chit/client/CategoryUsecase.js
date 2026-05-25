@@ -85,25 +85,6 @@ class CategoryUseCase {
 
   async editCategory(editCategoryData, id, files) {
     try {
-      // if(id !== 0 && id !== ''){
-      //   const idValidation = this.validateObjectId(id, "category");
-      // if (idValidation) return idValidation;
-      // }
-
-      // const branchValidation = this.validateObjectId(
-      //   editCategoryData.id_branch,
-      //   "Branch"
-      // );
-      // if (branchValidation) return branchValidation;
-
-      // if(typeof editCategoryData.id_metal !== number){
-      //   const metalValidation = this.validateObjectId(
-      //     editCategoryData.id_metal,
-      //     "Metal"
-      //   );
-      //   if (metalValidation) return metalValidation;
-      // }
-
       const existingCategory = await this.categoryRepository.findById(id);
       if (!existingCategory) {
         return { success: false, message: "Category not found" };
