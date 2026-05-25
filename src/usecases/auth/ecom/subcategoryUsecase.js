@@ -34,11 +34,13 @@ class SubCategoryUseCase {
       let bannerUrl = null;
       let iconUrl = null;
 
+      const s3Configs = await this.s3Helper();
+
       if (files && files.image) {
-        bannerUrl = await this.handleImageUpload(files, "image", token);
+        bannerUrl = await this.handleImageUpload(files, "image", s3Configs);
       }
       if (files?.icon) {
-        iconUrl = await this.handleImageUpload(files, "icon", token);
+        iconUrl = await this.handleImageUpload(files, "icon", s3Configs);
       }
 
       if (bannerUrl) subCategoryData.bannerImage = bannerUrl;
