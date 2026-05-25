@@ -1360,7 +1360,7 @@ class SchemeAccountUseCase {
 
       if (search) {
         const regex = new RegExp(search, "i");
-        
+
         const customers = await this.customerRepo.find({
           $or: [
             { firstname: { $regex: regex } },
@@ -1431,6 +1431,14 @@ class SchemeAccountUseCase {
         },
         {
           $lookup: {
+            from: "closeaccbills",
+            localField: "_id",
+            foreignField: "id_scheme_account",
+            as: "ClosedBillData"
+          }
+        },
+        {
+          $lookup: {
             from: "schemestatuses",
             localField: "status",
             foreignField: "id_status",
@@ -1460,6 +1468,7 @@ class SchemeAccountUseCase {
           maturity_date: "$maturity_date",
           last_paid_date: "$last_paid_date",
           scheme_acc_number: "$scheme_acc_number",
+          chitRedeemed: { $ifNull: [{ $arrayElemAt: ["$ClosedBillData.chitRedeemed", 0] }, false] },
           created_through: {
             $switch: {
               branches: [
@@ -1932,7 +1941,7 @@ class SchemeAccountUseCase {
       }
 
       const processedData = await this.schemeAccountRepository.customMobileSearchAggregation(query);
-      
+
       if (!processedData || processedData.length === 0) {
         return { success: false, message: "No scheme account found" };
       }

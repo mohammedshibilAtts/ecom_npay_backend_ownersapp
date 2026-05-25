@@ -70,7 +70,11 @@ class DashboardController {
       if (result.success) {
         return res
           .status(200)
-          .json({ message: result.message, data: result.data });
+          .json({ 
+            message: result.message, 
+            data: result.data,
+            total: result.total 
+          });
       }
       return res.status(400).json({ message: result.message });
     } catch (error) {

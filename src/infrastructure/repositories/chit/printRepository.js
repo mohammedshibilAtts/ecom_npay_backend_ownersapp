@@ -311,20 +311,6 @@ class PrintRepository {
             },
           },
         },
-        // {
-        //   $setWindowFields: {
-        //     sortBy: { createdAt: 1 },
-        //     output: {
-        //       index: { $documentNumber: {} },
-        //       accWeight: {
-        //         $sum: "$metal_weight",
-        //         window: {
-        //           documents: ["unbounded", "current"],
-        //         },
-        //       },
-        //     },
-        //   },
-        // },
         {
           $project: {
             _id: 1,
@@ -351,6 +337,9 @@ class PrintRepository {
       const countPipeline = [...pipeline, { $count: "totalItems" }];
       const totalResult = await paymentModel.aggregate(countPipeline);
       const totalItems = totalResult[0]?.totalItems || 0;
+
+      // ✅ Sort new to old
+      pipeline.push({ $sort: { createdAt: -1, index: -1 } });
 
       // ✅ Apply pagination
       pipeline.push({ $skip: skip }, { $limit: limit });

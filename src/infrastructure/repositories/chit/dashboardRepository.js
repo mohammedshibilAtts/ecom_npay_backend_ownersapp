@@ -637,7 +637,7 @@ class DashboardRepository {
             const diff = currentYearAmount - previousYearAmount;
             percentage = Math.min(
               Math.round(Math.abs((diff / previousYearAmount) * 100) * 100) /
-                100,
+              100,
               100,
             );
             isIncrease = diff >= 0;
@@ -774,7 +774,7 @@ class DashboardRepository {
           const diff = currentMonthAmount - previousMonthAmount;
           percentage = Math.min(
             Math.round(Math.abs((diff / previousMonthAmount) * 100) * 100) /
-              100,
+            100,
             100,
           );
           isIncrease = diff >= 0;
@@ -991,12 +991,12 @@ class DashboardRepository {
 
       const overallMatch = customFilter.createdAt
         ? [
-            {
-              $match: {
-                createdAt: { $gte: thisPeriodStart, $lte: thisPeriodEnd },
-              },
+          {
+            $match: {
+              createdAt: { $gte: thisPeriodStart, $lte: thisPeriodEnd },
             },
-          ]
+          },
+        ]
         : [];
       const thisPeriodMatch = [
         {
@@ -1051,9 +1051,9 @@ class DashboardRepository {
                         { $in: ["$$schemeStatus", [3, 4]] },
                         ...(customFilter.createdAt
                           ? [
-                              { $gte: ["$createdAt", thisPeriodStart] },
-                              { $lte: ["$createdAt", thisPeriodEnd] },
-                            ]
+                            { $gte: ["$createdAt", thisPeriodStart] },
+                            { $lte: ["$createdAt", thisPeriodEnd] },
+                          ]
                           : []),
                       ],
                     },
@@ -1567,7 +1567,9 @@ class DashboardRepository {
 
   async paymentModeData(filter) {
     try {
-      const { fromDate, toDate, ...matchFilter } = filter;
+      const { fromDate, toDate, page = 1, limit: reqLimit, ...matchFilter } = filter;
+      const limit = Math.min(parseInt(reqLimit) || 6, 6);
+      const skip = (Math.max(parseInt(page), 1) - 1) * limit;
 
       const data = await paymentModel.aggregate([
         {
@@ -1646,9 +1648,18 @@ class DashboardRepository {
             totalAmount: 1,
           },
         },
+        {
+          $facet: {
+            data: [{ $skip: skip }, { $limit: limit }],
+            totalCount: [{ $count: "count" }],
+          },
+        },
       ]);
 
-      return data;
+      const resultData = data[0].data;
+      const total = data[0].totalCount[0] ? data[0].totalCount[0].count : 0;
+
+      return { data: resultData, total };
     } catch (err) {
       throw err;
     }

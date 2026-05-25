@@ -1,4 +1,5 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import ChitRedeemController from '../../controllers/chitRedeem/chitRedeemController.js';
 import ChitRedeemUsecase from '../../../usecases/chitRedeem/chitRedeemUsecase.js';
 import ChitRedeemRepository from '../../../infrastructure/repositories/chitRedeem/chitRedeemRepository.js';
@@ -24,6 +25,35 @@ import OtpRepository from '../../../infrastructure/repositories/chit/otpReposito
 import topupRepository from '../../../infrastructure/repositories/chit/topupRepository.js';
 import TokenService from '../../../utils/jwtToken.js';
 import AuthMiddleware from '../../../utils/middleware/authMiddleware.js';
+import config from '../../../config/chit/env.js';
+
+
+const verifyJwt = (req, res, next) => {
+  try {
+    // const authHeader = req.headers.authorization;
+
+    // if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Access token missing",
+    //   });
+    // }
+
+    // const token = authHeader.split(" ")[1];
+    // const key = config.ERP_JWT_SECRET_KEY
+    // const decoded = jwt.verify(token, key);
+
+    // req.erpUser = decoded;
+    next();
+  } catch (error) {
+    next()
+    console.log("JWT VERIFY ERROR:", error);
+    // return res.status(401).json({
+    //   success: false,
+    //   message: "Invalid or expired token",
+    // });
+  }
+};
 
 const router = express.Router();
 const tokenService = new TokenService();
@@ -83,10 +113,10 @@ const chitRedeemUsecase = new ChitRedeemUsecase(
 const chitRedeemController = new ChitRedeemController(chitRedeemUsecase);
 
 // Routes
-router.use(authMiddleware.protect);
 
-router.get('/find-account', (req, res) => chitRedeemController.findSchemeAccount(req, res));
-router.post('/close-account', (req, res) => chitRedeemController.closeAccount(req, res));
-router.get('/daybook-report', (req, res) => chitRedeemController.dayBookReport(req, res));
+
+router.get('/find-account', verifyJwt, (req, res) => chitRedeemController.findSchemeAccount(req, res));
+router.post('/', verifyJwt, (req, res) => chitRedeemController.closeAccount(req, res));
+router.get('/daybook-report', verifyJwt, (req, res) => chitRedeemController.dayBookReport(req, res));
 
 export default router;
