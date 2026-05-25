@@ -303,7 +303,7 @@ class DashboardUseCase {
     }
   }
 
-  async paymentModeData({ id_branch, startDate, endDate }) {
+  async paymentModeData({ id_branch, fromDate, toDate, page, limit }) {
     try {
       const filter = { is_deleted: false };
 
@@ -323,9 +323,9 @@ class DashboardUseCase {
       const startOfToday = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 0, 0, 0, 0);
       const endOfToday = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 23, 59, 59, 999);
 
-      if (startDate && endDate) {
-        const parsedStartDate = new Date(startDate);
-        const parsedEndDate = new Date(endDate);
+      if (fromDate && toDate) {
+        const parsedStartDate = new Date(fromDate);
+        const parsedEndDate = new Date(toDate);
 
         if (isNaN(parsedEndDate)) {
           return {
@@ -352,11 +352,15 @@ class DashboardUseCase {
         };
       }
 
+      if (page) filter.page = page;
+      if (limit) filter.limit = limit;
+
       const data = await this.dashboardRepository.paymentModeData(filter);
       if (data) {
         return {
           success: true,
-          data,
+          data: data.data,
+          total: data.total,
           message: "Payment Mode Data fetched successfully",
         };
       }
@@ -370,8 +374,6 @@ class DashboardUseCase {
 
   async getSettlements(params) {
     try {
-      // Support both flat params { limit, startDate, endDate, cursor }
-      // AND nested params { pagination: { limit }, filters: { start_date, end_date } }
       const limit = params?.pagination?.limit || params?.limit || 10;
       const cursor = params?.pagination?.cursor || params?.cursor;
       const startDate = params?.filters?.start_date || params?.startDate;

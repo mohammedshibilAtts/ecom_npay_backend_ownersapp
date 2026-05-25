@@ -40,19 +40,19 @@ class ReportRepository {
                   $and: [
                     dateFilter.createdAt?.$gte
                       ? {
-                          $gte: [
-                            "$$account.createdAt",
-                            dateFilter.createdAt.$gte,
-                          ],
-                        }
+                        $gte: [
+                          "$$account.createdAt",
+                          dateFilter.createdAt.$gte,
+                        ],
+                      }
                       : true,
                     dateFilter.createdAt?.$lte
                       ? {
-                          $lte: [
-                            "$$account.createdAt",
-                            dateFilter.createdAt.$lte,
-                          ],
-                        }
+                        $lte: [
+                          "$$account.createdAt",
+                          dateFilter.createdAt.$lte,
+                        ],
+                      }
                       : true,
                   ],
                 },
@@ -534,20 +534,20 @@ class ReportRepository {
     try {
       const handleSearch = search
         ? {
-            $or: [
-              { "Customer.firstname": { $regex: search, $options: "i" } },
-              { "Customer.lastname": { $regex: search, $options: "i" } },
-              { "Customer.mobile": { $regex: search, $options: "i" } },
-              { "Scheme.scheme_name": { $regex: search, $options: "i" } },
-              { "Classification.name": { $regex: search, $options: "i" } },
-              { "Status.status_name": { $regex: search, $options: "i" } },
-              { totalChitValue: { $regex: search, $options: "i" } },
-              { totalPaidAmount: { $regex: search, $options: "i" } },
-              { totalDueAmount: { $regex: search, $options: "i" } },
-              { totalPayableAmount: { $regex: search, $options: "i" } },
-              { installementType: { $regex: search, $options: "i" } },
-            ],
-          }
+          $or: [
+            { "Customer.firstname": { $regex: search, $options: "i" } },
+            { "Customer.lastname": { $regex: search, $options: "i" } },
+            { "Customer.mobile": { $regex: search, $options: "i" } },
+            { "Scheme.scheme_name": { $regex: search, $options: "i" } },
+            { "Classification.name": { $regex: search, $options: "i" } },
+            { "Status.status_name": { $regex: search, $options: "i" } },
+            { totalChitValue: { $regex: search, $options: "i" } },
+            { totalPaidAmount: { $regex: search, $options: "i" } },
+            { totalDueAmount: { $regex: search, $options: "i" } },
+            { totalPayableAmount: { $regex: search, $options: "i" } },
+            { installementType: { $regex: search, $options: "i" } },
+          ],
+        }
         : {};
       const accountSummary = await schemeAccountModel.aggregate([
         { $match: query },
@@ -1690,9 +1690,7 @@ class ReportRepository {
                   total_installments: 1,
                   paymentModename: 1,
                   closingBonus: 1,
-                  // customer_name: {
-                  //   $concat: ["$Customer.firstname", " ", "$Customer.lastname"],
-                  // },
+                  chitRedeemed: { $ifNull: ["$CloseBill.chitRedeemed", false] },
                   customer_name: {
                     $concat: [
                       { $ifNull: ["$Customer.firstname", ""] },
@@ -1885,18 +1883,22 @@ class ReportRepository {
                   customer_mobile: "$Customer.mobile",
                   classification_name: "$Classification.name",
                   scheme_name: "$Scheme.scheme_name",
-                  // total_paid_installments: 1,
                   total_paid_installments: "$paid_installments",
-                  // totalPaidAmount: 1,
-                  // totalPaidWeight: 1,
                   totalPaidAmount: "$amount",
                   totalPaidWeight: "$weight",
                   closed_date: "$CloseBill.createdAt",
                   close_amount: "$CloseBill.amount",
                   bill_no: "$CloseBill.bill_no",
                   bill_date: "$CloseBill.bill_date",
+                  chitRedeemed: { $ifNull: ["$CloseBill.chitRedeemed", false] },
                   closed_by: {
-                    $concat: ["$Employee.firstname", " ", "$Employee.lastname"],
+                    $cond: {
+                      if: { $eq: [{ $ifNull: ["$CloseBill.chitRedeemed", false] }, true] },
+                      then: "$CloseBill.chitRedeemedBy",
+                      else: {
+                        $concat: ["$Employee.firstname", " ", "$Employee.lastname"],
+                      },
+                    },
                   },
                 },
               },

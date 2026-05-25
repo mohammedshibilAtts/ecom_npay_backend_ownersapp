@@ -346,7 +346,7 @@ class PaymentUseCase {
           return { success: false, message: validation.message };
         }
       }
-      
+
       const schemeData = await this.schemeRepository.findById(data.id_scheme);
 
       if (schemeData.scheme_type != 10 && schemeData.scheme_type != 14) {
@@ -359,20 +359,20 @@ class PaymentUseCase {
 
         const todayDate = new Date();
 
-        if (lastPaidData) {
-          const lastPaid = new Date(lastPaidData.createdAt);
+        // if (lastPaidData) {
+        //   const lastPaid = new Date(lastPaidData.createdAt);
 
-          const todatPaidorNot =
-            this.toDateOnlyString(todayDate) ===
-            this.toDateOnlyString(lastPaid);
+        //   const todatPaidorNot =
+        //     this.toDateOnlyString(todayDate) ===
+        //     this.toDateOnlyString(lastPaid);
 
-          if (todatPaidorNot) {
-            return {
-              status: false,
-              message: "Already completed today's payment",
-            };
-          }
-        }
+        //   if (todatPaidorNot) {
+        //     return {
+        //       status: false,
+        //       message: "Already completed today's payment",
+        //     };
+        //   }
+        // }
 
         const totalInstallments =
           await this.paymentRepository.totalInstallments(
@@ -393,13 +393,13 @@ class PaymentUseCase {
           },
         );
 
-        if (
-          schemeData?.limit_installment &&
-          Number(monthlyPaiments) + Number(data.installments) >
-            Number(schemeData?.limit_installment)
-        ) {
-          return { status: false, message: "Monthly payment limit reached" };
-        }
+        // if (
+        //   schemeData?.limit_installment &&
+        //   Number(monthlyPaiments) + Number(data.installments) >
+        //     Number(schemeData?.limit_installment)
+        // ) {
+        //   return { status: false, message: "Monthly payment limit reached" };
+        // }
 
         const schemeAccData = await this.schemeAccountRepository.findById(
           data.id_scheme_account,
@@ -616,7 +616,7 @@ class PaymentUseCase {
                 } else {
                   await this.walletRepo.creditAmount(wallet.id, creditedAmount);
                 }
-                
+
                 await this.paymentRepository.addReferralPoint(referral);
               } else if (referralTriggerType == 2 && lastPaidData == null) {
                 if (!wallet) {
@@ -723,7 +723,7 @@ class PaymentUseCase {
           return {
             success: true,
             message: digiCalc.message,
-            data: digiCalc.savedPayment,
+            data: digiCalc.data,
           };
         } else {
           return { success: false, message: digiCalc.message };
@@ -1021,7 +1021,7 @@ class PaymentUseCase {
       };
     } catch (error) {
       console.error(error);
-      return { success: false, message: "Failed to add payment", savedPayment };
+      return { success: false, message: "Failed to add payment" };
     }
   }
 
@@ -1288,8 +1288,8 @@ class PaymentUseCase {
           let finalWeight = data?.weight;
 
           if (isInvalidMetalRate && finalMetalRate > 0) {
-              const paymentAmount = Number(data?.amount || data?.payment_amount);
-              finalWeight = Number(paymentAmount / finalMetalRate);
+            const paymentAmount = Number(data?.amount || data?.payment_amount);
+            finalWeight = Number(paymentAmount / finalMetalRate);
           }
 
           return {
@@ -1306,9 +1306,9 @@ class PaymentUseCase {
       // 2. VALIDATION PHASE
       for (const item of fetchedData) {
         if (item.error) return { success: false, message: item.error };
-        
+
         const { data, schemeData, lastPaidData, totalInstallments, monthlyPayments } = item;
-        
+
         if (!schemeData) {
           return { success: false, message: "No related scheme found" };
         }
@@ -1402,7 +1402,7 @@ class PaymentUseCase {
           data.id_scheme_account,
         );
 
-        Lastpayment = { payment_receipt: paymentReceipt }; 
+        Lastpayment = { payment_receipt: paymentReceipt };
 
         const runningTotalAmount =
           (Number(lastPaidData?.total_amt) || 0) + Number(data.amount);

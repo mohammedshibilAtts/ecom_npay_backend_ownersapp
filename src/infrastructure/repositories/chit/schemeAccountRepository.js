@@ -3,9 +3,9 @@ import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
 
 class SchemeAccountRepository {
   async findById(id) {
-    try { 
+    try {
       const data = await schemeAccountModel.findById(id)
-      .populate("id_scheme")
+        .populate("id_scheme")
 
       if (!data) {
         return null;
@@ -18,7 +18,7 @@ class SchemeAccountRepository {
   }
 
   async findOne(query) {
-    try { 
+    try {
       const data = await schemeAccountModel.findOne(query);
 
       if (!data) {
@@ -124,7 +124,7 @@ class SchemeAccountRepository {
           }
         },
         { $unwind: { path: "$id_scheme", preserveNullAndEmptyArrays: false } },
-              {
+        {
           $addFields: {
             currentDate: new Date(),
             startDateObj: "$start_date",
@@ -192,29 +192,29 @@ class SchemeAccountRepository {
           }
         },
         {
-  $addFields: {
-    nextDueDate: {
-      $let: {
-        vars: {
-          futureDates: {
-            $filter: {
-              input: "$expectedDueDates",
-              as: "date",
-              cond: { $gt: ["$$date", "$currentDate"] }
+          $addFields: {
+            nextDueDate: {
+              $let: {
+                vars: {
+                  futureDates: {
+                    $filter: {
+                      input: "$expectedDueDates",
+                      as: "date",
+                      cond: { $gt: ["$$date", "$currentDate"] }
+                    }
+                  }
+                },
+                in: {
+                  $cond: {
+                    if: { $gt: [{ $size: "$$futureDates" }, 0] },
+                    then: { $min: "$$futureDates" }, // the earliest future date
+                    else: null // if no future date left (fully paid)
+                  }
+                }
+              }
             }
           }
         },
-        in: {
-          $cond: {
-            if: { $gt: [{ $size: "$$futureDates" }, 0] },
-            then: { $min: "$$futureDates" }, // the earliest future date
-            else: null // if no future date left (fully paid)
-          }
-        }
-      }
-    }
-  }
-},
         {
           $lookup: {
             from: "metalrates",
@@ -281,14 +281,14 @@ class SchemeAccountRepository {
             payments: 0,
             schemestatuses: 0,
             metalrate: 0,
-            expectedDueDates:0,
-            expectedInstallmentCount:0
+            expectedDueDates: 0,
+            expectedInstallmentCount: 0
           }
         }
       ]);
-  
+
       return data;
-  
+
     } catch (error) {
       console.error(error);
       throw error;
@@ -357,18 +357,18 @@ class SchemeAccountRepository {
     }
   }
 
-  async updatePaymentCount({ schemeAccountId, paymentcount, last_paid_date, paid_installments, status = null}) {
+  async updatePaymentCount({ schemeAccountId, paymentcount, last_paid_date, paid_installments, status = null }) {
     try {
       const newData = {
         paymentcount,
         last_paid_date,
         paid_installments,
       };
-  
+
       if (status != null) {
         newData.status = status;
       }
-  
+
       const updatedPayments = await schemeAccountModel.findByIdAndUpdate(
         schemeAccountId,
         {
@@ -376,14 +376,14 @@ class SchemeAccountRepository {
         },
         { new: true }
       );
-  
+
       return updatedPayments || null;
     } catch (error) {
       console.error("Error updating payment count:", error);
       throw error;
     }
   }
-  
+
   async countDocuments(filter) {
     try {
       const docCount = await schemeAccountModel.countDocuments(filter);
@@ -417,7 +417,7 @@ class SchemeAccountRepository {
     try {
       // Ensure id is treated as an array for $in
       const ids = Array.isArray(id) ? id : [id];
-      
+
       const newSchemeAcc = await schemeAccountModel.updateMany(
         { _id: { $in: ids } },
         {
@@ -439,7 +439,7 @@ class SchemeAccountRepository {
     try {
       const newSchemeAcc = await schemeAccountModel.aggregate(pipeline);
 
-      if(newSchemeAcc.length > 0){
+      if (newSchemeAcc.length > 0) {
         return newSchemeAcc
       }
 
@@ -453,7 +453,7 @@ class SchemeAccountRepository {
     try {
       const newSchemeAcc = await schemeAccountModel.aggregate(pipeline);
 
-      if(newSchemeAcc.length > 0){
+      if (newSchemeAcc.length > 0) {
         return newSchemeAcc
       }
 
@@ -487,43 +487,6 @@ class SchemeAccountRepository {
       console.error(error);
     }
   }
-
-  // async getSchemeAccountTable(query, skip, limit) {
-  //   try {
-  //     const { scheme_type, ...mainQuery } = query;
-    
-  //     const schemeAcc = await schemeAccountModel
-  //       .find(mainQuery)
-  //       .populate({
-  //         path: "id_scheme",
-  //         match: scheme_type && scheme_type !== "0" ? { scheme_type } : {},
-  //         select:
-  //           "scheme_name amount total_installments min_amount max_amount min_weight max_weight scheme_type id_metal id_purity min_fund max_fund no_of_gifts",
-  //       })
-  //       .populate("id_customer")
-  //       .populate("id_branch", "branch_name")
-  //       .populate("id_classification")
-  //       .skip(skip)
-  //       .limit(parseInt(limit))
-  //       .sort({ _id: -1 });
-
-  //     const totalCount = await schemeAccountModel.countDocuments(mainQuery);
-
-  //     const filteredSchemeAcc =
-  //       scheme_type && scheme_type !== "0"
-  //         ? schemeAcc.filter((doc) => doc.id_scheme)
-  //         : schemeAcc;
-
-  //     return {
-  //       schemeAcc: filteredSchemeAcc,
-  //       filteredCount: filteredSchemeAcc.length,
-  //       totalCount,
-  //     };
-  //   } catch (error) {
-  //     console.error(error);
-  //     throw error;
-  //   }
-  // }
 
   async findInfo(id) {
     try {
@@ -743,7 +706,7 @@ class SchemeAccountRepository {
           },
         }
       ];
-  
+
       const pipeline = [
         ...matchStages,
         {
@@ -776,15 +739,15 @@ class SchemeAccountRepository {
         },
         ...(weight
           ? [
-              {
-                $match: {
-                  "schemes.scheme_type": { $in: [12, 3, 4, 6, 2, 5] },
-                },
+            {
+              $match: {
+                "schemes.scheme_type": { $in: [12, 3, 4, 6, 2, 5] },
               },
-            ]
+            },
+          ]
           : []),
 
-          {
+        {
           $addFields: {
             currentDate: new Date(),
             startDateObj: "$start_date",
@@ -852,29 +815,29 @@ class SchemeAccountRepository {
           }
         },
         {
-  $addFields: {
-    nextDueDate: {
-      $let: {
-        vars: {
-          futureDates: {
-            $filter: {
-              input: "$expectedDueDates",
-              as: "date",
-              cond: { $gt: ["$$date", "$currentDate"] }
+          $addFields: {
+            nextDueDate: {
+              $let: {
+                vars: {
+                  futureDates: {
+                    $filter: {
+                      input: "$expectedDueDates",
+                      as: "date",
+                      cond: { $gt: ["$$date", "$currentDate"] }
+                    }
+                  }
+                },
+                in: {
+                  $cond: {
+                    if: { $gt: [{ $size: "$$futureDates" }, 0] },
+                    then: { $min: "$$futureDates" }, // the earliest future date
+                    else: null // if no future date left (fully paid)
+                  }
+                }
+              }
             }
           }
         },
-        in: {
-          $cond: {
-            if: { $gt: [{ $size: "$$futureDates" }, 0] },
-            then: { $min: "$$futureDates" }, // the earliest future date
-            else: null // if no future date left (fully paid)
-          }
-        }
-      }
-    }
-  }
-},
 
         {
           $lookup: {
@@ -894,10 +857,10 @@ class SchemeAccountRepository {
               },
               { $sort: { createdAt: -1 } },
               {
-  $addFields: {
-    total_digi_bonus: { $divide: ["$digiBonus", "$metal_rate"] }
-  }
-},
+                $addFields: {
+                  total_digi_bonus: { $divide: ["$digiBonus", "$metal_rate"] }
+                }
+              },
               {
                 $group: {
                   _id: null,
@@ -907,9 +870,9 @@ class SchemeAccountRepository {
                   total_paid_weight: { $sum: "$metal_weight" },
                   last_payment: { $first: "$$ROOT" },
                   total_digi_bonus: { $sum: "$total_digi_bonus" },
-                  weighted_metal_rate_sum: { 
-            $sum: { $multiply: ["$metal_rate", "$paid_installments"] } 
-          },
+                  weighted_metal_rate_sum: {
+                    $sum: { $multiply: ["$metal_rate", "$paid_installments"] }
+                  },
                 },
               },
               {
@@ -918,17 +881,17 @@ class SchemeAccountRepository {
                   paid_installments: 1,
                   total_paid_amount: 1,
                   total_paid_weight: 1,
-                  digi_bonus:"$total_digi_bonus",
+                  digi_bonus: "$total_digi_bonus",
                   last_total_amt: "$last_payment.total_amt",
-                  avg_metal_rate: { 
-            $cond: {
-              if: { $gt: ["$total_paid_installments", 0] },
-              then: { $divide: ["$weighted_metal_rate_sum", "$total_paid_installments"] },
-              else: 0
-            }
-          },
-          last_total_amt: "$last_payment.total_amt", 
-        
+                  avg_metal_rate: {
+                    $cond: {
+                      if: { $gt: ["$total_paid_installments", 0] },
+                      then: { $divide: ["$weighted_metal_rate_sum", "$total_paid_installments"] },
+                      else: 0
+                    }
+                  },
+                  last_total_amt: "$last_payment.total_amt",
+
                 },
               },
             ],
@@ -941,9 +904,9 @@ class SchemeAccountRepository {
             preserveNullAndEmptyArrays: false,
           },
         },
-         {
+        {
           $addFields: {
-            total_digi_bonus:{$sum:"$payment_info.digi_bonus"}
+            total_digi_bonus: { $sum: "$payment_info.digi_bonus" }
           }
         },
         {
@@ -958,7 +921,7 @@ class SchemeAccountRepository {
             schemeType: "$schemes.scheme_type"
           }
         },
-        
+
         {
           $facet: {
             schemeAccounts: [
@@ -975,21 +938,21 @@ class SchemeAccountRepository {
                   total_paid_weight: 1,
                   total_paid_installments: "$paid_installments",
                   schemestatusName: 1,
-                  status:"$status",
+                  status: "$status",
                   schemeName: 1,
                   maturity_date: 1,
                   schemeType: 1,
-                  minAmount:"$schemes.min_amount",
-                  maxAmount:"$schemes.max_amount",
-                  minWeight:"$schemes.min_weight",
-                  maxWeight:"$schemes.max_weight",
-                  monthlyPayable:"$flexFixed",
-                  startDate:"$start_date",
-                  flexFixed:"$flexFixed",
-                  overdueInstallments:"$overdueInstallments",
-                  nextDueDate:1,
-                  schemeBenefit:"$total_digi_bonus",
-                  avgMetalRate:"$payment_info.avg_metal_rate",
+                  minAmount: "$schemes.min_amount",
+                  maxAmount: "$schemes.max_amount",
+                  minWeight: "$schemes.min_weight",
+                  maxWeight: "$schemes.max_weight",
+                  monthlyPayable: "$flexFixed",
+                  startDate: "$start_date",
+                  flexFixed: "$flexFixed",
+                  overdueInstallments: "$overdueInstallments",
+                  nextDueDate: 1,
+                  schemeBenefit: "$total_digi_bonus",
+                  avgMetalRate: "$payment_info.avg_metal_rate",
                 },
               },
             ],
@@ -1014,7 +977,7 @@ class SchemeAccountRepository {
           },
         },
       ];
-  
+
       const result = await schemeAccountModel.aggregate(pipeline);
       return result[0];
     } catch (error) {
@@ -1120,7 +1083,7 @@ class SchemeAccountRepository {
           },
         },
       ]);
-  
+
       return result;
     } catch (error) {
       console.error("Error in getMetalBasedSavings:", error);
@@ -1129,9 +1092,9 @@ class SchemeAccountRepository {
   }
 
   //!use porperly
-  async updateUniversal(query,update) {
+  async updateUniversal(query, update) {
     try {
-      const updatedData = await schemeAccountModel.updateOne(query,update);
+      const updatedData = await schemeAccountModel.updateOne(query, update);
 
       if (updatedData.matchedCount === 0) {
         return null;
@@ -1152,7 +1115,7 @@ class SchemeAccountRepository {
         },
         { $set: { weight: 0 } }
       );
-  
+
       const updatedData = await schemeAccountModel.updateOne(
         { _id: id },
         {
@@ -1163,11 +1126,11 @@ class SchemeAccountRepository {
           $set: paidDate
         }
       );
-  
+
       if (updatedData.matchedCount === 0) {
         return null;
       }
-  
+
       return updatedData;
     } catch (error) {
       console.error("Error in updateAmountOrWeight:", error);
@@ -1454,22 +1417,22 @@ class SchemeAccountRepository {
         }
       ]);
       if (result.length === 0) {
-        return { 
-          accounts: [], 
+        return {
+          accounts: [],
           schemes: [],
           totalOverdueAccounts: 0,
           totalOverdueSchemes: 0,
           totalFlexFixedOverdue: 0
         };
       }
-  
+
       return result[0];
     } catch (error) {
       console.error("Error in overdueCalculation:", error);
       throw error;
     }
   }
-  
+
   async bulkWrite(bulkOps) {
     try {
       const updatedData = await schemeAccountModel.bulkWrite(bulkOps);
@@ -1782,7 +1745,7 @@ class SchemeAccountRepository {
           }
         }
       ]);
-  
+
       if (result.length === 0) {
         return {
           accounts: [],
@@ -1793,22 +1756,22 @@ class SchemeAccountRepository {
           totalFlexFixedOverdue: 0
         };
       }
-  
+
       return result[0];
     } catch (error) {
       console.error("Error in overdueCalculation:", error);
       throw error;
     }
   }
-  
+
   async hardDelete(id) {
     try {
       const deletedData = await schemeAccountModel.deleteOne({ _id: id });
-  
+
       if (deletedData.deletedCount === 0) {
         return null;
       }
-  
+
       return true;
     } catch (error) {
       console.error(error);
@@ -2010,8 +1973,8 @@ class SchemeAccountRepository {
             __v: 0,
             date_added: 0,
             date_updated: 0,
-            active:0,
-            is_deleted:0,
+            active: 0,
+            is_deleted: 0,
           },
         },
         { $sort: { last_paid_date: -1 } },

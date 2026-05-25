@@ -3,6 +3,221 @@ import paymentModel from "../../models/chit/paymentModel.js";
 import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
 
 class ChitRedeemRepository {
+  // async findSchemeAccount({ mobile, scheme_acc_number }) {
+  //   if (!mobile && !scheme_acc_number) {
+  //     throw new Error("Mobile or Scheme Account no is required", 400);
+  //   }
+
+  //   const pipeline = [
+  //     {
+  //       $match: {
+  //         is_deleted: false,
+  //         ...(scheme_acc_number ? { scheme_acc_number } : {}),
+  //       },
+  //     },
+
+  //     {
+  //       $lookup: {
+  //         from: "customers",
+  //         localField: "id_customer",
+  //         foreignField: "_id",
+  //         as: "customer",
+  //       },
+  //     },
+  //     { $unwind: "$customer" },
+
+  //     ...(mobile
+  //       ? [
+  //         {
+  //           $match: {
+  //             "customer.mobile": String(mobile),
+  //           },
+  //         },
+  //       ]
+  //       : []),
+
+  //     {
+  //       $lookup: {
+  //         from: "schemes",
+  //         localField: "id_scheme",
+  //         foreignField: "_id",
+  //         as: "scheme",
+  //       },
+  //     },
+  //     { $unwind: "$scheme" },
+
+  //     {
+  //       $lookup: {
+  //         from: "metals",
+  //         localField: "scheme.id_metal",
+  //         foreignField: "_id",
+  //         as: "metal",
+  //       },
+  //     },
+  //     { $unwind: "$metal" },
+
+  //     {
+  //       $lookup: {
+  //         from: "schemetypes",
+  //         localField: "scheme.scheme_type",
+  //         foreignField: "scheme_type",
+  //         as: "scheme_type",
+  //       },
+  //     },
+  //     { $unwind: "$scheme_type" },
+
+  //     {
+  //       $lookup: {
+  //         from: "schemestatuses",
+  //         localField: "status",
+  //         foreignField: "id_status",
+  //         as: "schemestatuses",
+  //       },
+  //     },
+  //     { $unwind: "$schemestatuses" },
+
+  //     {
+  //       $lookup: {
+  //         from: "payments",
+  //         let: { schemeAccountId: "$_id" },
+  //         pipeline: [
+  //           {
+  //             $match: {
+  //               $expr: {
+  //                 $and: [
+  //                   { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+  //                   { $eq: ["$is_deleted", false] },
+  //                   { $eq: ["$payment_status", 1] },
+  //                 ],
+  //               },
+  //             },
+  //           },
+  //           {
+  //             $group: {
+  //               _id: null,
+  //               total_paid_amount: { $sum: "$payment_amount" },
+  //               total_metal_weight: { $sum: "$metal_weight" },
+  //               total_paid_installments: { $sum: "$installment" },
+  //             },
+  //           },
+  //         ],
+  //         as: "payment_info",
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$payment_info",
+  //         preserveNullAndEmptyArrays: true,
+  //       },
+  //     },
+
+  //     {
+  //       $lookup: {
+  //         from: "wallets",
+  //         let: { customerId: "$customer._id" },
+  //         pipeline: [
+  //           {
+  //             $match: {
+  //               $expr: {
+  //                 $and: [
+  //                   { $eq: ["$id_customer", "$$customerId"] },
+  //                   { $eq: ["$is_deleted", false] },
+  //                 ],
+  //               },
+  //             },
+  //           },
+  //           {
+  //             $group: {
+  //               _id: null,
+  //               total_wallet_balance: { $sum: "$balance_amt" },
+  //             },
+  //           },
+  //         ],
+  //         as: "wallet_info",
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$wallet_info",
+  //         preserveNullAndEmptyArrays: true,
+  //       },
+  //     },
+
+  //     {
+  //       $lookup: {
+  //         from: "closeaccbills",
+  //         let: { schemeAccountId: "$_id" },
+  //         pipeline: [
+  //           {
+  //             $match: {
+  //               $expr: {
+  //                 $and: [
+  //                   { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+  //                   { $eq: ["$active", 1] },
+  //                 ],
+  //               },
+  //             },
+  //           },
+  //           {
+  //             $project: {
+  //               return_amount: 1,
+  //               chitRedeemed: 1,
+  //               precloseType: 1,
+  //             },
+  //           },
+  //         ],
+  //         as: "close_bill_info",
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$close_bill_info",
+  //         preserveNullAndEmptyArrays: true,
+  //       },
+  //     },
+
+  //     {
+  //       $group: {
+  //         _id: "$customer._id",
+
+  //         customer_info: {
+  //           $first: {
+  //             _id: "$customer._id",
+  //             firstname: "$customer.firstname",
+  //             lastname: "$customer.lastname",
+  //             mobile: "$customer.mobile",
+  //             wallet_amount: {
+  //               $ifNull: ["$wallet_info.total_wallet_balance", 0],
+  //             },
+  //           },
+  //         },
+
+  //         scheme_info: {
+  //           $push: {
+  //             id_scheme_account: "$_id",
+  //             scheme_acc_number: "$scheme_acc_number",
+  //             scheme_name: "$scheme.scheme_name",
+  //             scheme_status_name: "$schemestatuses.status_name",
+  //             scheme_type_name: "$scheme_type.scheme_name",
+  //             scheme_type: "$scheme_type.scheme_type",
+  //             metal_name: "$metal.metal_name",
+  //             maturity_date: "$maturity_date",
+  //             benefit_bonus: "$benefit_bonus",
+  //             total_paid_amount: { $ifNull: ["$payment_info.total_paid_amount", 0] },
+  //             total_metal_weight: { $ifNull: ["$payment_info.total_metal_weight", 0] },
+  //             total_paid_installments: { $ifNull: ["$payment_info.total_paid_installments", 0] },
+  //             return_amount: { $ifNull: ["$close_bill_info.return_amount", 0] },
+  //             isChitRedeem: { $ifNull: ["$close_bill_info.chitRedeemed", false] },
+  //             precloseType: { $ifNull: ["$close_bill_info.precloseType", null] },
+  //           },
+  //         },
+  //       },
+  //     },
+  //   ];
+
+  //   const result = await schemeAccountModel.aggregate(pipeline);
+  //   return result[0] || null;
+  // }
   async findSchemeAccount({ mobile, scheme_acc_number }) {
     if (!mobile && !scheme_acc_number) {
       throw new Error("Mobile or Scheme Account no is required", 400);
@@ -28,12 +243,12 @@ class ChitRedeemRepository {
 
       ...(mobile
         ? [
-            {
-              $match: {
-                "customer.mobile": Number(mobile),
-              },
+          {
+            $match: {
+              "customer.mobile": String(mobile),
             },
-          ]
+          },
+        ]
         : []),
 
       {
@@ -87,7 +302,6 @@ class ChitRedeemRepository {
                   $and: [
                     { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
                     { $eq: ["$is_deleted", false] },
-                    { $eq: ["$payment_status", 1] },
                   ],
                 },
               },
@@ -162,7 +376,6 @@ class ChitRedeemRepository {
               $project: {
                 return_amount: 1,
                 chitRedeemed: 1,
-                precloseType: 1,
               },
             },
           ],
@@ -198,23 +411,107 @@ class ChitRedeemRepository {
               scheme_acc_number: "$scheme_acc_number",
               scheme_name: "$scheme.scheme_name",
               scheme_status_name: "$schemestatuses.status_name",
-              scheme_type_name: "$scheme_type.scheme_name",
-              scheme_type_id: "$scheme_type.scheme_type",
-              metal_name: "$metal.metal_name",
-              total_paid_amount: { $ifNull: ["$payment_info.total_paid_amount", 0] },
-              total_metal_weight: { $ifNull: ["$payment_info.total_metal_weight", 0] },
-              total_paid_installments: { $ifNull: ["$payment_info.total_paid_installments", 0] },
-              return_amount: { $ifNull: ["$close_bill_info.return_amount", 0] },
-              chitRedeemed: { $ifNull: ["$close_bill_info.chitRedeemed", false] },
-              precloseType: { $ifNull: ["$close_bill_info.precloseType", null] },
+              maturity_date: "$maturity_date",
+              total_metal_weight: {
+                $ifNull: ["$payment_info.total_metal_weight", 0],
+              },
+
+              total_paid_amount: {
+                $ifNull: ["$payment_info.total_paid_amount", 0],
+              },
+
+              total_paid_installments: {
+                $ifNull: ["$paid_installments", 0],
+              },
+
+              scheme_type: "$scheme_type.scheme_type",
+              scheme_type_name: "$scheme_type.scheme_typename",
+              id_metal: "$metal.id_metal",
+              benefit_bonus: {
+                $let: {
+                  vars: {
+                    totalPaid: {
+                      $ifNull: ["$payment_info.total_paid_amount", 0],
+                    },
+                    returnAmount: {
+                      $ifNull: ["$close_bill_info.return_amount", 0],
+                    },
+                  },
+                  in: {
+                    $cond: [
+                      // 🔥 FIRST: Check Preclose
+                      { $eq: ["$status", 3] },
+
+                      // 👉 If Preclose → ONLY this logic runs
+                      {
+                        $max: [
+                          { $subtract: ["$$returnAmount", "$$totalPaid"] },
+                          0,
+                        ],
+                      },
+
+                      // 👉 ELSE → Normal Bonus Logic
+                      {
+                        $cond: [
+                          { $in: ["$scheme.scheme_type", [10, 14]] },
+                          0,
+                          {
+                            $cond: [
+                              { $eq: ["$scheme.bonus_type", 1] },
+                              { $ifNull: ["$scheme.bonus_amount", 0] },
+                              {
+                                $cond: [
+                                  { $eq: ["$scheme.bonus_type", 2] },
+                                  {
+                                    $multiply: [
+                                      "$$totalPaid",
+                                      {
+                                        $divide: [
+                                          {
+                                            $ifNull: [
+                                              "$scheme.bonus_percent",
+                                              0,
+                                            ],
+                                          },
+                                          100,
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                  0,
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+              isChitRedeem: {
+                $ifNull: ["$close_bill_info.chitRedeemed", false],
+              },
             },
           },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          customer_info: 1,
+          scheme_info: 1,
         },
       },
     ];
 
     const result = await schemeAccountModel.aggregate(pipeline);
-    return result[0] || null;
+
+    if (result.length > 0) {
+      return result[0];
+    } else {
+      return result;
+    }
   }
 
   async findByAccNumber(scheme_acc_number) {

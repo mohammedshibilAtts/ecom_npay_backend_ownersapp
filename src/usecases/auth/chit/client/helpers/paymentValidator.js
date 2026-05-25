@@ -4,6 +4,14 @@ export const validateBackDatedPayment = async (
   repository,
   schemeAccountRepository,
 ) => {
+  const schemeAccount = await schemeAccountRepository.findById(accountId);
+  if (schemeAccount) {
+    const schemeType = schemeAccount.id_scheme?.scheme_type;
+    if (schemeType === 10 || schemeType === 14) {
+      return { isValid: true };
+    }
+  }
+
   const date = new Date(paymentDate);
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
@@ -37,7 +45,6 @@ export const validateBackDatedPayment = async (
     };
   }
 
-  const schemeAccount = await schemeAccountRepository.findById(accountId);
   if (schemeAccount) {
     const accountStartDate = new Date(schemeAccount.createdAt);
     accountStartDate.setHours(0, 0, 0, 0);
