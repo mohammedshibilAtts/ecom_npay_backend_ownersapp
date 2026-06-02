@@ -778,6 +778,7 @@ class CustomerUseCase {
       if (!checkCusmoter) {
         return { success: false, message: "User not found" };
       }
+      
       const comparePassword = await this.hashingService.comparePassword(
         loginData.password,
         checkCusmoter.password,
@@ -792,8 +793,9 @@ class CustomerUseCase {
         id_branch: checkCusmoter.id_branch,
         mobile: checkCusmoter.mobile,
       };
-      const token = this.tokenService.generateToken(payload, "60d");
-      return { success: true, message: "Login successful", token };
+      const token = this.tokenService.generateToken(payload,null);
+    
+      return { success: true, message: "Login successful", token};
     } catch (err) {
       console.error(err);
       return { success: false, message: "Failed to login" };

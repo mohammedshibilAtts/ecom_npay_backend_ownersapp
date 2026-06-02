@@ -8,10 +8,16 @@ class TokenService {
   }
 
   generateToken(payload,expireTime = this.expireTime) {
+    if(expireTime === null){
+      return jwt.sign(payload, this.secret);
+    }
+     else {
     return jwt.sign(payload, this.secret, {
       expiresIn: expireTime,
     });
   }
+}
+  
 
   verifyToken(token) {
     try {
@@ -20,6 +26,7 @@ class TokenService {
       throw new Error('Invalid token');
     }
   }
+  
 }
 
 export default TokenService;
