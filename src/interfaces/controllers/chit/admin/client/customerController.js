@@ -350,7 +350,7 @@ class CustomerController {
       if (!mobile) {
         return res.status(400).json({ message: "Mobile number is required." });
       }
-
+// We commented mpin validation as per client requirement 
       // if (!mpin) {
       //   return res.status(400).json({ message: "MPIN is required." });
       // }
