@@ -1986,6 +1986,70 @@ class SchemeAccountRepository {
       throw error;
     }
   }
+
+  async searchSchemeAccountData(schemeAccNumber) {
+    try {
+      const data = await schemeAccountModel.aggregate([
+        {
+          $match: {
+            scheme_acc_number: schemeAccNumber
+          }
+        },
+
+        {
+          $lookup: {
+            from: "customers",
+            localField: "id_customer",
+            foreignField: "_id",
+            as: "id_customer"
+          }
+        },
+        { $unwind: "$id_customer" },
+
+        {
+          $lookup: {
+            from: "schemes",
+            localField: "id_scheme",
+            foreignField: "_id",
+            as: "id_scheme"
+          }
+        },
+        { $unwind: "$id_scheme" },
+
+        {
+          $lookup: {
+            from: "purchasewallethistories",
+            let: { schemeAccountId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$idSchemeAccount", "$$schemeAccountId"]
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  created_at: 1,
+                  weightSaved: 1
+                }
+              },
+              {
+                $sort: { created_at: -1 }
+              }
+            ],
+            as: "purchaseHistory"
+          }
+        }
+      ]);
+
+      return data[0] || null;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 }
 
 export default SchemeAccountRepository;

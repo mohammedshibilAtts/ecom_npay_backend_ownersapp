@@ -77,8 +77,8 @@ jobs:
           cd /home/ubuntu/kavitha-jewellers-ecom-backend-mern
 
           git config --global credential.helper 'cache --timeout=60'
-          git -c credential.helper='!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f' \
-          pull origin 
+          git -c credential.helper='!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f' pull && \
+          git checkout main
           npm i
           pm2 reload kavitha-jewellers-ecom-backend-mern
 
