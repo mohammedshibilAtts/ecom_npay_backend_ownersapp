@@ -4,7 +4,7 @@ import SchemeAccountUseCase from '../../../../usecases/auth/chit/client/schemeAc
 import SchemeAccountRepository from '../../../../infrastructure/repositories/chit/schemeAccountRepository.js';
 import TokenService from '../../../../utils/jwtToken.js';
 import Validator from '../../../../utils/validations/schemeAccountValidator.js';
-import AuthMiddleware  from '../../../../utils/middleware/authMiddleware.js';
+import AuthMiddleware from '../../../../utils/middleware/authMiddleware.js';
 import EmployeeRepository from '../../../../infrastructure/repositories/chit/EmployeeRepository.js';
 import SchemeRepository from '../../../../infrastructure/repositories/chit/schemeRepository.js';
 import ClosAccRepository from '../../../../infrastructure/repositories/chit/closeAccountRepository.js';
@@ -19,10 +19,10 @@ import SmsSender from '../../../../utils/sendSms.js';
 import OtpRepository from '../../../../infrastructure/repositories/chit/otpRepository.js';
 import topupRepository from '../../../../infrastructure/repositories/chit/topupRepository.js';
 
-const router= express.Router();
-const tokenService= new TokenService();
-const authMiddleware= new AuthMiddleware(tokenService);
-const validator= new Validator();
+const router = express.Router();
+const tokenService = new TokenService();
+const authMiddleware = new AuthMiddleware(tokenService);
+const validator = new Validator();
 
 const schemetypeRepo = new SchemeTypeRepo();
 const metalRepo = new MetalRepo();
@@ -30,7 +30,7 @@ const paymentRepo = new PaymentRepo();
 const giftIssueRepo = new GiftIssuesRepo()
 const schemeRespo = new SchemeRepository()
 const purityRepo = new PurityRepo()
-const schemeAccountRepository= new SchemeAccountRepository();
+const schemeAccountRepository = new SchemeAccountRepository();
 const employeeRepository = new EmployeeRepository()
 const closeAccRepo = new ClosAccRepository()
 const customerRepo = new CustomerRepository()
@@ -38,11 +38,11 @@ const smsRepo = new SmsSettingRepository()
 const smsSender = new SmsSender()
 const otpRepo = new OtpRepository()
 const topupRepo = new topupRepository()
-const schemAccoutUseCase= new SchemeAccountUseCase(schemeAccountRepository,employeeRepository,schemeRespo,
-    closeAccRepo,customerRepo,schemetypeRepo,metalRepo,paymentRepo,giftIssueRepo,purityRepo,smsRepo,otpRepo,smsSender,topupRepo
+const schemAccoutUseCase = new SchemeAccountUseCase(schemeAccountRepository, employeeRepository, schemeRespo,
+    closeAccRepo, customerRepo, schemetypeRepo, metalRepo, paymentRepo, giftIssueRepo, purityRepo, smsRepo, otpRepo, smsSender, topupRepo
 )
 
-const schemeAccountController= new SchemeAccountContorller(schemAccoutUseCase,validator)
+const schemeAccountController = new SchemeAccountContorller(schemAccoutUseCase, validator)
 
 /**
  * @swagger
@@ -51,7 +51,7 @@ const schemeAccountController= new SchemeAccountContorller(schemAccoutUseCase,va
  *   description: Customer chit accounts management
  */
 
-router.use(authMiddleware.protect) 
+router.use(authMiddleware.protect)
 
 /**
  * @swagger
@@ -65,7 +65,7 @@ router.use(authMiddleware.protect)
  *       200:
  *         description: Overdue calculated
  */
-router.get('/overdue',(req,res)=>schemeAccountController.overdueCalculation(req,res))
+router.get('/overdue', (req, res) => schemeAccountController.overdueCalculation(req, res))
 
 /**
  * @swagger
@@ -93,7 +93,7 @@ router.post('/search', (req, res) => schemeAccountController.customMobileSearch(
  *       200:
  *         description: Reverted details
  */
-router.get('/revert',(req,res)=>schemeAccountController.getRevertedDetails(req,res))
+router.get('/revert', (req, res) => schemeAccountController.getRevertedDetails(req, res))
 
 /**
  * @swagger
@@ -107,7 +107,7 @@ router.get('/revert',(req,res)=>schemeAccountController.getRevertedDetails(req,r
  *       200:
  *         description: Account counts
  */
-router.get('/accountcount',(req,res)=>schemeAccountController.findCustomerAccountCounts(req,res))
+router.get('/accountcount', (req, res) => schemeAccountController.findCustomerAccountCounts(req, res))
 
 /**
  * @swagger
@@ -213,7 +213,7 @@ router.get('/', (req, res) => schemeAccountController.getAllSchemeAccounts(req, 
  *       200:
  *         description: Table data
  */
-router.post('/table',(req,res)=>schemeAccountController.getSchemeAccountTable(req,res))
+router.post('/table', (req, res) => schemeAccountController.getSchemeAccountTable(req, res))
 
 /**
  * @swagger
@@ -322,7 +322,7 @@ router.get('/:id', (req, res) => schemeAccountController.getSchemeAccountById(re
  *       200:
  *         description: Payment list
  */
-router.get('/:accId/payment',(req,res)=>schemeAccountController.getPaymentByAccNumber(req,res))
+router.get('/:accId/payment', (req, res) => schemeAccountController.getPaymentByAccNumber(req, res))
 
 /**
  * @swagger
@@ -350,7 +350,7 @@ router.post('/close/:mobile/branch/:branchId', (req, res) => schemeAccountContro
  *       200:
  *         description: OTP verified
  */
-router.post('/verifyotp',(req,res)=>schemeAccountController.verifyOtp(req,res))
+router.post('/verifyotp', (req, res) => schemeAccountController.verifyOtp(req, res))
 
 /**
  * @swagger
@@ -394,5 +394,8 @@ router.get('/mobile/schemeaccounts', (req, res) => schemeAccountController.getAl
  *         description: Metal savings data
  */
 router.get('/mobile/metalsavings', (req, res) => schemeAccountController.getMetalBasedSavings(req, res));
+
+//*coupon
+router.post('/coupon/find', (req, res) => schemeAccountController.searchSchemeAccountData(req, res));
 
 export default router;

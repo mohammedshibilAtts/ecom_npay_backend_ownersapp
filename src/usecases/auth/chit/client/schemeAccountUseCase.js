@@ -2039,5 +2039,19 @@ class SchemeAccountUseCase {
       console.error(error);
     }
   }
+
+  async searchSchemeAccountData(schemeAccNumber) {
+    try {
+      const result = await this.schemeAccountRepository.searchSchemeAccountData(schemeAccNumber)
+
+      if (result) {
+        return { status: true, message: "Scheme accounts fetched successfully", result }
+      }
+
+      return { status: false, message: "Failed to get scheme account data" }
+    } catch (error) {
+      console.error(error)
+    }
+  }
 }
 export default SchemeAccountUseCase;
