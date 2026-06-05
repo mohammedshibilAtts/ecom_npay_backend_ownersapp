@@ -1,6 +1,8 @@
 import axios from "axios";
 import dotenv from "dotenv";
 import cron from "node-cron";
+import TopupRepository from "../../infrastructure/repositories/chit/topupRepository.js";
+import config from "./env.js";
 
 dotenv.config();
 
@@ -70,7 +72,8 @@ class NotificationService {
     customUrl,
     sendToAllSubscribed,
     title,
-    imageUrl
+    imageUrl,
+    whatsAppData,
   }) {
     try {
       if (!message) {
@@ -78,8 +81,8 @@ class NotificationService {
           type === "birthday"
             ? "Happy Birthday! 🎉"
             : type === "wedding"
-            ? "Happy Anniversary! 💖"
-            : "Notification";
+              ? "Happy Anniversary! 💖"
+              : "Notification";
       }
 
       const channelProviders = PROVIDERS[channel];
@@ -93,11 +96,11 @@ class NotificationService {
       const recipientList = Array.isArray(recipients)
         ? recipients
         : typeof recipients === "string"
-        ? recipients
+          ? recipients
             .split("\n")
             .map((r) => r.trim())
             .filter((r) => r)
-        : [String(recipients)];
+          : [String(recipients)];
 
       const interpolate = (template, params) => {
         if (!template) return "";
@@ -130,12 +133,7 @@ class NotificationService {
               );
               break;
             case "whatsapp":
-              result = await this._sendWhatsApp(
-                recipient,
-                finalMessage,
-                providerConfig,
-                type
-              );
+              result = await this._sendWhatsApp(whatsAppData);
               break;
             case "push":
               result = await this._sendPushNotification(
@@ -174,7 +172,7 @@ class NotificationService {
             provider: providerType,
             timestamp: new Date().toISOString(),
           });
-
+          console.log(error);
           console.error(
             `[${type}] Error sending ${channel} to ${recipient}:`,
             error.message
@@ -195,30 +193,30 @@ class NotificationService {
     }
   }
 
-  async  _sendSMS(numbers, message, providerConfig, type, customUrl) {
+  async _sendSMS(numbers, message, providerConfig, type, customUrl) {
     if (!Array.isArray(numbers)) {
       numbers = [numbers];
     }
-  
-    const CHUNK_SIZE = 100; 
+
+    const CHUNK_SIZE = 100;
     const chunks = [];
     for (let i = 0; i < numbers.length; i += CHUNK_SIZE) {
       chunks.push(numbers.slice(i, i + CHUNK_SIZE));
     }
-  
+
     let successCount = 0;
     let failureCount = 0;
-  
+
     for (const chunk of chunks) {
       const promises = chunk.map(async (num) => {
         const number = num.toString().replace(/^91/, "");
         let url;
-  
+
         try {
           if (customUrl) {
             url = customUrl
-            .replace(/xxxmobilexxx/g, encodeURIComponent(number))
-            .replace(/xxxmessagexxx/g, encodeURIComponent(message));
+              .replace(/xxxmobilexxx/g, encodeURIComponent(number))
+              .replace(/xxxmessagexxx/g, encodeURIComponent(message));
           } else {
             const params = new URLSearchParams({
               ...providerConfig.params,
@@ -227,10 +225,10 @@ class NotificationService {
             });
             url = `${providerConfig.baseUrl}?${params.toString()}`;
           }
-          
-          console.log(url)
+
+          console.log(url);
           const response = await axios.get(url);
-  
+
           if (response.status === 200) {
             successCount++;
           } else {
@@ -241,65 +239,107 @@ class NotificationService {
           failureCount++;
         }
       });
-  
+
       await Promise.all(promises);
     }
-  
+
     return {
       successCount,
       failureCount,
     };
   }
-  
 
-  async _sendWhatsApp(number, message, providerConfig, type) {
-    const client = require("twilio")(
-      providerConfig.accountSid,
-      providerConfig.authToken
-    );
+  async _sendWhatsApp(messageData) {
+    try {
+      const { phone, name, transactionId, amount, messageType, schemeName } = messageData;
+      let parameters = [];
 
-    const response = await client.messages.create({
-      body: message,
-      from: `whatsapp:${providerConfig.fromNumber}`,
-      to: `whatsapp:${number}`,
-    });
+      switch (messageType) {
+        case "scheme_account_creations":
+          parameters = [
+            { type: "text", text: name },
+            { type: "text", text: schemeName }
+          ];
+          break;
 
-    return {
-      http_status: 200,
-      server_response: response.sid,
-    };
+        case "payment_completed":
+          parameters = [
+            { type: "text", text: name },
+            { type: "text", text: amount },
+            { type: "text", text: transactionId },
+          ];
+          break;
+
+        default:
+          throw new Error(`Unsupported message type: ${messageType}`);
+      }
+
+      // Final API body
+      const body = {
+        to: `91${phone}`,
+        type: "template",
+        template: {
+          language: {
+            policy: "deterministic",
+            code: "en",
+          },
+          name: messageType,
+          components: [
+            {
+              type: "body",
+              parameters,
+            },
+          ],
+        },
+      };
+
+      // Send to WhatsApp API
+      const api = await axios.post(config.WHATSAPP_API_KEY, body);
+      return api.data;
+    } catch (error) {
+      console.log(error)
+      console.error("WhatsApp API error:", error.response?.data || error.message);
+    }
   }
 
-  async _sendPushNotification(deviceTokens, message, type, sendToAllSubscribed = false, title, imageUrl) {
+
+  async _sendPushNotification(
+    deviceTokens,
+    message,
+    type,
+    sendToAllSubscribed = false,
+    title,
+    imageUrl
+  ) {
     const tokens = Array.isArray(deviceTokens) ? deviceTokens : [deviceTokens];
-  
+
     const payload = {
-      app_id: process.env.API_ID,
+      app_id: config?.ONE_SIGNAL_APP_ID,
       include_external_user_ids: tokens,
       channel_for_external_user_ids: "push",
-      headings: { en: title || 'Notification' },
+      headings: { en: title || "Notification" },
       contents: { en: message },
     };
-  
+
     if (imageUrl) {
       payload.big_picture = imageUrl; // Android
       payload.ios_attachments = { id1: imageUrl }; // iOS
     }
-  
+
     try {
       const response = await axios.post(
-        'https://onesignal.com/api/v1/notifications',
+        "https://onesignal.com/api/v1/notifications",
         payload,
         {
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Basic ${process.env.API_KEY}`,
+            "Content-Type": "application/json",
+            Authorization: `Basic ${config.ONE_SIGNAL_API_KEY}`,
           },
         }
       );
-  
+
       const recipientCount = response.data.recipients || 0;
-  
+
       return {
         http_status: response.status,
         server_response: response.data,
@@ -312,11 +352,10 @@ class NotificationService {
         server_response: error.response?.data || {},
         successCount: 0,
         failureCount: tokens.length,
-        error: error.response?.data?.errors?.join(', ') || error.message,
+        error: error.response?.data?.errors?.join(", ") || error.message,
       };
     }
-  }  
-  
+  }
 
   scheduleNotification({ cronPattern, notificationOptions, callback }) {
     const job = cron.schedule(cronPattern, async () => {
