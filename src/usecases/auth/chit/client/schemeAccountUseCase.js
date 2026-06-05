@@ -76,22 +76,18 @@ class SchemeAccountUseCase {
       );
     }
 
-    // if (notificationData.whatsapp.enabled && notificationData.whatsapp.topupCount > 0) {
-    //   const whatsappInfo = await this.smsRepo.findOne({ active: true });
-    //   if (whatsappInfo) {
-    //     const whatsappData = {
-    //       numbers: [data.mobile],
-    //       message: whatsappInfo.whatsappPayment,
-    //       templateParams: { paymentAmount: data.payment_amount },
-    //       channel: "whatsapp",
-    //       customUrl: whatsappInfo.payment_url,
-    //     };
-    //     const whatsappOutput = await smsService.sendNotification(whatsappData);
-    //     if (whatsappOutput) {
-    //       await this.topupRepo.decrementField({}, "WhatsApp", -1);
-    //     }
-    //   }
-    // }
+    if (notificationData?.whatsapp?.enabled) {
+      const schemeCustomer = await this.customerRepo.findOne(
+        { _id: data.id_customer }
+      );
+      const whatsAppData = {
+        phone: schemeCustomer.mobile,
+        name: schemeCustomer.firstname,
+        schemeName: schemeData?.scheme_name,
+        messageType: "scheme_account_creations"
+      }
+      const whatsMessageStatus = await smsService.sendNotification({ channel: "whatsapp", whatsAppData });
+    }
 
     // if (notificationData.sms.enabled && notificationData.sms.topupCount > 0) {
     //   const smsInfo = await this.smsRepo.findOne({ active: true });

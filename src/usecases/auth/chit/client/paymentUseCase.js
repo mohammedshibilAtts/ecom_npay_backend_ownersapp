@@ -80,7 +80,7 @@ class PaymentUseCase {
     message,
     notificationData,
     updatedSchemeData,
-    transactionId,
+    transactionId
   ) {
     if (updatedSchemeData.status == 2) {
       message = "Scheme account completed, notifications delivered to customer";
@@ -689,7 +689,7 @@ class PaymentUseCase {
               message,
               notificationData,
               updatedSchemeData,
-              transactionId,
+              transactionId
             );
 
             return {
@@ -1004,7 +1004,6 @@ class PaymentUseCase {
           message,
           notificationData,
           updatedSchemeData,
-          transactionId,
         );
       }
 
