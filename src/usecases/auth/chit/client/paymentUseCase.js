@@ -166,28 +166,19 @@ class PaymentUseCase {
         );
       }
 
-      // if (
-      //   notificationData.whatsapp.enabled &&
-      //   notificationData.whatsapp.topupCount > 0
-      // ) {
-      //   const whatsappInfo = await this.smsRepo.findOne({ active: true });
-      //   if (whatsappInfo) {
-      //     const whatsappData = {
-      //       numbers: [data.mobile],
-      //       message: whatsappInfo.whatsappPayment,
-      //       templateParams: { paymentAmount: data.payment_amount },
-      //       channel: "whatsapp",
-      //       customUrl: whatsappInfo.payment_url,
-      //     };
-
-      //     const whatsappOutput = await smsService.sendNotification(
-      //       whatsappData
-      //     );
-      //     if (whatsappOutput) {
-      //       await this.topupRepo.decrementField({}, "WhatsApp", 1);
-      //     }
-      //   }
-      // }
+      if (notificationData?.whatsapp?.enabled) {
+        const schemeCustomer = await this.customerRepo.findOne(
+          { _id: data?.id_customer }
+        );
+        const whatsAppData = {
+          phone: schemeCustomer.mobile,
+          name: schemeCustomer.firstname,
+          transactionId: transactionId,
+          amount: data?.payment_amount,
+          messageType: "payment_completed"
+        }
+        await smsService.sendNotification({ channel: "whatsapp", whatsAppData });
+      }
 
       // if (notificationData.sms.enabled && notificationData.sms.topupCount > 0) {
       //   const smsInfo = await this.smsRepo.findOne({ active: true });
@@ -2239,6 +2230,47 @@ class PaymentUseCase {
           data.referral_id,
         );
       }
+    }
+  }
+
+  async sendPaymentSuccessNotification(
+    userData,
+    paymentEnabled,
+  ) {
+
+    if (paymentEnabled.push) {
+      const input = {
+        recipients: [userData?.id_customer],
+        title: "Payment Received",
+        message: `Your payment of ₹${userData.payment_amount} was successfully received.`,
+        channel: "push",
+      };
+      await smsService.sendNotification(input);
+
+      await this.saveNotificationRepo.saveNotification({
+        title: input.title,
+        message: input.message,
+        type: "alert",
+        category: "Scheme account",
+      });
+    }
+
+    if (paymentEnabled?.whatsapp?.enabled) {
+      const schemeCustomer = await this.customerRepo.findOne(
+        { _id: userData?.id_customer }
+      );
+      const whatsAppData = {
+        phone: schemeCustomer.mobile,
+        name: schemeCustomer.firstname,
+        transactionId: userData?.transactionId,
+        amount: userData?.paidAmount,
+        messageType: "payment_completed"
+      }
+
+      await smsService.sendNotification({
+        channel: "whatsapp",
+        whatsAppData,
+      });
     }
   }
 }
