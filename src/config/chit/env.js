@@ -27,7 +27,8 @@ const config = {
   NOTIFICATION_NAME: process.env.NOTIFICATION_NAME,
   DISPLAY_IMG_URL: `${process.env.AWS_DISPLAY_URL}${process.env.AWS_LOCAL_PATH}`,
   NOTIFICATION_NAME: process.env.NOTIFICATION_NAME,
-  ERP_JWT_SECRET_KEY: process.env.ERP_JWT_SECRET_KEY
+  ERP_JWT_SECRET_KEY: process.env.ERP_JWT_SECRET_KEY,
+  WHATSAPP_API_KEY: process?.env?.WHATSAPP_API_KEY
 };
 
 export default config; 
