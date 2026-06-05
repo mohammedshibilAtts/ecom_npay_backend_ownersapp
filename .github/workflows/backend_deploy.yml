@@ -1,6 +1,6 @@
 name: Deploying changes to EC2 via Jumpbox (OIDC + Instance Connect)
 
-on:
+'on':
   push:
     branches:
       - main
@@ -25,7 +25,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN  }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # GitHub App token (org-wide, secure, short-lived)
+      # GitHub App token
       - name: Generate GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v2
@@ -33,15 +33,14 @@ jobs:
           app-id: ${{ secrets.GH_APP_ID }}
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 
-      # Generate ephemeral SSH key (runner only)
+      # Generate temporary SSH key
       - name: Generate ephemeral SSH key
         run: |
           ssh-keygen -t ed25519 -f /tmp/gh_key -N ""
           chmod 600 /tmp/gh_key
 
-      # Push ephemeral key using EC2 Instance Connect
-      # (valid for ~60 seconds)
-      - name: Inject SSH key into private EC2
+      # Push temporary key to jumpbox
+      - name: Inject SSH key into Jumpbox
         run: |
           aws ec2-instance-connect send-ssh-public-key \
             --instance-id ${{ secrets.JUMPBOX_INSTANCE_ID  }} \
@@ -52,35 +51,38 @@ jobs:
       # Deploy via Jumpbox → Private EC2 (nested SSH)
       - name: Deploy via jumpbox (nested SSH)
         run: |
-          ssh -t \
+          ssh \
             -i /tmp/gh_key \
             -o StrictHostKeyChecking=no \
-            ubuntu@${{ secrets.JUMPBOX_HOST  }} << 'JUMPBOX'
+            ubuntu@${{ secrets.JUMPBOX_HOST }} << 'JUMPBOX'
 
           echo "Connected to jumpbox: $(whoami)@$(hostname)"
 
-          ssh -t \
+          ssh \
             -i ~/bastion-server.pem \
             -o StrictHostKeyChecking=no \
-            ubuntu@${{ secrets.TARGET_HOST  }} << 'PRIVATE'
+            ubuntu@${{ secrets.TARGET_HOST }} << 'PRIVATE'
 
-          set -e
+          set -euo pipefail
           echo "Connected to private EC2: $(whoami)@$(hostname)"
+          echo "Deploy started at: $(date)"
 
           # Load Node environment
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
-          # GitHub App token for repo access
+          # Env variable setup
           export GITHUB_TOKEN="${{ steps.app-token.outputs.token }}"
+          export REPO_NAME="${{ github.event.repository.name }}"
 
-          cd /home/ubuntu/kavitha-jewellers-ecom-backend-mern
+          cd /home/ubuntu/$REPO_NAME
 
-          git config --global credential.helper 'cache --timeout=60'
-          git -c credential.helper='!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f' pull && \
           git checkout main
+          git -c credential.helper='!f() { echo username=x-access-token; echo password=$GITHUB_TOKEN; }; f' pull
+
           npm i
-          pm2 reload kavitha-jewellers-ecom-backend-mern
+
+          pm2 reload $REPO_NAME
 
           PRIVATE
           JUMPBOX
