@@ -7,6 +7,7 @@ import SaveNotificationUsecase from "./saveNotificationUsecase.js";
 import SaveNotificationRepo from "../../../../infrastructure/repositories/chit/saveNotificationRepo.js";
 import config from "../../../../config/chit/env.js";
 import { customAlphabet } from "nanoid";
+import cacheService from "../../../../utils/cacheService.js";
 
 const customerRepo = new CustomerRepository();
 class SchemeAccountUseCase {
@@ -557,6 +558,11 @@ class SchemeAccountUseCase {
         );
       }
 
+      if (data?.id_branch) {
+        cacheService.invalidatePattern(`dashboard:${data.id_branch}:`);
+      }
+      cacheService.invalidatePattern(`dashboard:all:`);
+
       return {
         success: true,
         message: "Scheme account added successfully",
@@ -622,6 +628,11 @@ class SchemeAccountUseCase {
       );
 
       if (savedData) {
+        if (data?.id_branch) {
+          cacheService.invalidatePattern(`dashboard:${data.id_branch}:`);
+        }
+        cacheService.invalidatePattern(`dashboard:all:`);
+
         return {
           success: true,
           message: "Scheme account updated successfully",
@@ -674,6 +685,11 @@ class SchemeAccountUseCase {
         return { success: false, message: "Failed to deleted scheme account" };
       }
 
+      if (schemData?.id_branch) {
+        cacheService.invalidatePattern(`dashboard:${schemData.id_branch}:`);
+      }
+      cacheService.invalidatePattern(`dashboard:all:`);
+
       return { success: true, message: "Scheme account deleted successfully" };
     } catch (error) {
       console.error(error);
@@ -711,6 +727,11 @@ class SchemeAccountUseCase {
         message: "Failed to change classification status",
       };
     }
+
+    if (schemeData?.id_branch) {
+      cacheService.invalidatePattern(`dashboard:${schemeData.id_branch}:`);
+    }
+    cacheService.invalidatePattern(`dashboard:all:`);
 
     let message = !schemeData.active
       ? "Scheme activated successfully"

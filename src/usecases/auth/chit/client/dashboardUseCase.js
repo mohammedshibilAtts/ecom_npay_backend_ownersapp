@@ -2,6 +2,13 @@ import mongoose, { isValidObjectId } from "mongoose";
 import axios from "axios";
 import config from "../../../../config/chit/env.js";
 import SchemeAccountRepository from "../../../../infrastructure/repositories/chit/schemeAccountRepository.js";
+import cacheService from "../../../../utils/cacheService.js";
+import crypto from "crypto";
+
+const generateCacheKey = (prefix, branchId, params) => {
+  const hash = crypto.createHash('md5').update(JSON.stringify(params || {})).digest('hex');
+  return `dashboard:${branchId || "all"}:${prefix}:${hash}`;
+};
 
 const getISTToday = () => {
   const utcDate = new Date();
@@ -19,6 +26,12 @@ class DashboardUseCase {
   async getAllOver(data) {
     try {
       const { branchId } = data;
+      const cacheKey = generateCacheKey("overall", branchId, data);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+
       const filter = { is_deleted: false, active: true };
       if (branchId) {
         if (isValidObjectId(branchId)) {
@@ -38,11 +51,13 @@ class DashboardUseCase {
         const overDueData = await this.dashboardRepository.overdueCalculation();
         overAllData.overDues = overDueData.totalOverdueAccounts;
 
-        return {
+        const response = {
           success: true,
           data: overAllData,
           message: "Dashboard Data fetched successfully",
         };
+        cacheService.set(cacheKey, response);
+        return response;
       }
 
       return { success: false, message: "Failed to fetch data" };
@@ -51,8 +66,13 @@ class DashboardUseCase {
     }
   }
 
-  async accountStat({ id_branch, startDate, endDate, idScheme }) {
+  async accountStat(params) {
     try {
+      const { id_branch, startDate, endDate, idScheme } = params;
+      const cacheKey = generateCacheKey("accountreview", id_branch, params);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) return cachedData;
+
       const filter = { is_deleted: false, active: true };
 
       if (id_branch) {
@@ -102,11 +122,13 @@ class DashboardUseCase {
       const data = await this.dashboardRepository.getAccountStat(filter);
 
       if (data) {
-        return {
+        const response = {
           success: true,
           data,
           message: "Account Data fetched successfully",
         };
+        cacheService.set(cacheKey, response);
+        return response;
       }
 
       return { success: false, message: "Failed to fetch data" };
@@ -116,8 +138,13 @@ class DashboardUseCase {
     }
   }
 
-  async account({ id_branch, startDate, endDate, idScheme }) {
+  async account(params) {
     try {
+      const { id_branch, startDate, endDate, idScheme } = params;
+      const cacheKey = generateCacheKey("account", id_branch, params);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) return cachedData;
+
       const filter = { is_deleted: false, active: true };
 
       if (id_branch) {
@@ -164,11 +191,13 @@ class DashboardUseCase {
       const data = await this.dashboardRepository.getAccountData(filter);
 
       if (data) {
-        return {
+        const response = {
           success: true,
           data,
           message: "Account Data fetched successfully",
         };
+        cacheService.set(cacheKey, response);
+        return response;
       }
 
       return { success: false, message: "Failed to fetch data" };
@@ -178,16 +207,13 @@ class DashboardUseCase {
     }
   }
 
-  async getPaymentHistory({
-    page,
-    limit,
-    id_branch,
-    idScheme,
-    fromDate,
-    toDate,
-    search,
-  }) {
+  async getPaymentHistory(params) {
     try {
+      const { page, limit, id_branch, idScheme, fromDate, toDate, search } = params;
+      const cacheKey = generateCacheKey("paymenthistory", id_branch, params);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) return cachedData;
+
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
       const skip = (pageNum - 1) * pageSize;
@@ -242,11 +268,13 @@ class DashboardUseCase {
       );
 
       if (data) {
-        return {
+        const response = {
           success: true,
           data,
           message: "Payment History Data fetched successfully",
         };
+        cacheService.set(cacheKey, response);
+        return response;
       }
 
       return { success: false, message: "Failed to fetch data" };
@@ -256,8 +284,13 @@ class DashboardUseCase {
     }
   }
 
-  async getMonthlyInsights({ id_branch, idScheme, year, month }) {
+  async getMonthlyInsights(params) {
     try {
+      const { id_branch, idScheme, year, month } = params;
+      const cacheKey = generateCacheKey("monthlyinsights", id_branch, params);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) return cachedData;
+
       const filter = { is_deleted: false };
 
       if (id_branch) {
@@ -289,11 +322,13 @@ class DashboardUseCase {
         isMonthly,
       );
       if (data) {
-        return {
+        const response = {
           success: true,
           data,
           message: "Insights fetched successfully",
         };
+        cacheService.set(cacheKey, response);
+        return response;
       }
 
       return { success: false, message: "Failed to fetch data" };
@@ -303,8 +338,13 @@ class DashboardUseCase {
     }
   }
 
-  async paymentModeData({ id_branch, fromDate, toDate, page, limit }) {
+  async paymentModeData(params) {
     try {
+      const { id_branch, fromDate, toDate, page, limit } = params;
+      const cacheKey = generateCacheKey("paymentmodehistory", id_branch, params);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) return cachedData;
+
       const filter = { is_deleted: false };
 
       if (id_branch) {
@@ -357,12 +397,14 @@ class DashboardUseCase {
 
       const data = await this.dashboardRepository.paymentModeData(filter);
       if (data) {
-        return {
+        const response = {
           success: true,
           data: data.data,
           total: data.total,
           message: "Payment Mode Data fetched successfully",
         };
+        cacheService.set(cacheKey, response);
+        return response;
       }
 
       return { success: false, message: "Failed to fetch data" };
@@ -374,6 +416,11 @@ class DashboardUseCase {
 
   async getSettlements(params) {
     try {
+      const id_branch = params?.id_branch || params?.branchId || "all";
+      const cacheKey = generateCacheKey("settlements", id_branch, params);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) return cachedData;
+
       const limit = params?.pagination?.limit || params?.limit || 10;
       const cursor = params?.pagination?.cursor || params?.cursor;
       const startDate = params?.filters?.start_date || params?.startDate;
@@ -491,7 +538,7 @@ class DashboardUseCase {
         nextCursor = raw.cursor || null;
       }
 
-      return {
+      const response = {
         success: true,
         message: "Settlements fetched successfully",
         data: {
@@ -500,6 +547,10 @@ class DashboardUseCase {
           limit: pageSize,
         },
       };
+
+      // Set TTL to 5 minutes (300,000 ms) for external data
+      cacheService.set(cacheKey, response, 300000);
+      return response;
     } catch (err) {
       console.error(
         "Cashfree settlements error:",
@@ -515,6 +566,11 @@ class DashboardUseCase {
 
   async getRefunds(params) {
     try {
+      const id_branch = params?.id_branch || params?.branchId || "all";
+      const cacheKey = generateCacheKey("refunds", id_branch, params);
+      const cachedData = cacheService.get(cacheKey);
+      if (cachedData) return cachedData;
+
       const pageNum = params?.page ? parseInt(params.page) : 1;
       const limit = params?.pagination?.limit || params?.limit || 10;
       const startDate = params?.filters?.start_date || params?.startDate;
@@ -639,7 +695,7 @@ class DashboardUseCase {
         event_type: item.event_type || null,
       }));
 
-      return {
+      const response = {
         success: true,
         message: "Refunds fetched successfully",
         data: {
@@ -649,6 +705,10 @@ class DashboardUseCase {
           limit: pageSize,
         },
       };
+
+      // Set TTL to 5 minutes (300,000 ms) for external data
+      cacheService.set(cacheKey, response, 300000);
+      return response;
     } catch (err) {
       console.error(
         "Cashfree refunds error:",

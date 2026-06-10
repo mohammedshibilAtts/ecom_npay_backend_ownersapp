@@ -12,6 +12,7 @@ import { generateReceiptNumber } from "../../../../utils/generateReciept.js";
 import PaymentModeRepository from "../../../../infrastructure/repositories/chit/PaymentModeRepository.js";
 import { validateBackDatedPayment } from "./helpers/paymentValidator.js";
 import { customAlphabet } from "nanoid";
+import cacheService from "../../../../utils/cacheService.js";
 
 class PaymentUseCase {
   constructor(
@@ -693,6 +694,11 @@ class PaymentUseCase {
               transactionId
             );
 
+            if (data?.id_branch) {
+              cacheService.invalidatePattern(`dashboard:${data.id_branch}:`);
+            }
+            cacheService.invalidatePattern(`dashboard:all:`);
+
             return {
               success: true,
               message: messageOut ? messageOut : message,
@@ -714,6 +720,11 @@ class PaymentUseCase {
         );
 
         if (digiCalc.success) {
+          if (data?.id_branch) {
+            cacheService.invalidatePattern(`dashboard:${data.id_branch}:`);
+          }
+          cacheService.invalidatePattern(`dashboard:all:`);
+
           return {
             success: true,
             message: digiCalc.message,
