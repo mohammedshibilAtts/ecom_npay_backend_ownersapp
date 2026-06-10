@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 - Page Not Found</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .page-404 {
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      text-align: center;
+      position: relative;
+    }
+
+    /* Background decorative circles */
+    .bg-circles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Big 404 number */
+    .glitch-wrap {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .num-404 {
+      font-size: 120px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -4px;
+      color: #1a1a2e;
+    }
+
+    .num-404 .zero {
+      color: #7F77DD;
+      display: inline-block;
+      position: relative;
+    }
+
+    .num-404 .zero::after {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      border: 3px solid #CECBF6;
+    }
+
+    /* Divider */
+    .divider-line {
+      width: 48px;
+      height: 2px;
+      background: #AFA9EC;
+      border-radius: 2px;
+      margin: 1.25rem auto;
+      z-index: 1;
+      position: relative;
+    }
+
+    /* Text */
+    .tagline {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin-bottom: 8px;
+      z-index: 1;
+      position: relative;
+    }
+
+    .sub {
+      font-size: 15px;
+      color: #6c757d;
+      margin-bottom: 2rem;
+      z-index: 1;
+      position: relative;
+      max-width: 360px;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      z-index: 1;
+      position: relative;
+    }
+
+    .btn-home {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 24px;
+      background: #7F77DD;
+      color: #EEEDFE;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .btn-home:hover {
+      background: #534AB7;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 24px;
+      background: transparent;
+      color: #6c757d;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid #dee2e6;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+
+    .btn-back:hover {
+      background: #f1f3f5;
+    }
+
+    /* Floating decorative tags */
+    .floating-tag {
+      position: fixed;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 12px;
+      pointer-events: none;
+      z-index: 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Background orbs -->
+  <svg class="bg-circles" viewBox="0 0 1440 900" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+    preserveAspectRatio="xMidYMid slice">
+    <circle cx="180" cy="140" r="220" fill="#EEEDFE" opacity="0.5" />
+    <circle cx="1300" cy="760" r="260" fill="#E1F5EE" opacity="0.4" />
+    <circle cx="1200" cy="100" r="110" fill="#EEEDFE" opacity="0.35" />
+    <circle cx="160" cy="820" r="150" fill="#E1F5EE" opacity="0.3" />
+    <circle cx="720" cy="450" r="360" fill="#F1EFE8" opacity="0.2" />
+  </svg>
+
+  <!-- Floating personality tags -->
+  <div class="floating-tag" style="top: 10%; left: 8%; background:#EEEDFE; color:#534AB7; transform:rotate(-8deg);">
+    lost in space
+  </div>
+  <div class="floating-tag" style="bottom: 14%; right: 6%; background:#E1F5EE; color:#0F6E56; transform:rotate(6deg);">
+    page missing
+  </div>
+
+  <!-- Main content -->
+  <div class="page-404">
+    <div class="glitch-wrap">
+      <div class="num-404">4<span class="zero">0</span>4</div>
+    </div>
+
+    <div class="divider-line"></div>
+
+    <p class="tagline">This page went missing</p>
+    <p class="sub">The page you're looking for doesn't exist or has been moved somewhere new.</p>
+
+    <div class="btn-row">
+      <a href="/" class="btn-home">
+        <i class="ti ti-home" style="font-size:16px" aria-hidden="true"></i>
+        Go home
+      </a>
+      <!-- <a href="javascript:history.back()" class="btn-back">
+        <i class="ti ti-arrow-left" style="font-size:16px" aria-hidden="true"></i>
+        Go back
+      </a> -->
+    </div>
+  </div>
+
+</body>
+
+</html>

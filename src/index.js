@@ -51,7 +51,7 @@ app.set("trust proxy", 1);
 app.use(
   bodyParser.json({
     verify: (req, res, buf) => {
-      req.rawBody = buf.toString(); 
+      req.rawBody = buf.toString();
     },
   })
 );
@@ -113,7 +113,7 @@ app.get('/e-product/:id', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
-app.use('/api/otp',otpRoutes)
+app.use('/api/otp', otpRoutes)
 app.use('/api/erp/chit-redeem', chitRedeemRoutes);
 
 // Setup Swagger Documentation at /api-docs
@@ -142,6 +142,9 @@ app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")
 
 // Handle undefined routes
 app.all('*', (req, res, next) => {
+  if (req.originalUrl === '/') {
+    return res.status(200).json({ message: 'Server is running' });
+  }
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
@@ -157,6 +160,14 @@ app.use((err, req, res, next) => {
     body: req.body,
     ip: req.ip
   });
+
+
+  if (req.accepts('html') && !req.originalUrl.startsWith('/api')) {
+    if (err.statusCode === 404) {
+      return res.status(404).sendFile(path.join(process.cwd(), 'public', '404.html'));
+    }
+    return res.status(err.statusCode).sendFile(path.join(process.cwd(), 'public', '500.html'));
+  }
 
   res.status(err.statusCode).json({
     status: err.status,
