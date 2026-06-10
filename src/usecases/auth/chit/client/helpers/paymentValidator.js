@@ -22,7 +22,7 @@ export const validateBackDatedPayment = async (
   const sameDayPayment = await repository.findOne({
     id_scheme_account: accountId,
     createdAt: { $gte: startOfDay, $lte: endOfDay },
-    payment_status: { $ne: 0 },
+    payment_status: { $ne: 1 },
   });
 
   if (sameDayPayment) {
