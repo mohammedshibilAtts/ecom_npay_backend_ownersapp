@@ -11,6 +11,7 @@ import fs from "fs";
 import path from "path";
 import s3Helper from "../../../../utils/s3Helper.js";
 import TopupRepository from "../../../../infrastructure/repositories/chit/topupRepository.js";
+import cacheService from "../../../../utils/cacheService.js";
 
 class CustomerUseCase {
   constructor(
@@ -166,6 +167,11 @@ class CustomerUseCase {
         }
       }
 
+      if (data?.id_branch) {
+        cacheService.invalidatePattern(`dashboard:${data.id_branch}:`);
+      }
+      cacheService.invalidatePattern(`dashboard:all:`);
+
       return {
         success: true,
         message: "Customer added successfully",
@@ -318,6 +324,11 @@ class CustomerUseCase {
         fieldsToUpdate,
       );
 
+      if (userExists?.id_branch) {
+        cacheService.invalidatePattern(`dashboard:${userExists.id_branch}:`);
+      }
+      cacheService.invalidatePattern(`dashboard:all:`);
+
       return {
         success: true,
         message: "Customer updated successfully",
@@ -350,6 +361,11 @@ class CustomerUseCase {
       if (!newData) {
         return { success: false, message: "Failed to delete customer" };
       }
+
+      if (existsData?.id_branch) {
+        cacheService.invalidatePattern(`dashboard:${existsData.id_branch}:`);
+      }
+      cacheService.invalidatePattern(`dashboard:all:`);
 
       return { success: true, message: "Customer deleted successfully" };
     } catch (error) {
@@ -389,6 +405,11 @@ class CustomerUseCase {
       const message = existsData.active
         ? "Customer successfully deactivated"
         : "Customer successfully activated";
+
+      if (existsData?.id_branch) {
+        cacheService.invalidatePattern(`dashboard:${existsData.id_branch}:`);
+      }
+      cacheService.invalidatePattern(`dashboard:all:`);
 
       return { success: true, message };
     } catch (error) {
