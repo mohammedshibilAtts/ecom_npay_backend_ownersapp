@@ -4,7 +4,7 @@ import config from "../../../../config/chit/env.js";
 import SchemeAccountRepository from "../../../../infrastructure/repositories/chit/schemeAccountRepository.js";
 import cacheService from "../../../../utils/cacheService.js";
 import crypto from "crypto";
-
+import moment from "moment-timezone";
 const generateCacheKey = (prefix, branchId, params) => {
   const hash = crypto.createHash('md5').update(JSON.stringify(params || {})).digest('hex');
   return `dashboard:${branchId || "all"}:${prefix}:${hash}`;
@@ -96,22 +96,11 @@ class DashboardUseCase {
       }
 
       if (startDate && endDate) {
-        const parsedStartDate = new Date(startDate);
-        const parsedEndDate = new Date(endDate);
-
-        if (isNaN(parsedEndDate)) {
-          return {
-            success: false,
-            message: "Invalid end date format. Please provide a valid date.",
-          };
+        if (new Date(endDate) < new Date(startDate)) {
+          return { success: false, message: "End date cannot be before start date" };
         }
-
-        if (isNaN(parsedStartDate)) {
-          return {
-            success: false,
-            message: "Invalid start date format. Please provide a valid date.",
-          };
-        }
+        const parsedStartDate = moment.tz(startDate, "Asia/Kolkata").startOf("day").toDate();
+        const parsedEndDate = moment.tz(endDate, "Asia/Kolkata").endOf("day").toDate();
 
         filter.createdAt = {
           $gte: parsedStartDate,
@@ -168,20 +157,12 @@ class DashboardUseCase {
       }
 
       if (startDate && endDate) {
-        const parsedStartDate = new Date(startDate);
-        const parsedEndDate = new Date(endDate);
-        if (isNaN(parsedEndDate)) {
-          return {
-            success: false,
-            message: "Invalid end date format. Please provide a valid date.",
-          };
+        if (new Date(endDate) < new Date(startDate)) {
+          return { success: false, message: "End date cannot be before start date" };
         }
-        if (isNaN(parsedStartDate)) {
-          return {
-            success: false,
-            message: "Invalid start date format. Please provide a valid date.",
-          };
-        }
+        const parsedStartDate = moment.tz(startDate, "Asia/Kolkata").startOf("day").toDate();
+        const parsedEndDate = moment.tz(endDate, "Asia/Kolkata").endOf("day").toDate();
+
         filter.createdAt = {
           $gte: parsedStartDate,
           $lte: parsedEndDate,
@@ -240,20 +221,12 @@ class DashboardUseCase {
       }
 
       if (fromDate && toDate) {
-        const parsedStartDate = new Date(fromDate);
-        const parsedEndDate = new Date(toDate);
-        if (isNaN(parsedEndDate)) {
-          return {
-            success: false,
-            message: "Invalid end date format. Please provide a valid date.",
-          };
+        if (new Date(toDate) < new Date(fromDate)) {
+          return { success: false, message: "End date cannot be before start date" };
         }
-        if (isNaN(parsedStartDate)) {
-          return {
-            success: false,
-            message: "Invalid start date format. Please provide a valid date.",
-          };
-        }
+        const parsedStartDate = moment.tz(fromDate, "Asia/Kolkata").startOf("day").toDate();
+        const parsedEndDate = moment.tz(toDate, "Asia/Kolkata").endOf("day").toDate();
+
         filter.createdAt = {
           $gte: parsedStartDate,
           $lte: parsedEndDate,
@@ -364,28 +337,19 @@ class DashboardUseCase {
       const endOfToday = new Date(istToday.getUTCFullYear(), istToday.getUTCMonth(), istToday.getUTCDate(), 23, 59, 59, 999);
 
       if (fromDate && toDate) {
-        const parsedStartDate = new Date(fromDate);
-        const parsedEndDate = new Date(toDate);
-
-        if (isNaN(parsedEndDate)) {
-          return {
-            success: false,
-            message: "Invalid end date format. Please provide a valid date.",
-          };
+        if (new Date(toDate) < new Date(fromDate)) {
+          return { success: false, message: "End date cannot be before start date" };
         }
-
-        if (isNaN(parsedStartDate)) {
-          return {
-            success: false,
-            message: "Invalid start date format. Please provide a valid date.",
-          };
-        }
+        const parsedStartDate = moment.tz(fromDate, "Asia/Kolkata").startOf("day").toDate();
+        const parsedEndDate = moment.tz(toDate, "Asia/Kolkata").endOf("day").toDate();
 
         filter.createdAt = {
           $gte: parsedStartDate,
           $lte: parsedEndDate,
         };
       } else {
+        const startOfToday = moment.tz("Asia/Kolkata").startOf("day").toDate();
+        const endOfToday = moment.tz("Asia/Kolkata").endOf("day").toDate();
         filter.createdAt = {
           $gte: startOfToday,
           $lte: endOfToday,
