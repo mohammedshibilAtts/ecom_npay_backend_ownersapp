@@ -2244,6 +2244,7 @@ class ReportRepository {
   async getAmountPayble(filter, skip, limit) {
     try {
       filter = {
+        ...filter,
         status: { $in: [0] },
         $or: [{ weight: { $exists: false } }, { weight: null }, { weight: 0 }],
       };
@@ -2291,6 +2292,11 @@ class ReportRepository {
           },
         },
         { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            "Scheme.scheme_type": { $nin: [0, 8, 13, 11, 1, 7] }
+          }
+        },
         {
           $unwind: {
             path: "$Classification",
@@ -2353,6 +2359,7 @@ class ReportRepository {
   async getWeightPayble(filter, skip, limit) {
     try {
       filter = {
+        ...filter,
         status: { $in: [0, 2] },
         weight: { $gte: 1 },
       };
@@ -2395,6 +2402,11 @@ class ReportRepository {
           },
         },
         { $unwind: { path: "$Scheme", preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            "Scheme.scheme_type": { $nin: [0, 8, 13, 11, 1, 7] }
+          }
+        },
         {
           $unwind: {
             path: "$Classification",
@@ -2546,9 +2558,9 @@ class ReportRepository {
   async getAmountPayable(filter, skip = 0, limit = 10, type) {
     try {
       if (type === "weight") {
-        filter["scheme_type"] = { $in: [12, 3, 4, 2, 5, 6, 10, 14] };
+        filter["scheme_type"] = { $nin: [0, 8, 13, 11, 1, 7] };
       } else {
-        filter["scheme_type"] = { $nin: [12, 3, 4, 2, 5, 6, 10, 14] };
+        filter["scheme_type"] = { $in: [0, 8, 13, 11, 1, 7] };
       }
 
       const dateFilter = {};
@@ -2578,7 +2590,7 @@ class ReportRepository {
         {
           $match: {
             id_scheme: { $in: schemes.map((scheme) => scheme._id) },
-            status: { $eq: 0 },
+            status: { $nin: [3, 4] },
           },
         },
         {
@@ -2590,6 +2602,8 @@ class ReportRepository {
                 $match: {
                   $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
                   payment_status: 1,
+                  active: true,
+                  is_deleted: false,
                   ...(Object.keys(dateFilter).length > 0 && {
                     createdAt: dateFilter.createdAt,
                   }),
@@ -2658,6 +2672,7 @@ class ReportRepository {
         {
           $match: {
             id_scheme: { $in: schemes.map((scheme) => scheme._id) },
+            status: { $nin: [3, 4] },
           },
         },
         {
@@ -2669,6 +2684,8 @@ class ReportRepository {
                 $match: {
                   $expr: { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
                   payment_status: 1,
+                  active: true,
+                  is_deleted: false,
                   ...(Object.keys(dateFilter).length > 0 && {
                     createdAt: dateFilter.createdAt,
                   }),

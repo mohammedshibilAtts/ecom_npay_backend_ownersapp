@@ -1082,6 +1082,14 @@ class DashboardRepository {
             },
           },
           { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false } },
+          {
+            $match: {
+              "schemeAccount.active": true,
+              "schemeAccount.is_deleted": false,
+              "scheme.active": true,
+              "scheme.is_deleted": false,
+            },
+          },
 
           {
             $addFields: {
@@ -1106,9 +1114,18 @@ class DashboardRepository {
               includeWeight: {
                 $cond: {
                   if: {
-                    $not: {
-                      $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
-                    },
+                    $and: [
+                      {
+                        $not: {
+                          $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
+                        },
+                      },
+                      {
+                        $not: {
+                          $in: ["$schemeAccount.status", [3, 4]],
+                        },
+                      },
+                    ]
                   },
                   then: "$safeMetalWeight",
                   else: 0,
