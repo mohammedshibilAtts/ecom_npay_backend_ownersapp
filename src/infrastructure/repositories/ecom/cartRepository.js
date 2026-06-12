@@ -686,10 +686,15 @@ class CartRepository {
   async removeItem(itemId, cartId) {
     try {
       return await cartItemModel.findOneAndUpdate(
-        { itemId, cartId },
+        { 
+          itemId: new ObjectId(itemId), 
+          cartId: new ObjectId(cartId),
+          is_deleted: false 
+        },
         { $set: { is_deleted: true } },
-        { new: true },
+        { new: true }
       );
+
     } catch (error) {
       console.error(error);
       throw new Error(`Repository Error (removeItem): ${error.message}`);
@@ -698,7 +703,7 @@ class CartRepository {
 
   async getCartSummary(cartId) {
     try {
-      const items = await cartItemModel.find({ cartId }).populate("productId");
+      const items = await cartItemModel.find({ cartId, is_deleted: false }).populate("productId");
       if (!items.length) return { totalItems: 0, totalPrice: 0 };
 
       const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);

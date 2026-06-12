@@ -13,6 +13,7 @@ import PaymentModeRepository from "../../../../infrastructure/repositories/chit/
 import { validateBackDatedPayment } from "./helpers/paymentValidator.js";
 import { customAlphabet } from "nanoid";
 import cacheService from "../../../../utils/cacheService.js";
+import CounterModel from "../../../../infrastructure/models/chit/counterModel.js";
 
 class PaymentUseCase {
   constructor(
@@ -1634,6 +1635,34 @@ class PaymentUseCase {
     return maturityDate.toISOString().split("T")[0];
   }
 
+  async generateDigiSequentialAccNumber(prefix, startFrom = 829102) {
+    const key = `scheme_acc:${prefix}`;
+    let counterDoc = await CounterModel.findOne({ key });
+    if (!counterDoc) {
+      try {
+        counterDoc = await CounterModel.create({ key, sequence_value: startFrom + 1 });
+      } catch (err) {
+        if (err.code === 11000) {
+          counterDoc = await CounterModel.findOneAndUpdate(
+            { key },
+            { $inc: { sequence_value: 1 } },
+            { new: true }
+          );
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      counterDoc = await CounterModel.findOneAndUpdate(
+        { key },
+        { $inc: { sequence_value: 1 } },
+        { new: true }
+      );
+    }
+    const sequenceNumber = String(counterDoc.sequence_value).padStart(6, "0");
+    return `${prefix}${sequenceNumber}`;
+  }
+
   async digiGoldPayment(data, token) {
     try {
       const customerId = token?._id;
@@ -1723,32 +1752,12 @@ class PaymentUseCase {
         }
       }
 
-      const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8);
+      const prefix = schemeType == 10 ? "DGG" : "DGS";
+      const schemeAccNumber = await this.generateDigiSequentialAccNumber(prefix);
 
-      function generateSchemeAccNumber() {
-        return `Digi${nanoid()}`;
-      }
-
-      let schemeAccNumber = generateSchemeAccNumber();
-
-      try {
-        await this.schemeAccountRepository.updateSchemNumber(newSchemeAcc._id, {
-          scheme_acc_number: schemeAccNumber,
-        });
-      } catch (err) {
-        if (err.code === 11000) {
-          schemeAccNumber = generateSchemeAccNumber();
-
-          await this.schemeAccountRepository.updateSchemNumber(
-            newSchemeAcc._id,
-            {
-              scheme_acc_number: schemeAccNumber,
-            },
-          );
-        } else {
-          throw err;
-        }
-      }
+      await this.schemeAccountRepository.updateSchemNumber(newSchemeAcc._id, {
+        scheme_acc_number: schemeAccNumber,
+      });
 
       const metalWeightSaved = Number(amount) / Number(metal_rate);
 

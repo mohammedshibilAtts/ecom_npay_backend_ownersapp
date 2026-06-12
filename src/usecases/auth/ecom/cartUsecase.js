@@ -38,7 +38,7 @@ class CartUseCase {
         const createCart = await this.cartRepository.create(cart);
         cartId = createCart._id;
       }
-      
+
       const findItem = await this.itemRepository.findById(itemId);
       if (!findItem) {
         return { success: false, message: "Item Not found" };
@@ -65,7 +65,7 @@ class CartUseCase {
         product_name,
         product_image,
       } = findProduct;
-      
+
       const {
         id_purity,
         grossWt,
@@ -117,7 +117,7 @@ class CartUseCase {
   }
 
   async getCart(userData) {
-    try { 
+    try {
       if (!userData._id) {
         throw new Error("User ID not found");
       }
@@ -201,8 +201,10 @@ class CartUseCase {
       throw new Error(`Failed to get cart: ${error.message}`);
     }
   }
+
+  //working cart
   async removeItemFromCart(itemId, userData) {
-    try { console.log(itemId,userData)
+    try {
       if (!userData._id) {
         throw new Error("User ID not found");
       }
@@ -223,11 +225,13 @@ class CartUseCase {
             "Unable to remove the item from your cart. Please try again.",
         };
       }
+
       await this.cartRepository.updateCartTotals(findCart._id);
+
       return {
         success: true,
         message: "Item has been successfully removed from your cart.",
-        data: deleteItem,
+        // data: deleteItem,
       };
     } catch (error) {
       throw new Error(`Failed to remove item from cart: ${error.message}`);

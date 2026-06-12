@@ -120,7 +120,7 @@ class CustomerUseCase {
 
       const referralCode = generateReferralCode(data.mobile);
       dataToSave.referral_code = `Cus-${referralCode}`;
-      
+
       if (data.password) {
         const hashPassword = await this.hashingService.hashPassword(
           data.password,
@@ -156,7 +156,7 @@ class CustomerUseCase {
         );
 
         const smsSendStatus = await this.smsSender.sendSms(urlToSend);
-        
+
         if (smsSendStatus) {
           await this.topupRepo.decrementField({}, "SMS", 1)
           return {
@@ -235,7 +235,7 @@ class CustomerUseCase {
             key,
           ) ||
           normalizeValue(key, userExists[key]) ===
-            normalizeValue(key, newValue) ||
+          normalizeValue(key, newValue) ||
           newValue === "" ||
           newValue === null
         ) {
@@ -751,7 +751,7 @@ class CustomerUseCase {
         });
 
         if (saveOtp) {
-         await this.topupRepo.decrementField({}, "SMS", 1);
+          await this.topupRepo.decrementField({}, "SMS", 1);
           return { success: true, message: "Otp sent successfully" };
         }
 
@@ -799,13 +799,20 @@ class CustomerUseCase {
       if (!checkCusmoter) {
         return { success: false, message: "User not found" };
       }
-      const comparePassword = await this.hashingService.comparePassword(
-        loginData.password,
-        checkCusmoter.password,
-      );
-      if (!comparePassword) {
-        return { success: false, message: "Incorrect password." };
+
+      if (checkCusmoter.password) {
+        const comparePassword = await this.hashingService.comparePassword(
+          loginData.password,
+          checkCusmoter.password,
+        );
+
+        if (!comparePassword) {
+          return { success: false, message: "Incorrect password." };
+        }
+      } else {
+        return { success: false, message: "set a password first" };
       }
+
       let payload = {
         _id: checkCusmoter._id,
         firstname: checkCusmoter.firstname,
@@ -1320,8 +1327,8 @@ class CustomerUseCase {
 
           const formattedDate = c.createdAt
             ? new Date(c.createdAt)
-                .toLocaleDateString("en-GB")
-                .replace(/\//g, "-")
+              .toLocaleDateString("en-GB")
+              .replace(/\//g, "-")
             : "";
 
           sheet

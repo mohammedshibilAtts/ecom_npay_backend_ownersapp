@@ -8,6 +8,7 @@ import SaveNotificationRepo from "../../../../infrastructure/repositories/chit/s
 import config from "../../../../config/chit/env.js";
 import { customAlphabet } from "nanoid";
 import cacheService from "../../../../utils/cacheService.js";
+import CounterModel from "../../../../infrastructure/models/chit/counterModel.js";
 
 const customerRepo = new CustomerRepository();
 class SchemeAccountUseCase {
@@ -403,6 +404,42 @@ class SchemeAccountUseCase {
     return maturityDate.toISOString().split("T")[0];
   }
 
+  async generateSequentialAccNumber(schemeCode, startFrom = 829102) {
+    const key = `scheme_acc:${schemeCode}`;
+    let counterDoc = await CounterModel.findOne({ key });
+    if (!counterDoc) {
+      try {
+        counterDoc = await CounterModel.create({ key, sequence_value: startFrom + 1 });
+      } catch (err) {
+        if (err.code === 11000) {
+          counterDoc = await CounterModel.findOneAndUpdate(
+            { key },
+            { $inc: { sequence_value: 1 } },
+            { new: true }
+          );
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      if (counterDoc.sequence_value < startFrom) {
+        counterDoc = await CounterModel.findOneAndUpdate(
+          { key },
+          { $set: { sequence_value: startFrom + 1 } },
+          { new: true }
+        );
+      } else {
+        counterDoc = await CounterModel.findOneAndUpdate(
+          { key },
+          { $inc: { sequence_value: 1 } },
+          { new: true }
+        );
+      }
+    }
+    const sequenceNumber = String(counterDoc.sequence_value).padStart(6, "0");
+    return `${schemeCode}${sequenceNumber}`;
+  }
+
   async addSchemeAccount(data, tokenData) {
     try {
       data.created_by = tokenData.id_employee;
@@ -415,10 +452,13 @@ class SchemeAccountUseCase {
       data.weight = 0;
 
       if (data?.platform) {
-        if (data?.platform?.toLowerCase() === "android") {
+        const platform = data.platform.toLowerCase();
+        if (platform === "android") {
           data.added_by = 1;
-        } else {
+        } else if (platform === "ios") {
           data.added_by = 2;
+        } else {
+          data.added_by = 0; // WebApp
         }
       }
 
@@ -450,10 +490,20 @@ class SchemeAccountUseCase {
         await this.schemeAccountRepository.hardDelete(digiExists?._id);
       }
 
+      if (!data.start_date) {
+        data.start_date = new Date();
+      }
+
       if (schemeData.scheme_type == 10 || schemeData.scheme_type == 14) {
         data.maturity_date = this.digigoldandsilverMaturity(
-          data.start_date || new Date(),
+          data.start_date,
           schemeData.noOfDays,
+        );
+      } else {
+        data.maturity_date = this.calculateMaturityDate(
+          data.start_date,
+          schemeData.maturity_period,
+          schemeData.installment_type,
         );
       }
 
@@ -461,17 +511,6 @@ class SchemeAccountUseCase {
         id_scheme: data.id_scheme,
         status: 0,
       });
-
-      if (!data.start_date) {
-        const startDate = new Date();
-        const maturiytDate = this.calculateMaturityDate(
-          startDate,
-          schemeData.maturity_period,
-          schemeData.installment_type,
-        );
-        data.start_date = startDate;
-        data.maturity_date = maturiytDate;
-      }
 
       const currentCount = schemeAccCounts.length;
       const customerLimit = schemeData.limit_customer;
@@ -518,32 +557,11 @@ class SchemeAccountUseCase {
       }
 
       const schemeCode = schemeData.code;
-
-      const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8);
-
-      function generateSchemeAccNumber() {
-        return `${schemeCode}${nanoid()}`;
-      }
-
-      let schemeAccNumber = generateSchemeAccNumber();
-
-      try {
-        await this.schemeAccountRepository.updateSchemNumber(
-          savedData._id.toString(),
-          { scheme_acc_number: schemeAccNumber },
-        );
-      } catch (err) {
-        if (err.code === 11000) {
-          schemeAccNumber = generateSchemeAccNumber();
-
-          await this.schemeAccountRepository.updateSchemNumber(
-            savedData._id.toString(),
-            { scheme_acc_number: schemeAccNumber },
-          );
-        } else {
-          throw err;
-        }
-      }
+      const schemeAccNumber = await this.generateSequentialAccNumber(schemeCode);
+      await this.schemeAccountRepository.updateSchemNumber(
+        savedData._id.toString(),
+        { scheme_acc_number: schemeAccNumber }
+      );
 
       const notificationData = await isNotificationEnabled("schemeJoining");
       const referralNotification =
