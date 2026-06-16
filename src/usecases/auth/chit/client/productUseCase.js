@@ -134,7 +134,7 @@ class ProductUseCase {
 
       // ===== CONVERT BASIC TYPES =====
       if (productData.gst !== undefined) productData.gst = Number(productData.gst);
-      
+
       const booleanFields = ["showprice", "bestSeller", "onlineProduct", "active", "isMrp"];
       booleanFields.forEach((field) => {
         if (productData[field] !== undefined) {
@@ -166,6 +166,7 @@ class ProductUseCase {
   async findById(id) {
     try {
       const existingProduct = await this.productRepository.findById(id);
+
       if (existingProduct) {
         let finalData = existingProduct;
         if (existingProduct.firstItem) {
@@ -235,7 +236,7 @@ class ProductUseCase {
         return { success: false, message: "No products found" };
       }
 
-      const totalproducts = await this.productRepository.countProduct(filter);
+      const totalproducts = await this.productRepository.countProduct(filter, searchOptions);
 
       return {
         success: true,
@@ -475,15 +476,15 @@ class ProductUseCase {
     try {
       const data = await this.productRepository.getCategoryByCollectionId(id);
       const s3configs = await s3Helper();
-      const pathurl = s3configs?.s3display_url 
+      const pathurl = s3configs?.s3display_url
         ? `${s3configs.s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}category/`
         : "";
 
-      return { 
-        success: true, 
-        message: "Categories fetched successfully", 
-        data, 
-        pathUrl: pathurl 
+      return {
+        success: true,
+        message: "Categories fetched successfully",
+        data,
+        pathUrl: pathurl
       };
     } catch (err) {
       return { success: false, message: "Error fetching categories", error: err.message };
@@ -554,13 +555,13 @@ class ProductUseCase {
         mode: item.makingCharges?.makingMode || product.makingCharges?.mode,
         actualValue:
           item.makingCharges?.makingActualValue !== undefined ? item.makingCharges?.makingActualValue :
-          product.makingCharges?.actualValue,
+            product.makingCharges?.actualValue,
         discountedValue:
           item.makingCharges?.makingDiscountedValue !== undefined ? item.makingCharges?.makingDiscountedValue :
-          product.makingCharges?.discountedValue,
+            product.makingCharges?.discountedValue,
         discountedPercentage:
           item.makingCharges?.makingDiscountedPercentage !== undefined ? item.makingCharges?.makingDiscountedPercentage :
-          product.makingCharges?.discountedPercentage,
+            product.makingCharges?.discountedPercentage,
         discountView: item.makingCharges?.discountView ?? product.makingCharges?.discountView ?? true,
         mcView: item.makingCharges?.mcView ?? product.makingCharges?.mcView ?? true,
         _id: item.makingCharges?._id || product.makingCharges?._id || "MC001",
@@ -570,13 +571,13 @@ class ProductUseCase {
         mode: item.wastageCharges?.wastageMode || product.wastageCharges?.mode,
         actualValue:
           item.wastageCharges?.wastageActualValue !== undefined ? item.wastageCharges?.wastageActualValue :
-          product.wastageCharges?.actualValue,
+            product.wastageCharges?.actualValue,
         discountedValue:
           item.wastageCharges?.wastageDiscountedValue !== undefined ? item.wastageCharges?.wastageDiscountedValue :
-          product.wastageCharges?.discountedValue,
+            product.wastageCharges?.discountedValue,
         discountedPercentage:
           item.wastageCharges?.wastageDiscountedPercentage !== undefined ? item.wastageCharges?.wastageDiscountedPercentage :
-          product.wastageCharges?.discountedPercentage,
+            product.wastageCharges?.discountedPercentage,
         discountView: item.wastageCharges?.discountView ?? product.wastageCharges?.discountView ?? true,
         mcView: item.wastageCharges?.mcView ?? product.wastageCharges?.mcView ?? false,
         _id: item.wastageCharges?._id || product.wastageCharges?._id || "WC001",

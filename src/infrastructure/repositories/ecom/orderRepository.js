@@ -148,7 +148,7 @@ class OrderRepository {
                     Math.round(
                       (rawMakingCharge -
                         (product.makingCharges.discountedValue || 0)) *
-                        100,
+                      100,
                     ) / 100;
                 }
 
@@ -172,7 +172,7 @@ class OrderRepository {
                     Math.round(
                       (rawWastageCharge -
                         (product.wastageCharges.discountedValue || 0)) *
-                        100,
+                      100,
                     ) / 100;
                 }
 
@@ -260,20 +260,20 @@ class OrderRepository {
 
                   wastage: product.wastageCharges
                     ? {
-                        mode: product.wastageCharges.mode,
-                        percentage:
-                          product.wastageCharges.mode === 2 ||
+                      mode: product.wastageCharges.mode,
+                      percentage:
+                        product.wastageCharges.mode === 2 ||
                           product.wastageCharges.mode === 3
-                            ? product.wastageCharges.actualValue
-                            : null,
-                        amount:
-                          product.wastageCharges.mode === 1
-                            ? product.wastageCharges.actualValue
-                            : null,
-                        discountedValue:
-                          product.wastageCharges.discountedValue || 0,
-                        finalCharge: finalWastageCharge,
-                      }
+                          ? product.wastageCharges.actualValue
+                          : null,
+                      amount:
+                        product.wastageCharges.mode === 1
+                          ? product.wastageCharges.actualValue
+                          : null,
+                      discountedValue:
+                        product.wastageCharges.discountedValue || 0,
+                      finalCharge: finalWastageCharge,
+                    }
                     : null,
                   makingCharge: {
                     raw: rawMakingCharge,
@@ -462,6 +462,7 @@ class OrderRepository {
                 },
               ],
             },
+            sizeValue: "$ItemInfo.sizeValue",
             purityName: { $ifNull: ["$purityName", "$Purity.purity_name"] },
           },
         },
@@ -716,9 +717,8 @@ class OrderRepository {
           shippingCharge: findOrder.shippingFee,
           status: findOrder.status,
           savedAmount: findOrder.savedAmount,
-          name: `${findOrder.userId.firstname} ${
-            findOrder.userId.lastname ?? ""
-          }`,
+          name: `${findOrder.userId.firstname} ${findOrder.userId.lastname ?? ""
+            }`,
           mobile: findOrder.userId?.mobile,
           email: findOrder.userId?.email,
           cus_img: findOrder.userId?.cus_img,
@@ -1581,7 +1581,6 @@ class OrderRepository {
 
   async reduceProductQuatityCount(orderId) {
     try {
-      console.log(orderId);
       const orderItems = await OrderItem.find({ orderId }).lean();
 
       if (!orderItems.length) {

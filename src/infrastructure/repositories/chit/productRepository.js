@@ -96,6 +96,7 @@ class ProductRepository {
                             { $eq: ["$productId", "$$productId"] },
                             { $eq: ["$id_purity", "$$purityId"] },
                             { $eq: ["$active", true] },
+                            { $eq: ["$status", 1] },
                             { $ne: ["$is_deleted", true] }
                           ]
                         }
@@ -129,11 +130,11 @@ class ProductRepository {
           },
         },
         {
-           $lookup: {
-             from: "s3bucketsettings",
-             pipeline: [{ $limit: 1 }],
-             as: "s3Details",
-           },
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $limit: 1 }],
+            as: "s3Details",
+          },
         },
         { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
         {
@@ -168,6 +169,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] }
                     ],
                   },
@@ -326,10 +328,60 @@ class ProductRepository {
     }
   }
 
-  async countProduct(filter) {
+  async countProduct(filter, searchOptions = null) {
     try {
-      return await ProductModel.countDocuments(filter);
+      if (!searchOptions || !searchOptions.term) {
+        return await ProductModel.countDocuments(filter);
+      }
+
+      const searchRegex = new RegExp(searchOptions.term, "i");
+      const pipeline = [
+        { $match: filter },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "id_category",
+          },
+        },
+        { $unwind: { path: "$id_category", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "id_subcategory",
+          },
+        },
+        { $unwind: { path: "$id_subcategory", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "metals",
+            localField: "id_metal",
+            foreignField: "_id",
+            as: "id_metal",
+          },
+        },
+        { $unwind: { path: "$id_metal", preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            $or: [
+              { product_name: { $regex: searchRegex } },
+              { sku: { $regex: searchRegex } },
+              { "id_category.category_name": { $regex: searchRegex } },
+              { "id_subcategory.name": { $regex: searchRegex } },
+              { "id_metal.metal_name": { $regex: searchRegex } },
+            ],
+          },
+        },
+        { $count: "total" }
+      ];
+
+      const result = await ProductModel.aggregate(pipeline);
+      return result.length > 0 ? result[0].total : 0;
     } catch (err) {
+      console.error(err);
       throw new Error("Database error counting products");
     }
   }
@@ -357,6 +409,15 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$id_category", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "id_subcategory",
+          },
+        },
+        { $unwind: { path: "$id_subcategory", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "metals",
@@ -414,13 +475,34 @@ class ProductRepository {
                   $expr: {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$status", 2] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              { $limit: 1 },
+            ],
+            as: "soldItems",
+          },
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
                 },
               },
-              { $sort: { createdAt: 1 } },
+              { $sort: { netWeight: 1 } },
               { $limit: 1 },
             ],
             as: "firstItem",
@@ -428,6 +510,21 @@ class ProductRepository {
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
         ...getPricingPipeline("$id_branch._id", "firstItem"),
+        ...(searchOptions && searchOptions.term
+          ? [
+            {
+              $match: {
+                $or: [
+                  { product_name: { $regex: new RegExp(searchOptions.term, "i") } },
+                  { sku: { $regex: new RegExp(searchOptions.term, "i") } },
+                  { "id_category.category_name": { $regex: new RegExp(searchOptions.term, "i") } },
+                  { "id_subcategory.name": { $regex: new RegExp(searchOptions.term, "i") } },
+                  { "id_metal.metal_name": { $regex: new RegExp(searchOptions.term, "i") } },
+                ],
+              },
+            },
+          ]
+          : []),
         { $skip: skip },
         { $limit: limit },
         {
@@ -442,7 +539,15 @@ class ProductRepository {
             branchName: "$id_branch.branch_name",
             metalName: "$id_metal.metal_name",
             categoryName: "$id_category.category_name",
+            subcategoryName: "$id_subcategory.name",
             stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
+            sold: {
+              $cond: {
+                if: { $gt: [{ $size: { $ifNull: ["$soldItems", []] } }, 0] },
+                then: false,
+                else: true,
+              },
+            },
             onlineProduct: 1,
             pathurl: {
               $concat: [
@@ -487,9 +592,13 @@ class ProductRepository {
 
   async getCategoryByCollectionId(id) {
     try {
-      const products = await ProductModel.find({ collection: id, is_deleted: false });
+      const products = await ProductModel.find({ collection: id, active: true, is_deleted: false });
       const categoryIds = [...new Set(products.map(p => p.id_category.toString()))];
-      return await mongoose.model("Category").find({ _id: { $in: categoryIds } });
+      return await mongoose.model("Category").find({
+        _id: { $in: categoryIds },
+        active: true,
+        is_deleted: false
+      });
     } catch (err) {
       throw new Error("Database error fetching categories by collection");
     }
@@ -563,6 +672,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -584,6 +694,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -608,6 +719,7 @@ class ProductRepository {
                   ]
                 }
               },
+              { $sort: { createdAt: 1 } },
               { $limit: 1 },
             ],
             as: "firstItem",
@@ -683,7 +795,6 @@ class ProductRepository {
       const result = await ProductModel.aggregate(pipeline);
       const total = result[0].metadata[0]?.total || 0;
       const products = result[0].data;
-      console.log(products)
 
       return {
         products,
@@ -739,6 +850,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -760,6 +872,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
+                      { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -784,6 +897,7 @@ class ProductRepository {
                   ]
                 }
               },
+              { $sort: { createdAt: 1 } },
               { $limit: 1 },
             ],
             as: "firstItem",

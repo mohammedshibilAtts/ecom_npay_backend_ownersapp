@@ -176,6 +176,7 @@ class ItemUseCase {
         search,
         sort,
         order,
+        isMrp: findProduct?.isMrp,
       });
 
       const processedItems = result.data.map((item) => {
@@ -389,13 +390,13 @@ class ItemUseCase {
       Number(mc.makingMode) === 1
         ? makingActualValue
         : (Number(mc.calculationType) === 1 ? grossWt : netWt) *
-          makingActualValue;
+        makingActualValue;
     const wastageActualChargeValue =
       Number(wc.wastageMode) === 1
         ? wastageActualValue
         : (wastageActualValue / 100) *
-          rate *
-          (Number(wc.calculationType) === 1 ? grossWt : netWt);
+        rate *
+        (Number(wc.calculationType) === 1 ? grossWt : netWt);
     const finalOut =
       metalValue +
       makingActualChargeValue +

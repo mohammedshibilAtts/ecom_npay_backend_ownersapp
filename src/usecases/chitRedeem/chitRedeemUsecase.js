@@ -154,7 +154,7 @@ class ChitRedeemUsecase {
             },
           );
 
-          continue; 
+          continue;
         }
 
         await this.schemeAccountUsecase.closeSchemeAccount(
@@ -199,7 +199,7 @@ class ChitRedeemUsecase {
         message: "Redeemed successfully",
       };
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return {
         success: false,
         message: "Failed to Close Account",

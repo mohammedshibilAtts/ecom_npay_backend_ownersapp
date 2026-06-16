@@ -101,7 +101,7 @@ class SubCategoryUseCase {
         const s3Configs = await this.s3Helper(
           editSubCategoryData._id || existingSubCategory._id,
         );
-        
+
         updateFields.bannerImage = await this.handleImageUpload(
           files,
           "image",
@@ -115,8 +115,6 @@ class SubCategoryUseCase {
 
       const updateSubCategory =
         await this.subCategoryRepository.editSubCategory(id, updateFields);
-
-      console.log("sdfg", updateFields);
 
       if (updateSubCategory) {
         return { success: true, message: "SubCategory edited successfully" };
@@ -225,7 +223,7 @@ class SubCategoryUseCase {
 
   async getSubCategory(query) {
     try {
-      const { page, limit, from_date, to_date, categoryId, search, active } =
+      const { page, limit, from_date, to_date, categoryId, search, active, web } =
         query;
 
       const pageNum = page ? parseInt(page) : 1;
@@ -233,9 +231,15 @@ class SubCategoryUseCase {
       const skip = (pageNum - 1) * pageSize;
 
       const filter = { isDeleted: false };
+      const isWeb = web === true || web === "true";
+      const isActiveProvided = active !== undefined && active !== null && active !== "" && active !== "null";
 
-      if (active !== undefined && active !== null && active !== "") {
-        filter.active = active === true || active === "true";
+      if (isWeb) {
+        if (isActiveProvided) {
+          filter.active = active === true || active === "true";
+        }
+      } else {
+        filter.active = true;
       }
 
       // Date range filter

@@ -7,67 +7,67 @@ class AuthMiddleware {
   }
 
   protect = asyncHandler(async (req, res, next) => {
-     const token = req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
-       ? req.headers.authorization.split(' ')[1] 
+    const token = req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
+      ? req.headers.authorization.split(' ')[1]
       : null;
-        console.log(token);
+
     if (!token) {
-       throw new AppError('You are not logged in! Please log in to get access.', 401);
-     }
+      throw new AppError('You are not logged in! Please log in to get access.', 401);
+    }
 
     try {
       const decoded = await this.tokenService.verifyToken(token);
       req.user = decoded;
-      
+
       next();
     } catch (error) {
       console.error(error);
-      return res.status(400).json({message:"Invalid token, Please login again"})
+      return res.status(400).json({ message: "Invalid token, Please login again" })
     }
   });
-bypassProtect = asyncHandler(async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ')
-    ? authHeader.split(' ')[1]
-    : null;
+  bypassProtect = asyncHandler(async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : null;
 
-  if (!token) {
-    req.user = null;
-    return next();
-  }
+    if (!token) {
+      req.user = null;
+      return next();
+    }
 
-  try {
-    const decoded = await this.tokenService.verifyToken(token);
-    req.user = decoded;
-  } catch (error) {
-    console.warn('Invalid token in bypassProtect:', error.message);
-    req.user = null;
-  }
+    try {
+      const decoded = await this.tokenService.verifyToken(token);
+      req.user = decoded;
+    } catch (error) {
+      console.warn('Invalid token in bypassProtect:', error.message);
+      req.user = null;
+    }
 
-  next();
-});
+    next();
+  });
 
   bypassProtect = asyncHandler(async (req, res, next) => {
-        const authHeader = req.headers.authorization;
-        const token = authHeader && authHeader.startsWith('Bearer ')
-          ? authHeader.split(' ')[1]
-          : null;
-     
-        if (!token) {
-          req.user = null;
-          return next();
-        }
-     
-        try {
-          const decoded = await this.tokenService.verifyToken(token);
-          req.user = decoded;
-        } catch (error) {
-          console.warn('Invalid token in bypassProtect:', error.message);
-          req.user = null;
-        }
-     
-        next();
-      });
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : null;
+
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+
+    try {
+      const decoded = await this.tokenService.verifyToken(token);
+      req.user = decoded;
+    } catch (error) {
+      console.warn('Invalid token in bypassProtect:', error.message);
+      req.user = null;
+    }
+
+    next();
+  });
 
   restrictTo(...roles) {
     return (req, res, next) => {

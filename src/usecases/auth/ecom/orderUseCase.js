@@ -472,7 +472,6 @@ class OrderUseCase {
       }
 
       const cartItems = await this.cartRepository.findById(findCart._id);
-      console.log(cartItems, "cartItems");
 
       if (!cartItems) {
         return {
@@ -558,9 +557,9 @@ class OrderUseCase {
         savedAmount:
           (cartItems.overAllAmount?.subTotal || 0) -
             (cartItems.overAllAmount?.totalAmount || 0) >
-          0
+            0
             ? (cartItems.overAllAmount?.subTotal || 0) -
-              (cartItems.overAllAmount?.totalAmount || 0)
+            (cartItems.overAllAmount?.totalAmount || 0)
             : 0,
         status: "Payment Pending",
         deliveryAddress: addressId,
@@ -703,7 +702,7 @@ class OrderUseCase {
           message: "Failed to get orders",
         };
       }
-      console.log(findOrderItems);
+
       findOrderItems.overAll.orderType = ORDER_TYPE_NAME[findOrder.orderType];
 
       return {
@@ -894,7 +893,7 @@ class OrderUseCase {
   }
 
   async getOrderItemReport(orderId) {
-    try { 
+    try {
       const findOrder = await this.orderRepository.findById(orderId);
       if (!findOrder) {
         return {

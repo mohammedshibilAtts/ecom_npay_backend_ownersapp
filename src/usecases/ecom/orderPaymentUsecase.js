@@ -32,7 +32,7 @@ class OrderPaymentUsecase {
       }
 
       const { order, items } = orderData;
-console.log(orderData,"orderData")
+
       const userData = await this.customerRepo.findOne({
         mobile: token.mobile,
       });
@@ -85,7 +85,8 @@ console.log(orderData,"orderData")
         id_customer: token._id,
         payment_amount: order.subtotal || 0,
         discount: order.discount || 0,
-        order_total: order.subtotal || 0,};
+        order_total: order.subtotal || 0,
+      };
 
       const savedPayment = await this.paymentRepository.addPayment(paymentData);
 
@@ -208,10 +209,10 @@ console.log(orderData,"orderData")
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
-  
+
     return `${formatted}`;
   }
-  
+
   async completePayment(data) {
     try {
       const orderId = data?.data?.order?.order_id;
@@ -241,11 +242,11 @@ console.log(orderData,"orderData")
             payment_status: { $ne: 1 }
           },
           update: {
-            $set: { 
-              payment_status: 1, 
+            $set: {
+              payment_status: 1,
               updatedAt: new Date(),
               payment_mode: "67682cf7666e32053d05e051",
-              paymentModeName: paymentMode.toUpperCase()??paymentMode
+              paymentModeName: paymentMode.toUpperCase() ?? paymentMode
             },
           },
         },
@@ -267,7 +268,7 @@ console.log(orderData,"orderData")
 
       const orderObjId = updatedPaymentOrder?.orderObjId;
       if (orderObjId) {
-        await this.orderRepo.updatePaymentCount(orderObjId,updatedPaymentOrder?.product_payment_ids);
+        await this.orderRepo.updatePaymentCount(orderObjId, updatedPaymentOrder?.product_payment_ids);
       }
 
       return {

@@ -56,6 +56,13 @@ class CustomerUseCase {
   }
 
   async addCustomer(data, uploads, token) {
+    const genderImages = [
+      null,
+      "1781519568760.webp",
+      "1781519593700.webp",
+      "1781519618811.webp",
+    ]; //null,male,female, other
+
     try {
       const existingUser = await this.customerRepository.existingUser(
         data.mobile,
@@ -96,25 +103,34 @@ class CustomerUseCase {
       }
 
       if (uploads) {
-        if (uploads?.cus_img) {
-          try {
-            if (uploads?.cus_img[0]) {
-              dataToSave.cus_img = await this.s3service.uploadToS3(
-                uploads.cus_img[0],
-                "customer",
-                s3Configs,
-              );
+        try {
+          if (uploads.cus_img && uploads.cus_img[0]) {
+            dataToSave.cus_img = await this.s3service.uploadToS3(
+              uploads.cus_img[0],
+              "customer",
+              s3Configs,
+            );
+          } else if (data.gender !== undefined && data.gender !== null) {
+            const genderIndex = Number(data.gender);
+            if (!isNaN(genderIndex) && genderImages[genderIndex]) {
+              dataToSave.cus_img = genderImages[genderIndex];
             }
-            if (uploads.id_proof[0]) {
-              dataToSave.id_proof = await this.s3service.uploadToS3(
-                uploads.id_proof[0],
-                "customer",
-                s3Configs,
-              );
-            }
-          } catch (error) {
-            console.error(error);
           }
+
+          if (uploads.id_proof && uploads.id_proof[0]) {
+            dataToSave.id_proof = await this.s3service.uploadToS3(
+              uploads.id_proof[0],
+              "customer",
+              s3Configs,
+            );
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      } else if (data.gender !== undefined && data.gender !== null) {
+        const genderIndex = Number(data.gender);
+        if (!isNaN(genderIndex) && genderImages[genderIndex]) {
+          dataToSave.cus_img = genderImages[genderIndex];
         }
       }
 
@@ -186,9 +202,9 @@ class CustomerUseCase {
   async editCustomer(id, data, uploads, token) {
     const genderImages = [
       null,
-      "1749878256269.webp",
-      "1749878753243.webp",
-      "1749878926644.webp",
+      "1781519568760.webp",
+      "1781519593700.webp",
+      "1781519618811.webp",
     ]; //null,male,female, other
 
     try {

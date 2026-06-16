@@ -226,7 +226,6 @@ class AppProductUsecase {
     const rate = Number(item.currentMetalRate || item?._doc?.currentMetalRate || 0);
     const netWt = Number(item.netWeight || item?._doc?.netWeight || 0);
     const grossWt = Number(item.grossWt || item?._doc?.grossWt || 0);
-
     const metalValue = item.isMrp ? rate : netWt * rate;
 
     let makingValue = 0;
@@ -274,10 +273,10 @@ class AppProductUsecase {
           price: price,
           stoneInfo: stone.itemId
             ? {
-                _id: stone.itemId._id,
-                stonename: stone.itemId.stonename,
-                percraterate: stone.itemId.percraterate,
-              }
+              _id: stone.itemId._id,
+              stonename: stone.itemId.stonename,
+              percraterate: stone.itemId.percraterate,
+            }
             : null,
         };
         stoneDiamondDetails.push(detail);
@@ -294,7 +293,7 @@ class AppProductUsecase {
           totalStoneCount += 1;
         }
       });
-    }else if(item?._doc?.stoneDetails && Array.isArray(item._doc.stoneDetails)){
+    } else if (item?._doc?.stoneDetails && Array.isArray(item._doc.stoneDetails)) {
       item._doc.stoneDetails.forEach((stone) => {
         const price = Number(stone.price || 0);
         stoneValue += price;
@@ -309,10 +308,10 @@ class AppProductUsecase {
           price: price,
           stoneInfo: stone.itemId
             ? {
-                _id: stone.itemId._id,
-                stonename: stone.itemId.stonename,
-                percraterate: stone.itemId.percraterate,
-              }
+              _id: stone.itemId._id,
+              stonename: stone.itemId.stonename,
+              percraterate: stone.itemId.percraterate,
+            }
             : null,
         };
         stoneDiamondDetails.push(detail);
@@ -333,7 +332,7 @@ class AppProductUsecase {
 
     const huid = Number(item.huidCharges || item?._doc?.huidCharges || 0);
     const gstRate = Number(item.gst || item?._doc?.gst || 3);
-    
+
     const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
     const outprice = Math.round((subTotal + (subTotal * gstRate) / 100) * 100) / 100;
 
@@ -401,6 +400,7 @@ class AppProductUsecase {
         sizeValue,
         purityId,
       );
+
       const product = await this.productRepository.findById(productId);
 
       if (!product) {
@@ -412,6 +412,7 @@ class AppProductUsecase {
           ...item,
           isMrp: product?.isMrp || false,
         });
+
         return {
           _id: item._id,
           tagNo: item.tagNo,
@@ -433,7 +434,7 @@ class AppProductUsecase {
           },
         };
       });
-
+      console.log(simplifiedItems)
       return {
         success: true,
         message: "Items retrieved successfully",

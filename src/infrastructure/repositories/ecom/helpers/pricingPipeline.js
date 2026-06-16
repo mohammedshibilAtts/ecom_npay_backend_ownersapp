@@ -37,6 +37,29 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
         },
       },
     },
+    {
+      $addFields: {
+        ...(itemPrefix
+          ? {
+              [`${itemPrefix}.currentMetalRate`]: {
+                $cond: {
+                  if: { $eq: ["$isMrp", false] },
+                  then: "$currentRate",
+                  else: `$${itemPrefix}.currentMetalRate`,
+                },
+              },
+            }
+          : {
+              currentMetalRate: {
+                $cond: {
+                  if: { $eq: ["$isMrp", false] },
+                  then: "$currentRate",
+                  else: "$currentMetalRate",
+                },
+              },
+            }),
+      },
+    },
 
     {
       $lookup: {
@@ -48,7 +71,6 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
     },
     {
       $addFields: {
-        // Use lookupStones if they were fetched here, otherwise fallback to existing stoneDetails if they were already objects
         stonesToSum: {
           $cond: {
             if: { $gt: [{ $size: "$lookupStones" }, 0] },

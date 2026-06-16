@@ -84,7 +84,6 @@ class PaymentUseCase {
     updatedSchemeData,
     transactionId
   ) {
-    console.log(data, token, message, notificationData, updatedSchemeData, transactionId)
     if (updatedSchemeData.status == 2) {
       message = "Scheme account completed, notifications delivered to customer";
 
