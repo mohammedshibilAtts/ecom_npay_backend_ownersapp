@@ -130,8 +130,8 @@ class AppProductUsecase {
 
       // 🔥 Prioritize Item Calculations
       price: calculations.price,
-      subtotal: calculations.price,
-      totalWithGst: calculations.totalprice,
+      subtotal: calculations.subtotal, //price to subtotal
+      totalWithGst: calculations.price, //changed totalPrice to price
       totalAmount: calculations.price,
       discountedAmount: calculations.price,
       totalprice: calculations.totalprice,
@@ -354,6 +354,7 @@ class AppProductUsecase {
       stoneValue,
       gstValue: Math.round(((subTotal * gstRate) / 100) * 100) / 100,
       discount: Math.round((totalPrice - outprice) * 100) / 100,
+      subtotal: subTotal
     };
   }
 

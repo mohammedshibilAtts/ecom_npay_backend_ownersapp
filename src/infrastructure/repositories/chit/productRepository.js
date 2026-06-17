@@ -841,6 +841,20 @@ class ProductRepository {
         },
         {
           $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "subcategoryDetails"
+          }
+        },
+        { $unwind: { path: "$subcategoryDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            "subcategoryDetails.active": { $ne: false }
+          }
+        },
+        {
+          $lookup: {
             from: "items",
             let: { productId: "$_id" },
             pipeline: [

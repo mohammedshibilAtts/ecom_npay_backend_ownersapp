@@ -527,7 +527,8 @@ class ProductUseCase {
 
     return {
       ...product,
-      sku: item.tagNo || product.sku,
+      tagNo: item.tagNo,
+      sku: product.sku,
       grossWeight: item.grossWt,
       netWeight: item.netWeight,
       currentMetalRate: item.currentMetalRate,

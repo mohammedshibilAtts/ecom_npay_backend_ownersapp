@@ -10,6 +10,8 @@ class AppProductController {
         return res.status(400).json({ message: "Product Id is required" });
       }
       const productData = await this.usecase.findById(id, req.user);
+
+      console.log(productData, "pfo")
       if (productData.success) {
         return res
           .status(200)
