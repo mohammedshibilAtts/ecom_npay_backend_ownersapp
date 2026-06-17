@@ -41,13 +41,320 @@ class ProductRepository {
     }
   }
 
+  // async findById(id, customerId = null) {
+  //   try {
+  //     const pipeline = [
+  //       {
+  //         $match: {
+  //           _id: new mongoose.Types.ObjectId(id),
+  //           is_deleted: false,
+  //           active: true
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "categories",
+  //           localField: "id_category",
+  //           foreignField: "_id",
+  //           as: "categoryDetails",
+  //         },
+  //       },
+  //       { $unwind: { path: "$categoryDetails", preserveNullAndEmptyArrays: true } },
+  //       {
+  //         $lookup: {
+  //           from: "metals",
+  //           localField: "id_metal",
+  //           foreignField: "_id",
+  //           as: "metalDetails",
+  //         },
+  //       },
+  //       { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
+  //       {
+  //         $lookup: {
+  //           from: "purities",
+  //           let: { metalId: "$id_metal", productId: "$_id" },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ["$id_metal", "$$metalId"] },
+  //                     { $eq: ["$active", true] },
+  //                     { $ne: ["$is_deleted", true] }
+  //                   ]
+  //                 }
+  //               }
+  //             },
+  //             {
+  //               $lookup: {
+  //                 from: "items",
+  //                 let: { purityId: "$_id" },
+  //                 pipeline: [
+  //                   {
+  //                     $match: {
+  //                       $expr: {
+  //                         $and: [
+  //                           { $eq: ["$productId", "$$productId"] },
+  //                           { $eq: ["$id_purity", "$$purityId"] },
+  //                           { $eq: ["$active", true] },
+  //                           { $eq: ["$status", 1] },
+  //                           { $ne: ["$is_deleted", true] }
+  //                         ]
+  //                       }
+  //                     }
+  //                   },
+  //                   { $limit: 1 }
+  //                 ],
+  //                 as: "hasItem"
+  //               }
+  //             },
+  //             { $match: { "hasItem.0": { $exists: true } } },
+  //             { $project: { hasItem: 0 } }
+  //           ],
+  //           as: "purityList"
+  //         }
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "branches",
+  //           localField: "id_branch",
+  //           foreignField: "_id",
+  //           as: "branchDetails",
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "subcategories",
+  //           localField: "subcategoryId",
+  //           foreignField: "_id",
+  //           as: "subcategoryDetails",
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "s3bucketsettings",
+  //           pipeline: [{ $limit: 1 }],
+  //           as: "s3Details",
+  //         },
+  //       },
+  //       { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+  //       {
+  //         $lookup: {
+  //           from: "metalrates",
+  //           let: { metalId: "$id_metal", branchId: "$id_branch" },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ["$material_type_id", "$$metalId"] },
+  //                     { $eq: ["$id_branch", "$$branchId"] }
+  //                   ]
+  //                 }
+  //               }
+  //             },
+  //             { $sort: { createdAt: -1 } },
+  //             { $limit: 1 }
+  //           ],
+  //           as: "metalRateInfo"
+  //         }
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "items",
+  //           let: { productId: "$_id" },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ["$productId", "$$productId"] },
+  //                     { $eq: ["$active", true] },
+  //                     { $eq: ["$status", 1] },
+  //                     { $ne: ["$is_deleted", true] }
+  //                   ],
+  //                 },
+  //               },
+  //             },
+  //             { $sort: { createdAt: 1 } },
+  //             { $limit: 1 },
+  //             {
+  //               $lookup: {
+  //                 from: "purities",
+  //                 let: { pId: "$id_purity" },
+  //                 pipeline: [
+  //                   {
+  //                     $match: {
+  //                       $expr: {
+  //                         $eq: [
+  //                           "$_id",
+  //                           { $convert: { input: "$$pId", to: "objectId", onError: "$$pId", onNull: "$$pId" } }
+  //                         ]
+  //                       }
+  //                     }
+  //                   }
+  //                 ],
+  //                 as: "purityDetails",
+  //               },
+  //             },
+  //             { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
+  //             {
+  //               $lookup: {
+  //                 from: "stonedetails",
+  //                 localField: "stoneDetails",
+  //                 foreignField: "_id",
+  //                 as: "stoneDetails",
+  //                 pipeline: [
+  //                   {
+  //                     $lookup: {
+  //                       from: "stone_masters",
+  //                       localField: "itemId",
+  //                       foreignField: "_id",
+  //                       as: "itemId"
+  //                     }
+  //                   },
+  //                   { $unwind: { path: "$itemId", preserveNullAndEmptyArrays: true } }
+  //                 ]
+  //               }
+  //             },
+  //             {
+  //               $addFields: {
+  //                 purityName: "$purityDetails.purity_name",
+  //               },
+  //             },
+  //             { $project: { purityDetails: 0 } },
+  //           ],
+  //           as: "firstItem",
+  //         },
+  //       },
+  //       { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+  //       ...getPricingPipeline("$id_branch", "firstItem")
+  //     ];
+
+  //     if (customerId) {
+  //       pipeline.push({
+  //         $lookup: {
+  //           from: "wishlists",
+  //           let: { pId: "$_id" },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ["$itemId", "$$pId"] },
+  //                     { $eq: ["$id_customer", new mongoose.Types.ObjectId(customerId)] }
+  //                   ]
+  //                 }
+  //               }
+  //             }
+  //           ],
+  //           as: "wishlistData"
+  //         }
+  //       });
+  //     }
+
+  //     pipeline.push({
+  //       $addFields: {
+  //         categoryNameRoot: "$categoryDetails.category_name",
+  //         stoneValue: "$totalStoneValue",
+  //         gstValue: "$gstAmount",
+  //       }
+  //     });
+
+  //     pipeline.push({
+  //       $project: {
+  //         _id: 1,
+  //         id_category: 1,
+  //         id_branch: 1,
+  //         id_metal: 1,
+  //         product_name: 1,
+  //         description: 1,
+  //         code: 1,
+  //         gst: 1,
+  //         product_image: 1,
+  //         showprice: 1,
+  //         isMrp: 1,
+  //         subcategoryId: 1,
+  //         sizeId: 1,
+  //         sku: 1,
+  //         bestSeller: 1,
+  //         active: 1,
+  //         onlineProduct: 1,
+  //         makingCharges: 1,
+  //         wastageCharges: 1,
+  //         collection: 1,
+  //         createdAt: 1,
+  //         updatedAt: 1,
+  //         categoryName: "$categoryNameRoot",
+  //         metalName: "$metalDetails.metal_name",
+  //         latestMetalPrice: { $ifNull: [{ $arrayElemAt: ["$metalRateInfo.rate", 0] }, 0] },
+  //         price: "$calculatedPrice",
+  //         totalprice: "$calculatedTotalPrice",
+  //         totalAmount: "$calculatedPrice", // Alias for OrderUseCase
+  //         discountedAmount: "$calculatedPrice", // Alias for OrderUseCase
+  //         id_purity: "$firstItem.id_purity",
+  //         purityName: "$firstItem.purityName",
+  //         stoneDetails: "$firstItem.stoneDetails",
+  //         metalValue: 1,
+  //         makingValue: 1,
+  //         wastageValue: 1,
+  //         stoneValue: 1,
+  //         gstValue: {
+  //           $round: [
+  //             {
+  //               $subtract: [
+  //                 "$calculatedPrice",
+  //                 {
+  //                   $add: [
+  //                     "$metalValue",
+  //                     "$makingValue",
+  //                     "$wastageValue",
+  //                     "$stoneValue",
+  //                     { $ifNull: ["$firstItem.huidCharges", 0] }
+  //                   ]
+  //                 }
+  //               ]
+  //             },
+  //             2
+  //           ]
+  //         },
+  //         firstItem: 1,
+  //         huid: 1,
+  //         huidCharges: 1,
+  //         showHuidCharge: 1,
+  //         showHuidNo: 1,
+  //         isWishlisted: customerId ? { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] } : { $literal: false },
+  //         purityList: {
+  //           $map: {
+  //             input: { $ifNull: ["$purityList", []] },
+  //             as: "p",
+  //             in: { _id: "$$p._id", purity_name: "$$p.purity_name" }
+  //           }
+  //         },
+  //         pathurl: {
+  //           $concat: [
+  //             { $ifNull: ["$s3Details.s3display_url", ""] },
+  //             `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
+  //           ],
+  //         },
+  //       }
+  //     });
+
+  //     const result = await ProductModel.aggregate(pipeline);
+  //     return result.length > 0 ? result[0] : null;
+  //   } catch (err) {
+  //     console.error(err);
+  //     throw new Error("Database error finding product by ID via aggregation");
+  //   }
+  // }
   async findById(id, customerId = null) {
     try {
       const pipeline = [
         {
           $match: {
             _id: new mongoose.Types.ObjectId(id),
-            is_deleted: false
+            is_deleted: false,
+            active: true
           },
         },
         {
@@ -328,13 +635,14 @@ class ProductRepository {
     }
   }
 
-  async countProduct(filter, searchOptions = null) {
+  async countProduct(filter, searchOptions = null, web) {
     try {
-      if (!searchOptions || !searchOptions.term) {
+      const isWeb = web === true || web === "true";
+      if (isWeb && (!searchOptions || !searchOptions.term)) {
         return await ProductModel.countDocuments(filter);
       }
 
-      const searchRegex = new RegExp(searchOptions.term, "i");
+      const searchRegex = searchOptions && searchOptions.term ? new RegExp(searchOptions.term, "i") : null;
       const pipeline = [
         { $match: filter },
         {
@@ -364,17 +672,31 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$id_metal", preserveNullAndEmptyArrays: true } },
-        {
-          $match: {
-            $or: [
-              { product_name: { $regex: searchRegex } },
-              { sku: { $regex: searchRegex } },
-              { "id_category.category_name": { $regex: searchRegex } },
-              { "id_subcategory.name": { $regex: searchRegex } },
-              { "id_metal.metal_name": { $regex: searchRegex } },
-            ],
-          },
-        },
+        ...(!isWeb
+          ? [
+            {
+              $match: {
+                "id_category.active": { $ne: false },
+                "id_subcategory.active": { $ne: false },
+              },
+            },
+          ]
+          : []),
+        ...(searchRegex
+          ? [
+            {
+              $match: {
+                $or: [
+                  { product_name: { $regex: searchRegex } },
+                  { sku: { $regex: searchRegex } },
+                  { "id_category.category_name": { $regex: searchRegex } },
+                  { "id_subcategory.name": { $regex: searchRegex } },
+                  { "id_metal.metal_name": { $regex: searchRegex } },
+                ],
+              },
+            },
+          ]
+          : []),
         { $count: "total" }
       ];
 
@@ -386,7 +708,7 @@ class ProductRepository {
     }
   }
 
-  async getProducts(filter, skip, limit, searchOptions, customerId = null) {
+  async getProducts(filter, skip, limit, searchOptions, customerId = null, web) {
     try {
       const pipeline = [
         { $match: filter },
@@ -418,6 +740,16 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$id_subcategory", preserveNullAndEmptyArrays: true } },
+        ...(!(web === true || web === "true")
+          ? [
+            {
+              $match: {
+                "id_category.active": { $ne: false },
+                "id_subcategory.active": { $ne: false },
+              },
+            },
+          ]
+          : []),
         {
           $lookup: {
             from: "metals",

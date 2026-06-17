@@ -27,7 +27,7 @@ class AppProductUsecase {
 
   async findById(id, user) {
     try {
-      const customerId = user && user._id ? user._id : null;
+      const customerId = user && user?._id ? user?._id : null;
       let productData = await this.productRepository.findById(id, customerId);
 
       if (productData) {
@@ -125,10 +125,8 @@ class AppProductUsecase {
       diamondcts: item.diamondcts,
       diamondwt: item.diamondwt,
       diaCertificateNo: item.diaCertificateNo,
-      // huidCharges: item.huidCharges,
       huidNo: item.huidNo,
-
-      // 🔥 Prioritize Item Calculations
+      stoneDetails: item.stoneDetails || item?._doc?.stoneDetails || [],
       price: calculations.price,
       subtotal: calculations.subtotal, //price to subtotal
       totalWithGst: calculations.price, //changed totalPrice to price
@@ -354,7 +352,19 @@ class AppProductUsecase {
       stoneValue,
       gstValue: Math.round(((subTotal * gstRate) / 100) * 100) / 100,
       discount: Math.round((totalPrice - outprice) * 100) / 100,
-      subtotal: subTotal
+      subtotal: subTotal,
+      stoneDiamondDetails: stoneDiamondDetails,
+      totalDiamondWeight: totalDiamondWeight,
+      totalDiamondCost: totalDiamondCost,
+      totalDiamondPrice: totalDiamondPrice,
+      totalDiamondCount: totalDiamondCount,
+      totalStoneWeight: totalStoneWeight,
+      totalStoneCost: totalStoneCost,
+      totalStonePrice: totalStonePrice,
+      totalStoneCount: totalStoneCount,
+      finalMakingCharge: makingActualChargeValue,
+      finalWastageCharge: wastageActualChargeValue,
+      huidCharges: huid,
     };
   }
 

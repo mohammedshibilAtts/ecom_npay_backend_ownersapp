@@ -160,12 +160,14 @@ class ItemUseCase {
       }
 
       const findProduct = await this.productRepository.findById(productId);
+
       if (!findProduct) {
         return {
           success: false,
           message: "Product Not Found",
         };
       }
+
       const pageNumber = Number(page);
       const limitNumber = Number(limit);
 

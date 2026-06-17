@@ -184,7 +184,7 @@ class ProductUseCase {
 
   async getProducts(query, token) {
     try {
-      const { page, limit, from_date, to_date, id_branch, search, active } = query;
+      const { page, limit, from_date, to_date, id_branch, search, active, web = false } = query;
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
       const skip = (pageNum - 1) * pageSize;
@@ -229,14 +229,15 @@ class ProductUseCase {
         skip,
         pageSize,
         searchOptions,
-        customer ? customer : null
+        customer ? customer : null,
+        web
       );
 
       if (!products.length >= 1) {
         return { success: false, message: "No products found" };
       }
 
-      const totalproducts = await this.productRepository.countProduct(filter, searchOptions);
+      const totalproducts = await this.productRepository.countProduct(filter, searchOptions, web);
 
       return {
         success: true,
@@ -534,6 +535,7 @@ class ProductUseCase {
       currentMetalRate: item.currentMetalRate,
       huidCharges: item.huidCharges,
       huidNo: item.huidNo,
+      stoneDetails: item.stoneDetails || item?._doc?.stoneDetails || [],
       price: calculations.price,
       subtotal: calculations.price,
       totalprice: calculations.totalprice,
