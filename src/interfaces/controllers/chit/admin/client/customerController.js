@@ -350,10 +350,10 @@ class CustomerController {
       if (!mobile) {
         return res.status(400).json({ message: "Mobile number is required." });
       }
-
-      if (!mpin) {
-        return res.status(400).json({ message: "MPIN is required." });
-      }
+// We commented mpin validation as per client requirement 
+      // if (!mpin) {
+      //   return res.status(400).json({ message: "MPIN is required." });
+      // }
 
       if (!id_branch) {
         return res.status(400).json({ message: "Branch ID is required." });
@@ -375,12 +375,12 @@ class CustomerController {
           .json({ message: "Invalid mobile number format." });
       }
 
-      const mpinPattern = /^[0-9]{4}$/;
-      if (!mpinPattern.test(mpin)) {
-        return res
-          .status(400)
-          .json({ message: "MPIN should be a 4-digit number." });
-      }
+      // const mpinPattern = /^[0-9]{4}$/;
+      // if (!mpinPattern.test(mpin)) {
+      //   return res
+      //     .status(400)
+      //     .json({ message: "MPIN should be a 4-digit number." });
+      // }
 
       const userData = {
         firstname,

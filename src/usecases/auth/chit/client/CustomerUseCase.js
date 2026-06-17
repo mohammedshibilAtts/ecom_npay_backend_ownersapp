@@ -836,7 +836,8 @@ class CustomerUseCase {
         id_branch: checkCusmoter.id_branch,
         mobile: checkCusmoter.mobile,
       };
-      const token = this.tokenService.generateToken(payload, "60d");
+      const token = this.tokenService.generateToken(payload, null);
+
       return { success: true, message: "Login successful", token };
     } catch (err) {
       console.error(err);
