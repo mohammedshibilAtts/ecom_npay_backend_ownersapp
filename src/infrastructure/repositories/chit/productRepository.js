@@ -347,16 +347,9 @@ class ProductRepository {
   //     throw new Error("Database error finding product by ID via aggregation");
   //   }
   // }
-  async findById(id, customerId = null) {
+  async findById(id, customerId = null, change) {
     try {
       const pipeline = [
-        {
-          $match: {
-            _id: new mongoose.Types.ObjectId(id),
-            is_deleted: false,
-            active: true
-          },
-        },
         {
           $lookup: {
             from: "categories",
@@ -536,6 +529,27 @@ class ProductRepository {
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
         ...getPricingPipeline("$id_branch", "firstItem")
       ];
+
+      if (change) {
+        pipeline.unshift(
+          {
+            $match: {
+              _id: new mongoose.Types.ObjectId(id),
+              is_deleted: false
+            },
+          }
+        )
+      } else {
+        pipeline.unshift(
+          {
+            $match: {
+              _id: new mongoose.Types.ObjectId(id),
+              is_deleted: false,
+              active: true
+            },
+          }
+        )
+      }
 
       if (customerId) {
         pipeline.push({

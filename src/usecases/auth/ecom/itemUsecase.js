@@ -374,15 +374,16 @@ class ItemUseCase {
     }
 
     let stoneValue = 0;
+    let diamondValue = 0
     if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
       item.stoneDetails.forEach((stone) => {
-        stoneValue += Number(stone.price || 0);
+        stoneValue += Number(stone?.weight || 0) * Number(stone?.itemId?.percraterate || 0) + Number(stone?.itemId?.charge || 0);
       });
     }
 
     const huid = Number(item.huidCharges || 0);
     const subTotal =
-      metalValue + makingValue + wastageValue + stoneValue + huid;
+      metalValue + makingValue + wastageValue + Number(stoneValue.toFixed(2)) + huid;
     const gstValue = (subTotal * Number(item.gst || 3)) / 100;
     const outprice = subTotal + gstValue;
 
@@ -407,7 +408,7 @@ class ItemUseCase {
       huid;
     const findGst = (finalOut * Number(item.gst || 3)) / 100;
     const totalPrice = finalOut + findGst;
-
+    console.log(outprice, totalPrice)
     return {
       price: Number(outprice.toFixed(2)),
       totalprice: Number(totalPrice.toFixed(2)),

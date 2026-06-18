@@ -11,7 +11,6 @@ class AppProductController {
       }
       const productData = await this.usecase.findById(id, req.user);
 
-      console.log(productData, "pfo")
       if (productData.success) {
         return res
           .status(200)

@@ -463,7 +463,7 @@ class ProductUseCase {
 
   async changeStatus(id) {
     try {
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
       if (!existingProduct) return { success: false, message: "Product not found" };
       const newStatus = !existingProduct.active;
       const result = await this.productRepository.updateProduct(id, { active: newStatus });

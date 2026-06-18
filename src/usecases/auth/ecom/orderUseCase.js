@@ -130,136 +130,140 @@ class OrderUseCase {
       if (!productId) {
         throw new Error("Address Id is required");
       }
-      const findAddress =
-        await this.deliveryAddressRepository.findById(addressId);
 
-      if (!findAddress) {
-        return {
-          success: false,
-          message: "Invalid Address Id",
-        };
-      }
-      const findProduct = await this.productRepository.findById(productId);
+      return await this.orderNowItem(userData, addressId, productId);
 
-      if (!findProduct && findProduct.onlineProduct) {
-        return {
-          success: false,
-          message: "Product not found",
-        };
-      }
+      // const findAddress =
+      //   await this.deliveryAddressRepository.findById(addressId);
 
-      const findProductForOrderNow =
-        await this.orderRepository.findProductForOrderNow(
-          productId,
-          userData._id,
-        );
-      if (findProductForOrderNow.alreadyOrdered) {
-        return {
-          success: false,
-          message:
-            "Order confirmation is pending. You can place a new order after it's confirmed.",
-        };
-      }
+      // if (!findAddress) {
+      //   return {
+      //     success: false,
+      //     message: "Invalid Address Id",
+      //   };
+      // }
 
-      const cartData = {};
-      const findCart = await this.cartRepository.findByUserId(userData._id);
-      let cartId = findCart && findCart._id ? findCart._id : null;
-      cartData.userId = userData._id;
-      if (!findCart) {
-        const cart = {
-          ...cartData,
-          status: "active",
-        };
-        const createCart = await this.cartRepository.create(cart);
-        cartId = createCart._id;
-      }
+      // const findProduct = await this.productRepository.findById(productId);
 
-      const shppingCharge = 0;
-      const raw = `${userData._id}${Date.now()}`;
-      const transactionId = crypto
-        .createHash("sha256")
-        .update(raw)
-        .digest("hex")
-        .slice(0, 15);
-      const processingStatus = await this.orderRepository.findStatusByNo(
-        ORDER_STATUS_NO.PROCESSING,
-      );
+      // if (!findProduct && findProduct.onlineProduct) {
+      //   return {
+      //     success: false,
+      //     message: "Product not found",
+      //   };
+      // }
 
-      const orderData = {
-        orderId: `ORD-${transactionId}`,
-        userId: userData._id,
-        phone: userData?.mobile,
-        cartId: findCart?._id || null,
-        shipping_is_billing: true,
-        itemsCount: 1,
-        subtotal: findProduct.totalAmount || findProduct.price || 0,
-        totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
-        shippingFee: shppingCharge,
-        totalAmount:
-          (findProduct.discountedAmount || findProduct.price || 0) +
-          shppingCharge,
-        savedAmount:
-          (findProduct.totalAmount || findProduct.price || 0) -
-          (findProduct.discountedAmount || findProduct.price || 0),
-        status: processingStatus?.name || "Processing",
-        deliveryAddress: addressId,
-        active: true,
-        orderStatus: ORDER_STATUS_NO.PROCESSING,
-        orderType: ORDER_TYPE.OFFLINE_ORDER,
-      };
-      const orderItems = {
-        productId: findProduct._id,
-        itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id,
-        productName: findProduct.product_name,
-        sku: findProduct.sku,
-        image: findProduct.product_image[0],
-        grossWeight: findProduct.grossWeight || findProduct.firstItem?.grossWt,
-        price: findProduct.discountedAmount || findProduct.price || 0,
-        totalPrice:
-          findProduct.totalprice ||
-          findProduct.totalAmount ||
-          findProduct.price ||
-          0,
-        quantity: 1,
-        discountAmount: findProduct.discountedAmount || findProduct.price || 0,
-        categoryId: findProduct.id_category,
-        subCategoryId: findProduct.subcategoryId,
-        collectionId: findProduct.collectionId,
-        status: "pending",
-        trackingNumber: null,
-        shippedAt: new Date(),
-        returnStatus: "none",
-        refundAmount: 0,
-        metalRate: findProduct?.latestMetalPrice,
-        netWt: findProduct?.netWeight || findProduct.firstItem?.netWeight,
-        id_purity: findProduct.id_purity || findProduct.firstItem?.id_purity,
-        purityName: findProduct.purityName,
-        id_metal: findProduct.id_metal,
-        makingCharges: findProduct.makingCharges ?? null,
-        wastageCharges: findProduct.wastageCharges ?? null,
-        gstAmount: findProduct.gstValue || findCart?.gst || 0,
-      };
-      const createOrder = await this.orderRepository.createOrder(orderData, [
-        orderItems,
-      ]);
+      // const findProductForOrderNow =
+      //   await this.orderRepository.findProductForOrderNow(
+      //     productId,
+      //     userData._id,
+      //   );
+      // if (findProductForOrderNow.alreadyOrdered) {
+      //   return {
+      //     success: false,
+      //     message:
+      //       "Order confirmation is pending. You can place a new order after it's confirmed.",
+      //   };
+      // }
 
-      if (!createOrder) {
-        return {
-          success: false,
-          message: "Failed to create order now",
-        };
-      }
+      // const cartData = {};
+      // const findCart = await this.cartRepository.findByUserId(userData._id);
+      // let cartId = findCart && findCart._id ? findCart._id : null;
+      // cartData.userId = userData._id;
+      // if (!findCart) {
+      //   const cart = {
+      //     ...cartData,
+      //     status: "active",
+      //   };
+      //   const createCart = await this.cartRepository.create(cart);
+      //   cartId = createCart._id;
+      // }
 
-      // Reduce stock immediately for offline orders
-      await this.orderRepository.reduceProductQuatityCount(
-        createOrder.order._id,
-      );
+      // const shppingCharge = 0;
+      // const raw = `${userData._id}${Date.now()}`;
+      // const transactionId = crypto
+      //   .createHash("sha256")
+      //   .update(raw)
+      //   .digest("hex")
+      //   .slice(0, 15);
+      // const processingStatus = await this.orderRepository.findStatusByNo(
+      //   ORDER_STATUS_NO.PROCESSING,
+      // );
 
-      return {
-        success: true,
-        message: "Your order has been placed successfully",
-        data: createOrder?.data,
-      };
+      // const orderData = {
+      //   orderId: `ORD-${transactionId}`,
+      //   userId: userData._id,
+      //   phone: userData?.mobile,
+      //   cartId: findCart?._id || null,
+      //   shipping_is_billing: true,
+      //   itemsCount: 1,
+      //   subtotal: findProduct.totalAmount || findProduct.price || 0,
+      //   totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
+      //   shippingFee: shppingCharge,
+      //   totalAmount:
+      //     (findProduct.discountedAmount || findProduct.price || 0) +
+      //     shppingCharge,
+      //   savedAmount:
+      //     (findProduct.totalAmount || findProduct.price || 0) -
+      //     (findProduct.discountedAmount || findProduct.price || 0),
+      //   status: processingStatus?.name || "Processing",
+      //   deliveryAddress: addressId,
+      //   active: true,
+      //   orderStatus: ORDER_STATUS_NO.PROCESSING,
+      //   orderType: ORDER_TYPE.OFFLINE_ORDER,
+      // };
+      // const orderItems = {
+      //   productId: findProduct._id,
+      //   itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id,
+      //   productName: findProduct.product_name,
+      //   sku: findProduct.sku,
+      //   image: findProduct.product_image[0],
+      //   grossWeight: findProduct.grossWeight || findProduct.firstItem?.grossWt,
+      //   price: findProduct.discountedAmount || findProduct.price || 0,
+      //   totalPrice:
+      //     findProduct.totalprice ||
+      //     findProduct.totalAmount ||
+      //     findProduct.price ||
+      //     0,
+      //   quantity: 1,
+      //   discountAmount: findProduct.discountedAmount || findProduct.price || 0,
+      //   categoryId: findProduct.id_category,
+      //   subCategoryId: findProduct.subcategoryId,
+      //   collectionId: findProduct.collectionId,
+      //   status: "pending",
+      //   trackingNumber: null,
+      //   shippedAt: new Date(),
+      //   returnStatus: "none",
+      //   refundAmount: 0,
+      //   metalRate: findProduct?.latestMetalPrice,
+      //   netWt: findProduct?.netWeight || findProduct.firstItem?.netWeight,
+      //   id_purity: findProduct.id_purity || findProduct.firstItem?.id_purity,
+      //   purityName: findProduct.purityName,
+      //   id_metal: findProduct.id_metal,
+      //   makingCharges: findProduct.makingCharges ?? null,
+      //   wastageCharges: findProduct.wastageCharges ?? null,
+      //   gstAmount: findProduct.gstValue || findCart?.gst || 0,
+      // };
+      // const createOrder = await this.orderRepository.createOrder(orderData, [
+      //   orderItems,
+      // ]);
+
+      // if (!createOrder) {
+      //   return {
+      //     success: false,
+      //     message: "Failed to create order now",
+      //   };
+      // }
+
+      // // Reduce stock immediately for offline orders
+      // await this.orderRepository.reduceProductQuatityCount(
+      //   createOrder.order._id,
+      // );
+
+      // return {
+      //   success: true,
+      //   message: "Your order has been placed successfully",
+      //   data: createOrder?.data,
+      // };
     } catch (error) {
       console.error(error);
       throw new Error(`Failed to place order: ${error.message}`);

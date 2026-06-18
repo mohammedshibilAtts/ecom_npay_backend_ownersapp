@@ -29,7 +29,7 @@ class OrderController {
 
   async placeOrder(req, res) {
     try {
-      const { addressId,isStorePickup } = req.body;
+      const { addressId, isStorePickup } = req.body;
 
       const result = await this.orderUseCase.placeOrder(
         req.body,
@@ -89,11 +89,13 @@ class OrderController {
   async orderNowItem(req, res) {
     try {
       const { addressId, itemId } = req.body;
+
       const result = await this.orderUseCase.orderNowItem(
         req.user,
         addressId,
         itemId,
       );
+
       if (!result.success) {
         return res.status(400).json({
           success: false,
