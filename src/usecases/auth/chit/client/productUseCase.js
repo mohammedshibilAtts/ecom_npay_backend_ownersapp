@@ -473,6 +473,17 @@ class ProductUseCase {
     }
   }
 
+  async toggleSoldStatus(id) {
+    try {
+      const item = await this.productRepository.toggleItemSoldStatus(id);
+      const isSoldOut = item.status === 2;
+      return { success: true, message: `Product status updated to ${isSoldOut ? "Sold Out" : "In Stock"}` };
+    } catch (err) {
+      console.error(err);
+      return { success: false, message: "Error changing product status", error: err.message };
+    }
+  }
+
   async getCategoryByCollectionId(id) {
     try {
       const data = await this.productRepository.getCategoryByCollectionId(id);

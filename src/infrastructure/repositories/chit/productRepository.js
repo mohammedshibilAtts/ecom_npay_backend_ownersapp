@@ -396,7 +396,6 @@ class ProductRepository {
                             { $eq: ["$productId", "$$productId"] },
                             { $eq: ["$id_purity", "$$purityId"] },
                             { $eq: ["$active", true] },
-                            { $eq: ["$status", 1] },
                             { $ne: ["$is_deleted", true] }
                           ]
                         }
@@ -469,7 +468,6 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
-                      { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] }
                     ],
                   },
@@ -928,6 +926,25 @@ class ProductRepository {
     }
   }
 
+  async toggleItemSoldStatus(productId) {
+    try {
+      const ItemModel = mongoose.model("Item");
+      const item = await ItemModel.findOne({ productId: new mongoose.Types.ObjectId(productId), is_deleted: { $ne: true } });
+      if (!item) {
+        throw new Error("Item not found for this product");
+      }
+      const newStatus = item.status === 1 ? 2 : 1;
+      const newActive = newStatus === 1;
+      item.status = newStatus;
+      item.active = newActive;
+      await item.save();
+      return item;
+    } catch (err) {
+      console.error(err);
+      throw new Error(err.message || "Database error toggling item sold status");
+    }
+  }
+
   async editProduct(updateFields, id) {
     try {
       return await ProductModel.findByIdAndUpdate(id, { $set: updateFields }, { new: true });
@@ -1040,7 +1057,6 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
-                      { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
