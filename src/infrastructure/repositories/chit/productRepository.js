@@ -2,6 +2,7 @@ import ProductModel from "../../models/chit/productModel.js";
 import mongoose from "mongoose";
 import config from "../../../config/chit/env.js";
 import { getPricingPipeline } from "../ecom/helpers/pricingPipeline.js";
+import { getS3DisplayUrl } from "../ecom/helpers/s3Cache.js";
 
 class ProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -349,6 +350,7 @@ class ProductRepository {
   // }
   async findById(id, customerId = null, change) {
     try {
+      const s3Url = await getS3DisplayUrl();
       const pipeline = [
         {
           $lookup: {
@@ -428,14 +430,7 @@ class ProductRepository {
             as: "subcategoryDetails",
           },
         },
-        {
-          $lookup: {
-            from: "s3bucketsettings",
-            pipeline: [{ $limit: 1 }],
-            as: "s3Details",
-          },
-        },
-        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        { $addFields: { s3DisplayUrl: s3Url } },
         {
           $lookup: {
             from: "metalrates",
@@ -632,7 +627,7 @@ class ProductRepository {
           },
           pathurl: {
             $concat: [
-              { $ifNull: ["$s3Details.s3display_url", ""] },
+              { $ifNull: ["$s3DisplayUrl", ""] },
               `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
             ],
           },
@@ -722,9 +717,11 @@ class ProductRepository {
 
   async getProducts(filter, skip, limit, searchOptions, customerId = null, web) {
     try {
+      const s3Url = await getS3DisplayUrl();
+      const isWeb = web === true || web === "true";
+
       const pipeline = [
         { $match: filter },
-        { $sort: { createdAt: -1 } },
         {
           $lookup: {
             from: "branches",
@@ -752,7 +749,7 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$id_subcategory", preserveNullAndEmptyArrays: true } },
-        ...(!(web === true || web === "true")
+        ...(!isWeb
           ? [
             {
               $match: {
@@ -780,14 +777,7 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$sizeDetails", preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: "s3bucketsettings",
-            pipeline: [{ $limit: 1 }],
-            as: "s3Details",
-          },
-        },
-        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        { $addFields: { s3DisplayUrl: s3Url } },
         {
           $lookup: {
             from: "items",
@@ -869,46 +859,59 @@ class ProductRepository {
             },
           ]
           : []),
-        { $skip: skip },
-        { $limit: limit },
+        { $sort: { createdAt: -1 } },
         {
-          $project: {
-            product_name: 1,
-            createdAt: 1,
-            product_image: 1,
-            active: 1,
-            bestSeller: 1,
-            price: "$calculatedPrice",
-            totalprice: "$calculatedTotalPrice",
-            branchName: "$id_branch.branch_name",
-            metalName: "$id_metal.metal_name",
-            categoryName: "$id_category.category_name",
-            subcategoryName: "$id_subcategory.name",
-            stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
-            sold: {
-              $cond: {
-                if: { $gt: [{ $size: { $ifNull: ["$soldItems", []] } }, 0] },
-                then: false,
-                else: true,
+          $facet: {
+            metadata: [{ $count: "total" }],
+            data: [
+              { $skip: skip },
+              { $limit: limit },
+              {
+                $project: {
+                  product_name: 1,
+                  createdAt: 1,
+                  product_image: 1,
+                  active: 1,
+                  bestSeller: 1,
+                  price: "$calculatedPrice",
+                  totalprice: "$calculatedTotalPrice",
+                  branchName: "$id_branch.branch_name",
+                  metalName: "$id_metal.metal_name",
+                  categoryName: "$id_category.category_name",
+                  subcategoryName: "$id_subcategory.name",
+                  stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
+                  sold: {
+                    $cond: {
+                      if: { $gt: [{ $size: { $ifNull: ["$soldItems", []] } }, 0] },
+                      then: false,
+                      else: true,
+                    },
+                  },
+                  onlineProduct: 1,
+                  pathurl: {
+                    $concat: [
+                      { $ifNull: ["$s3DisplayUrl", ""] },
+                      `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
+                    ],
+                  },
+                },
               },
-            },
-            onlineProduct: 1,
-            pathurl: {
-              $concat: [
-                { $ifNull: ["$s3Details.s3display_url", ""] },
-                `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
-              ],
-            },
+            ],
           },
         },
       ];
 
-      return await ProductModel.aggregate(pipeline);
+      const result = await ProductModel.aggregate(pipeline);
+      const total = result[0]?.metadata[0]?.total || 0;
+      const data = result[0]?.data || [];
+
+      return { data, total };
     } catch (err) {
       console.error(err);
       throw new Error("Database error getting products via aggregation");
     }
   }
+
 
   async deleteProduct(id) {
     try {
@@ -955,13 +958,14 @@ class ProductRepository {
 
   async getCategoryByCollectionId(id) {
     try {
-      const products = await ProductModel.find({ collection: id, active: true, is_deleted: false });
-      const categoryIds = [...new Set(products.map(p => p.id_category.toString()))];
-      return await mongoose.model("Category").find({
-        _id: { $in: categoryIds },
-        active: true,
-        is_deleted: false
-      });
+      return await ProductModel.aggregate([
+        { $match: { collection: new mongoose.Types.ObjectId(id), active: true, is_deleted: false } },
+        { $group: { _id: "$id_category" } },
+        { $lookup: { from: "categories", localField: "_id", foreignField: "_id", as: "cat" } },
+        { $unwind: "$cat" },
+        { $match: { "cat.active": true, "cat.is_deleted": false } },
+        { $replaceRoot: { newRoot: "$cat" } }
+      ]);
     } catch (err) {
       throw new Error("Database error fetching categories by collection");
     }
@@ -969,6 +973,7 @@ class ProductRepository {
 
   async getProductBySubcategory(id, page, limit, filter, customerId = null) {
     try {
+      const s3Url = await getS3DisplayUrl();
       const skip = (page - 1) * limit;
       const match = {
         subcategoryId: new mongoose.Types.ObjectId(id),
@@ -1016,14 +1021,7 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: "s3bucketsettings",
-            pipeline: [{ $limit: 1 }],
-            as: "s3Details",
-          },
-        },
-        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        { $addFields: { s3DisplayUrl: s3Url } },
         {
           $lookup: {
             from: "items",
@@ -1062,6 +1060,8 @@ class ProductRepository {
                   },
                 },
               },
+              { $sort: { createdAt: 1 } },
+              { $limit: 1 },
               {
                 $lookup: {
                   from: "stonedetails",
@@ -1081,21 +1081,12 @@ class ProductRepository {
                   ]
                 }
               },
-              { $sort: { createdAt: 1 } },
-              { $limit: 1 },
             ],
             as: "firstItem",
           },
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: false } },
-        {
-          $lookup: {
-            from: "s3bucketsettings",
-            pipeline: [{ $limit: 1 }],
-            as: "s3Details",
-          },
-        },
-        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        { $addFields: { s3DisplayUrl: s3Url } },
         ...getPricingPipeline("$id_branch", "firstItem")
       ];
 
@@ -1144,7 +1135,7 @@ class ProductRepository {
                 isWishlisted: customerId ? { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] } : { $literal: false },
                 pathurl: {
                   $concat: [
-                    { $ifNull: ["$s3Details.s3display_url", ""] },
+                    { $ifNull: ["$s3DisplayUrl", ""] },
                     `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
                   ],
                 },
@@ -1172,6 +1163,7 @@ class ProductRepository {
 
   async getProductByCategory(id, page, limit, filter, customerId = null) {
     try {
+      const s3Url = await getS3DisplayUrl();
       const skip = (page - 1) * limit;
       const match = {
         id_category: new mongoose.Types.ObjectId(id),
@@ -1254,6 +1246,8 @@ class ProductRepository {
                   },
                 },
               },
+              { $sort: { createdAt: 1 } },
+              { $limit: 1 },
               {
                 $lookup: {
                   from: "stonedetails",
@@ -1273,21 +1267,12 @@ class ProductRepository {
                   ]
                 }
               },
-              { $sort: { createdAt: 1 } },
-              { $limit: 1 },
             ],
             as: "firstItem",
           },
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: false } },
-        {
-          $lookup: {
-            from: "s3bucketsettings",
-            pipeline: [{ $limit: 1 }],
-            as: "s3Details",
-          },
-        },
-        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        { $addFields: { s3DisplayUrl: s3Url } },
         ...getPricingPipeline("$id_branch", "firstItem")
       ];
 
@@ -1344,7 +1329,7 @@ class ProductRepository {
                 },
                 pathurl: {
                   $concat: [
-                    { $ifNull: ["$s3Details.s3display_url", ""] },
+                    { $ifNull: ["$s3DisplayUrl", ""] },
                     `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
                   ],
                 },
@@ -1443,12 +1428,20 @@ class ProductRepository {
         },
         { $project: { items: 0 } },
         { $sort: { createdAt: -1 } },
-        { $skip: skip },
-        { $limit: parseInt(limit) },
+        {
+          $facet: {
+            metadata: [{ $count: "totalCount" }],
+            data: [
+              { $skip: skip },
+              { $limit: parseInt(limit) },
+            ],
+          },
+        },
       ];
 
-      const data = await ProductModel.aggregate(pipeline);
-      const totalCount = await ProductModel.countDocuments(query);
+      const result = await ProductModel.aggregate(pipeline);
+      const data = result[0]?.data || [];
+      const totalCount = result[0]?.metadata[0]?.totalCount || 0;
 
       return {
         data,

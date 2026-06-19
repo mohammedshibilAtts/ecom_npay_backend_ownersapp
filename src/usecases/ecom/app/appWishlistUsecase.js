@@ -45,7 +45,7 @@ class AppWishlistUsecase {
 
       const productIds = wishlistItems.map((item) => item.itemId);
       
-      const products = await this.productRepository.getProducts(
+      const { data: products } = await this.productRepository.getProducts(
         { _id: { $in: productIds }, is_deleted: false },
         0,
         100,

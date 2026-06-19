@@ -111,4 +111,9 @@ const itemSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// Compound indexes for product pipeline lookups — eliminates full collection scans
+itemSchema.index({ productId: 1, active: 1, is_deleted: 1 });
+itemSchema.index({ productId: 1, active: 1, status: 1, is_deleted: 1 });
+itemSchema.index({ productId: 1, id_purity: 1, active: 1, is_deleted: 1 });
+
 export default mongoose.model("Item", itemSchema);

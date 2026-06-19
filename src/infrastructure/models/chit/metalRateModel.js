@@ -48,4 +48,8 @@ const metalRatesSchema = new Schema(
     timestamps: true,
   },
 );
+// Compound indexes for latest-rate lookups in pricing pipeline
+metalRatesSchema.index({ purity_id: 1, createdAt: -1 });
+metalRatesSchema.index({ material_type_id: 1, id_branch: 1, createdAt: -1 });
+
 export default mongoose.model("MetalRate", metalRatesSchema);

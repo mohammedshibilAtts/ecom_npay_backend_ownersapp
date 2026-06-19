@@ -224,7 +224,7 @@ class ProductUseCase {
 
       const searchOptions = search ? { term: search.trim() } : null;
 
-      const products = await this.productRepository.getProducts(
+      const { data: products, total: totalproducts } = await this.productRepository.getProducts(
         filter,
         skip,
         pageSize,
@@ -233,11 +233,9 @@ class ProductUseCase {
         web
       );
 
-      if (!products.length >= 1) {
+      if (!products.length) {
         return { success: false, message: "No products found" };
       }
-
-      const totalproducts = await this.productRepository.countProduct(filter, searchOptions, web);
 
       return {
         success: true,
@@ -345,7 +343,7 @@ class ProductUseCase {
 
       const finalFilter = search ? { ...filter, ...searchOptions } : filter;
 
-      const products = await this.productRepository.getProducts(
+      const { data: products, total: totalProducts } = await this.productRepository.getProducts(
         finalFilter,
         skip,
         pageSize,
@@ -356,8 +354,6 @@ class ProductUseCase {
       if (!products.length) {
         return { success: false, message: "No products found" };
       }
-
-      const totalProducts = await this.productRepository.countProduct(finalFilter);
 
       return {
         success: true,
