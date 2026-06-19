@@ -1579,6 +1579,49 @@ class OrderRepository {
     }
   }
 
+  async findItemForOrderNow(itemId, userId) {
+    try {
+      const result = await OrderItem.aggregate([
+        {
+          $match: {
+            itemId: new mongoose.Types.ObjectId(itemId),
+          },
+        },
+        {
+          $lookup: {
+            from: "orders",
+            localField: "orderId",
+            foreignField: "_id",
+            as: "Order",
+          },
+        },
+        { $unwind: "$Order" },
+        {
+          $match: {
+            "Order.userId": new mongoose.Types.ObjectId(userId),
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            orderType: "$Order.orderType",
+            orderStatus: "$Order.orderStatus",
+          },
+        },
+      ]);
+
+      const hasActiveOrder = result.some(
+        (item) =>
+          item.orderType === ORDER_TYPE.OFFLINE_ORDER &&
+          item.orderStatus === ORDER_STATUS_NO.PROCESSING,
+      );
+
+      return { alreadyOrdered: hasActiveOrder };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async reduceProductQuatityCount(orderId) {
     try {
       const orderItems = await OrderItem.find({ orderId }).lean();

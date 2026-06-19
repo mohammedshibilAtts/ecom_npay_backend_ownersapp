@@ -311,10 +311,11 @@ class OrderUseCase {
       }
 
       const findProductForOrderNow =
-        await this.orderRepository.findProductForOrderNow(
-          findProduct._id,
+        await this.orderRepository.findItemForOrderNow(
+          itemId,
           userData._id,
         );
+
       if (findProductForOrderNow.alreadyOrdered) {
         return {
           success: false,
