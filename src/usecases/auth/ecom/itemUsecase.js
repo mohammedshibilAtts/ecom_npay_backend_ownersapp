@@ -62,6 +62,8 @@ class ItemUseCase {
           unit: data.unit || "",
           sizeValue: data.sizeValue || 0,
           id_purity: data.id_purity,
+          id_color: data.id_color || null,
+          id_certificate: data.id_certificate || null,
           currentMetalRate: Number(data.currentMetalRate || 0),
           tagNo: data.tagNo,
 
@@ -84,7 +86,7 @@ class ItemUseCase {
           price: Number(data.price || 0),
           totalprice: Number(data.totalprice || 0),
 
-          stoneDetails: stoneIds, // ✅ Store stone IDs
+          stoneDetails: stoneIds,
 
           makingCharges: {
             makingMode: data.makingCharges?.makingMode ?? null,

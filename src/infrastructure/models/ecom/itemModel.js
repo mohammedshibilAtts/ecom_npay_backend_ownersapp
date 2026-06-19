@@ -96,9 +96,17 @@ const itemSchema = new mongoose.Schema(
     },
     status:{
       type:Number,
-      default:1   // 1 In 2 Out 
+      default:1
     },
-    stoneDetails: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoneDetails" }]
+    stoneDetails: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoneDetails" }],
+    id_color: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Color",
+    },
+    id_certificate: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Certificate",
+    }
   },
   { timestamps: true },
 );

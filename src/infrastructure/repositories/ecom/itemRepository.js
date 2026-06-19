@@ -36,6 +36,8 @@ class ItemRepository {
         itemModel
           .find(query)
           .populate('id_purity')
+          .populate('id_color')
+          .populate('id_certificate')
           .populate({
             path: "stoneDetails",
             populate: { path: "itemId" }
@@ -97,7 +99,10 @@ class ItemRepository {
     const item = await itemModel.findById(id).populate({
       path: "stoneDetails",
       populate: { path: "itemId" }
-    }).populate("id_purity");
+    })
+    .populate("id_purity")
+    .populate("id_color")
+    .populate("id_certificate");
 
     if (item && item.productId && item.id_purity && item.status !== 2) {
       const [product, latestRate] = await Promise.all([
