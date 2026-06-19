@@ -2,6 +2,7 @@ import { isValidObjectId } from "mongoose";
 import mongoose from "mongoose";
 import smsService from "../../../../config/chit/smsService.js";
 import CustomerRepository from "../../../../infrastructure/repositories/chit/CustomerRepository.js";
+import cacheService from "../../../../utils/cacheService.js";
 
 class metalRateUseCase {
   constructor(metalrateRepository, metalRepo, branchRepo) {
@@ -22,6 +23,8 @@ class metalRateUseCase {
       if (!savedData) {
         return { success: false, message: "Failed to add metal rate" };
       }
+
+      cacheService.invalidatePattern("dashboard:");
 
       const response = {
         success: true,
@@ -165,6 +168,7 @@ class metalRateUseCase {
       );
 
       if (editedData) {
+        cacheService.invalidatePattern("dashboard:");
         return { success: true, message: "Metal rate edited successfully" };
       }
 

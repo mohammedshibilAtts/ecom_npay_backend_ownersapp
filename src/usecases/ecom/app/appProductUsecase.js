@@ -445,7 +445,7 @@ class AppProductUsecase {
           },
         };
       });
-      console.log(simplifiedItems)
+
       return {
         success: true,
         message: "Items retrieved successfully",

@@ -576,6 +576,17 @@ class CartRepository {
               ],
             },
             gstRate: "$gstRate",
+            discountedPriceWithoutGst: {
+              $round: [
+                {
+                  $multiply: [
+                    "$discountedSubtotal",
+                    { $ifNull: ["$quantity", 1] },
+                  ],
+                },
+                2,
+              ],
+            },
             soldOut: {
               $cond: {
                 if: {
@@ -605,6 +616,7 @@ class CartRepository {
                   shippingCharge: { $sum: "$shippingCharge" },
                   totalGstAmount: { $sum: "$gstamount" },
                   gstRate: { $sum: "$gstamount" },
+                  withoutGstPrice: { $sum: "$discountedPriceWithoutGst" }
                 },
               },
               { $project: { _id: 0 } },
@@ -619,8 +631,8 @@ class CartRepository {
           },
         },
       ]);
-
       const result = item[0] ?? { items: [], overAllAmount: {} };
+
       return {
         ...result,
         cartId: cartData._id,
@@ -686,10 +698,10 @@ class CartRepository {
   async removeItem(itemId, cartId) {
     try {
       return await cartItemModel.findOneAndUpdate(
-        { 
-          itemId: new ObjectId(itemId), 
+        {
+          itemId: new ObjectId(itemId),
           cartId: new ObjectId(cartId),
-          is_deleted: false 
+          is_deleted: false
         },
         { $set: { is_deleted: true } },
         { new: true }

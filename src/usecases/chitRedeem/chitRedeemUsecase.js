@@ -259,7 +259,7 @@ class ChitRedeemUsecase {
         },
       };
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return {
         success: false,
         message: "Failed to get report",

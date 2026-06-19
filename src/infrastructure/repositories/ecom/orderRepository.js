@@ -321,6 +321,7 @@ class OrderRepository {
   async findOrderItems(orderId) {
     try {
       const findOrder = await Order.findById(orderId)
+
         .populate({
           path: "deliveryAddress",
           populate: [
@@ -659,7 +660,6 @@ class OrderRepository {
             preserveNullAndEmptyArrays: true,
           },
         },
-        // Now match sizeId with product.availableSizes.values._id
         {
           $addFields: {
             matchedSize: {

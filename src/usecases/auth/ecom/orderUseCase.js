@@ -363,8 +363,7 @@ class OrderUseCase {
         totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
         shippingFee: shppingCharge,
         totalAmount:
-          (findItem.totalprice ||
-            findProduct.discountedAmount ||
+          (findProduct.discountedAmount ||
             findProduct.price ||
             0) + shppingCharge,
         savedAmount:
@@ -376,6 +375,7 @@ class OrderUseCase {
         orderStatus: ORDER_STATUS_NO.PROCESSING,
         orderType: ORDER_TYPE.OFFLINE_ORDER,
       };
+
       const orderItems = {
         productId: findProduct._id,
         itemId: findItem._id,
@@ -385,7 +385,6 @@ class OrderUseCase {
         image: findProduct.product_image[0],
         grossWeight: findItem.grossWt,
         price:
-          findItem.price ||
           findProduct.discountedAmount ||
           findProduct.price ||
           0,
@@ -423,6 +422,7 @@ class OrderUseCase {
         diaCertificateNo: findItem.diaCertificateNo || null,
         size: `${findItem.sizeValue || ""}${findItem.unit || ""}`,
       };
+
       const createOrder = await this.orderRepository.createOrder(orderData, [
         orderItems,
       ]);
@@ -435,9 +435,9 @@ class OrderUseCase {
       }
 
       // Reduce stock immediately for offline orders
-      await this.orderRepository.reduceProductQuatityCount(
-        createOrder.order._id,
-      );
+      // await this.orderRepository.reduceProductQuatityCount(
+      //   createOrder.order._id,
+      // );
 
       return {
         success: true,
@@ -540,7 +540,6 @@ class OrderUseCase {
           totalStonePrice: 0,
         },
       );
-
       const orderData = {
         orderId: `ORD-${transactionId}`,
         userId: token._id,
@@ -554,7 +553,7 @@ class OrderUseCase {
           0,
         totalDiscount: cartItems.overAllAmount?.totalDiscount || 0,
         shippingFee: shppingCharge,
-        totalAmount: cartItems.overAllAmount?.totalAmount || 0,
+        totalAmount: cartItems.overAllAmount?.withoutGstPrice || 0,
         totalGstAmount:
           cartItems.overAllAmount?.totalGstAmount ||
           cartItems.overAllAmount?.gstRate ||
@@ -700,7 +699,7 @@ class OrderUseCase {
       const findOrderItems = await this.orderRepository.findOrderItems(
         findOrder._id,
       );
-
+      console.log(findOrderItems, "item")
       if (!findOrderItems) {
         return {
           success: false,
@@ -1033,7 +1032,7 @@ class OrderUseCase {
 
   async changeOrderStatus(statusId, orderId, remarks, orderStatusData) {
     try {
-      const orderData = await this.orderRepository.findById({ _id: orderId });
+      const orderData = await this.orderRepository.findById(orderId);
       const statusData = await this.orderRepository.findStatusById(statusId);
 
       if (statusData?.statusNo == "2") {
@@ -1089,9 +1088,17 @@ class OrderUseCase {
           message = `Your order has been delivered successfully. Order ID: ${orderData?.orderId}`;
         } else if (statusData?.statusNo == "4") {
           message = `Your order has been cancelled. Order ID: ${orderData?.orderId}`;
+        } else if (statusData?.statusNo == "6") {
+          message = `Your order has been shipped. Order ID: ${orderData?.orderId}`;
+        } else if (statusData?.statusNo == "8") {
+          message = `Your order is ready for pickup. Order ID: ${orderData?.orderId}`;
         }
 
-        await this.sendNotification(orderData?.userId, title, message);
+        if (message && orderData?.userId) {
+          console.log(orderData?.userId, title, message);
+          await this.sendNotification(orderData.userId, title, message);
+        }
+
         return {
           success: true,
           data: result,
