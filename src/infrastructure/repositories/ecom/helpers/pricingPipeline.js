@@ -41,23 +41,23 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
       $addFields: {
         ...(itemPrefix
           ? {
-              [`${itemPrefix}.currentMetalRate`]: {
-                $cond: {
-                  if: { $eq: ["$isMrp", false] },
-                  then: "$currentRate",
-                  else: `$${itemPrefix}.currentMetalRate`,
-                },
+            [`${itemPrefix}.currentMetalRate`]: {
+              $cond: {
+                if: { $eq: ["$isMrp", false] },
+                then: "$currentRate",
+                else: `$${itemPrefix}.currentMetalRate`,
               },
-            }
+            },
+          }
           : {
-              currentMetalRate: {
-                $cond: {
-                  if: { $eq: ["$isMrp", false] },
-                  then: "$currentRate",
-                  else: "$currentMetalRate",
-                },
+            currentMetalRate: {
+              $cond: {
+                if: { $eq: ["$isMrp", false] },
+                then: "$currentRate",
+                else: "$currentMetalRate",
               },
-            }),
+            },
+          }),
       },
     },
 

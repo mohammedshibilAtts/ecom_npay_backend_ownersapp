@@ -30,6 +30,7 @@ class AppProductUsecase {
       const customerId = user && user?._id ? user?._id : null;
       let productData = await this.productRepository.findById(id, customerId);
 
+
       if (productData) {
         let finalData = productData;
         let itemSource = productData.firstItem;
@@ -37,7 +38,6 @@ class AppProductUsecase {
         if (!itemSource) {
           itemSource = await this.itemRepository.findFirstByProductId(productData._id);
         }
-
         if (itemSource) {
           finalData = this._mergeItemData(productData, itemSource);
           finalData._id = productData._id;

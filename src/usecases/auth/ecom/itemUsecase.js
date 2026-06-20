@@ -269,11 +269,11 @@ class ItemUseCase {
         throw new Error("Item not found");
       }
 
-      if (item.status === 2) {
-        throw new Error(
-          "This item has already been sold and cannot be modified.",
-        );
-      }
+      // if (item.status === 2) {
+      //   throw new Error(
+      //     "This item has already been sold and cannot be modified.",
+      //   );
+      // }
 
       const forbiddenFields = [
         "productId",

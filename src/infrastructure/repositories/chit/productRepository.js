@@ -186,6 +186,46 @@ class ProductRepository {
               { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
               {
                 $lookup: {
+                  from: "colors",
+                  let: { colorId: "$id_color" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: [
+                            "$_id",
+                            { $convert: { input: "$$colorId", to: "objectId", onError: "$$colorId", onNull: "$$colorId" } }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  as: "id_color"
+                }
+              },
+              { $unwind: { path: "$id_color", preserveNullAndEmptyArrays: true } },
+              {
+                $lookup: {
+                  from: "certificates",
+                  let: { certId: "$id_certificate" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: [
+                            "$_id",
+                            { $convert: { input: "$$certId", to: "objectId", onError: "$$certId", onNull: "$$certId" } }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  as: "id_certificate"
+                }
+              },
+              { $unwind: { path: "$id_certificate", preserveNullAndEmptyArrays: true } },
+              {
+                $lookup: {
                   from: "stonedetails",
                   localField: "stoneDetails",
                   foreignField: "_id",
@@ -292,6 +332,7 @@ class ProductRepository {
           collection: 1,
           createdAt: 1,
           updatedAt: 1,
+          size: 1,
           categoryName: "$categoryNameRoot",
           metalName: "$metalDetails.metal_name",
           latestMetalPrice: { $ifNull: [{ $arrayElemAt: ["$metalRateInfo.rate", 0] }, 0] },
@@ -300,6 +341,8 @@ class ProductRepository {
           totalAmount: "$calculatedPrice", // Alias for OrderUseCase
           discountedAmount: "$calculatedPrice", // Alias for OrderUseCase
           id_purity: "$firstItem.id_purity",
+          id_color: "$firstItem.id_color.color",
+          id_certificate: "$firstItem.id_certificate.name",
           purityName: 1,
           metalValue: 1,
           makingValue: 1,
@@ -664,14 +707,26 @@ class ProductRepository {
   async toggleItemSoldStatus(productId) {
     try {
       const ItemModel = mongoose.model("Item");
+      const ProductModel = mongoose.model("Product")
       const item = await ItemModel.findOne({ productId: new mongoose.Types.ObjectId(productId), is_deleted: { $ne: true } });
       if (!item) {
         throw new Error("Item not found for this product");
       }
+
+      const product = await ProductModel.findById(productId);
+
+      if (product && product?.onlineProduct !== false) {
+        await ProductModel.updateOne(
+          { _id: new mongoose.Types.ObjectId(productId) },
+          { $set: { onlineProduct: false } }
+        )
+      }
+
       const newStatus = item.status === 1 ? 2 : 1;
       const newActive = newStatus === 1;
+
       item.status = newStatus;
-      item.active = newActive;
+      // item.active = newActive;
       await item.save();
       return item;
     } catch (err) {

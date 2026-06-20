@@ -69,7 +69,7 @@ class ItemRepository {
 
           items.forEach((item) => {
             const pid = item.id_purity?._id?.toString();
-            if (pid && rateMap[pid] && item.status !== 2) {
+            if (pid && rateMap[pid]) {
               item.currentMetalRate = rateMap[pid];
             }
           });
@@ -123,8 +123,9 @@ class ItemRepository {
   }
 
   async findFirstByProductId(productId) {
+    console.log(productId)
     const item = await itemModel
-      .findOne({ productId: new mongoose.Types.ObjectId(productId), is_deleted: { $ne: true } })
+      .findById(productId, { is_deleted: { $ne: true } })
       .sort({ createdAt: 1 })
       .populate({ path: "stoneDetails", populate: { path: "itemId" } })
       .populate("id_purity")
