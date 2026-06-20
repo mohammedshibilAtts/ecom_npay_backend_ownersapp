@@ -125,97 +125,6 @@ class SchemeAccountRepository {
         },
         { $unwind: { path: "$id_scheme", preserveNullAndEmptyArrays: false } },
         {
-          $addFields: {
-            currentDate: new Date(),
-            startDateObj: "$start_date",
-            schemeInstallmentType: "$id_scheme.installment_type"
-          }
-        },
-        {
-          $addFields: {
-            expectedDueDates: {
-              $let: {
-                vars: {
-                  startDate: "$startDateObj",
-                  totalInstallments: "$total_installments",
-                  installmentType: "$schemeInstallmentType"
-                },
-                in: {
-                  $map: {
-                    input: { $range: [0, "$$totalInstallments"] },
-                    as: "i",
-                    in: {
-                      $dateAdd: {
-                        startDate: "$$startDate",
-                        unit: {
-                          $switch: {
-                            branches: [
-                              { case: { $eq: ["$$installmentType", 1] }, then: "month" },
-                              { case: { $eq: ["$$installmentType", 2] }, then: "week" },
-                              { case: { $eq: ["$$installmentType", 3] }, then: "day" },
-                              { case: { $eq: ["$$installmentType", 4] }, then: "year" }
-                            ],
-                            default: "month"
-                          }
-                        },
-                        amount: "$$i"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          $addFields: {
-            expectedInstallmentCount: {
-              $size: {
-                $filter: {
-                  input: "$expectedDueDates",
-                  as: "dueDate",
-                  cond: { $lte: ["$$dueDate", "$currentDate"] }
-                }
-              }
-            }
-          }
-        },
-        {
-          $addFields: {
-            overdueInstallments: {
-              $cond: {
-                if: { $gt: ["$expectedInstallmentCount", "$paid_installments"] },
-                then: { $subtract: ["$expectedInstallmentCount", "$paid_installments"] },
-                else: 0
-              }
-            }
-          }
-        },
-        {
-          $addFields: {
-            nextDueDate: {
-              $let: {
-                vars: {
-                  futureDates: {
-                    $filter: {
-                      input: "$expectedDueDates",
-                      as: "date",
-                      cond: { $gt: ["$$date", "$currentDate"] }
-                    }
-                  }
-                },
-                in: {
-                  $cond: {
-                    if: { $gt: [{ $size: "$$futureDates" }, 0] },
-                    then: { $min: "$$futureDates" }, // the earliest future date
-                    else: null // if no future date left (fully paid)
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
           $lookup: {
             from: "metalrates",
             let: {
@@ -249,6 +158,36 @@ class SchemeAccountRepository {
           }
         },
         {
+          $lookup: {
+            from: "payments",
+            let: { accId: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $eq: ["$id_scheme_account", "$$accId"] }, { $eq: ["$active", true] }] } } },
+              { $sort: { date_payment: 1 } },
+              { $limit: 1 }
+            ],
+            as: "firstPayment"
+          }
+        },
+        { $unwind: { path: "$firstPayment", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "payments",
+            let: { accId: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $eq: ["$id_scheme_account", "$$accId"] }, { $eq: ["$active", true] }, { $eq: ["$payment_status", 1] }] } } },
+              {
+                $group: {
+                  _id: null,
+                  total_installments: { $sum: "$paid_installments" }
+                }
+              }
+            ],
+            as: "paymentCalc"
+          }
+        },
+        { $unwind: { path: "$paymentCalc", preserveNullAndEmptyArrays: true } },
+        {
           $addFields: {
             total_metal_weight: {
               $sum: {
@@ -259,7 +198,56 @@ class SchemeAccountRepository {
                 }
               }
             },
-            metalRate: "$metalrate.rate"
+            metalRate: "$metalrate.rate",
+            lockedAmount: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $eq: ["$id_scheme.dynamicAmount", true] },
+                    { $eq: ["$paymentCalc.total_installments", 10] },
+                    { $gt: [{ $ifNull: ["$firstPayment.paid_installments", 0] }, 0] }
+                  ]
+                },
+                then: { $divide: ["$firstPayment.payment_amount", "$firstPayment.paid_installments"] },
+                else: 0
+              }
+            },
+            overdueIn: {
+              $let: {
+                vars: {
+                  expected: {
+                    $min: [
+                      { $ifNull: ["$total_installments", 0] },
+                      {
+                        $max: [
+                          0,
+                          {
+                            $dateDiff: {
+                              startDate: { $ifNull: ["$start_date", "$$NOW"] },
+                              endDate: "$$NOW",
+                              unit: {
+                                $switch: {
+                                  branches: [
+                                    { case: { $eq: ["$id_scheme.installment_type", 1] }, then: "month" },
+                                    { case: { $eq: ["$id_scheme.installment_type", 2] }, then: "week" },
+                                    { case: { $eq: ["$id_scheme.installment_type", 3] }, then: "day" },
+                                    { case: { $eq: ["$id_scheme.installment_type", 4] }, then: "year" }
+                                  ],
+                                  default: "month"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                in: {
+                  $max: [0, { $subtract: ["$$expected", { $ifNull: ["$paymentCalc.total_installments", 0] }] }]
+                }
+              }
+            }
           }
         },
         {
@@ -277,12 +265,30 @@ class SchemeAccountRepository {
           }
         },
         {
+          $addFields: {
+            scheme_acc_number: { $ifNull: ["$scheme_acc_number", "Not Allocated"] },
+            firstPaidAmount: "$firstPayment.payment_amount",
+            "id_scheme.min_amount": {
+              $cond: {
+                if: {
+                  $and: [
+                    { $eq: ["$id_scheme.dynamicAmount", true] },
+                    { $gt: ["$firstPayment.payment_amount", 0] }
+                  ]
+                },
+                then: "$firstPayment.payment_amount",
+                else: "$id_scheme.min_amount"
+              }
+            }
+          }
+        },
+        {
           $project: {
             payments: 0,
             schemestatuses: 0,
             metalrate: 0,
-            expectedDueDates: 0,
-            expectedInstallmentCount: 0
+            firstPayment: 0,
+            paymentCalc: 0
           }
         }
       ]);
@@ -294,7 +300,6 @@ class SchemeAccountRepository {
       throw error;
     }
   }
-
   async editSchemeAccount(id, data) {
     try {
       const updatedData = await schemeAccountModel.updateOne(
