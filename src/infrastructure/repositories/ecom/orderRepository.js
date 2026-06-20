@@ -1394,6 +1394,7 @@ class OrderRepository {
             totalNetWeight: { $sum: "$orderItem.netWt" },
             purityName: { $first: "$orderItem.purityName" },
             productName: { $first: "$productInfo.product_name" },
+            productType: { $first: "$productInfo.onlineProduct" },
             id_metal: { $first: "$productInfo.id_metal" },
             id_category: { $first: "$productInfo.id_category" },
             id_purity: { $first: "$productInfo.id_purity" },
@@ -1405,14 +1406,14 @@ class OrderRepository {
         },
       ];
 
-      //  CATEGORY FILTER
-      if (id_category) {
-        basePipeline.push({
-          $match: {
-            id_category: new mongoose.Types.ObjectId(filter.id_category),
-          },
-        });
-      }
+      // //  CATEGORY FILTER
+      // if (id_category) {
+      //   basePipeline.push({
+      //     $match: {
+      //       id_category: new mongoose.Types.ObjectId(filter.id_category),
+      //     },
+      //   });
+      // }
 
       // JOIN metadata
       basePipeline.push(
@@ -1467,11 +1468,11 @@ class OrderRepository {
             as: "soldData",
           },
         },
-        {
-          $match: {
-            soldData: { $ne: [] }
-          }
-        },
+        // {
+        //   $match: {
+        //     soldData: { $ne: [] }
+        //   }
+        // },
         
 
         {
@@ -1487,6 +1488,7 @@ class OrderRepository {
             totalGrossWeight: 1,
             totalPrice: 1,
             totalNetWeight: 1,
+            productType:1,
             tagNumber: 1,
             customerPhone: 1, // <-- add
             totalStock: {
