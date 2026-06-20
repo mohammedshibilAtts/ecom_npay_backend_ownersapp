@@ -1344,10 +1344,13 @@ class OrderRepository {
   ) {
     try {
       const skip = (page - 1) * limit;
+      const { id_category, ...orderFilter } = filter;
+            console.log(filter)
+
       let basePipeline = [
         {
           $match: {
-            ...filter,
+          ...orderFilter,
             orderStatus: {
               $nin: [ORDER_STATUS_NO.CANCELLED, ORDER_STATUS_NO.PROCESSING],
             },
@@ -1378,7 +1381,7 @@ class OrderRepository {
           $match: {
             "productInfo.active": true,
             "productInfo.is_deleted": { $ne: true },
-            "productInfo.onlineProduct": { $eq: true },
+            // "productInfo.onlineProduct": { $eq: true },
           },
         },
 
@@ -1394,12 +1397,16 @@ class OrderRepository {
             id_metal: { $first: "$productInfo.id_metal" },
             id_category: { $first: "$productInfo.id_category" },
             id_purity: { $first: "$productInfo.id_purity" },
+            tagNumber: { $first: "$productInfo.code" },
+            totalPrice: { $first: "$orderItem.totalPrice" },
+             customerPhone: { $first: "$phone" },
+
           },
         },
       ];
 
       //  CATEGORY FILTER
-      if (filter.id_category) {
+      if (id_category) {
         basePipeline.push({
           $match: {
             id_category: new mongoose.Types.ObjectId(filter.id_category),
@@ -1449,7 +1456,7 @@ class OrderRepository {
                   $expr: {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
-                      { $eq: ["$active", true] },
+                      { $eq: ["$status", 2] }, // Sold
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -1457,9 +1464,15 @@ class OrderRepository {
               },
               { $count: "count" },
             ],
-            as: "stockData",
+            as: "soldData",
           },
         },
+        {
+          $match: {
+            soldData: { $ne: [] }
+          }
+        },
+        
 
         {
           $project: {
@@ -1472,7 +1485,10 @@ class OrderRepository {
             categoryName: { $ifNull: ["$category.category_name", ""] },
             totalAmount: 1,
             totalGrossWeight: 1,
+            totalPrice: 1,
             totalNetWeight: 1,
+            tagNumber: 1,
+            customerPhone: 1, // <-- add
             totalStock: {
               $ifNull: [{ $arrayElemAt: ["$stockData.count", 0] }, 0],
             },
@@ -1488,7 +1504,7 @@ class OrderRepository {
           $match: {
             $or: [
               { name: { $regex: searchRegex } },
-              { categoryName: { $regex: searchRegex } },
+              { tagNumber: { $regex: searchRegex } },
               { metalName: { $regex: searchRegex } },
             ],
           },
