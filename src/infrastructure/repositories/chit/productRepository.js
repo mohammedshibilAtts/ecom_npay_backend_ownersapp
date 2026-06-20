@@ -91,7 +91,7 @@ class ProductRepository {
                           $and: [
                             { $eq: ["$productId", "$$productId"] },
                             { $eq: ["$id_purity", "$$purityId"] },
-                            { $eq: ["$active", true] },
+                            ...(change ? [] : [{ $eq: ["$active", true] }]),
                             { $ne: ["$is_deleted", true] }
                           ]
                         }
@@ -156,7 +156,7 @@ class ProductRepository {
                   $expr: {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
-                      { $eq: ["$active", true] },
+                      ...(change ? [] : [{ $eq: ["$active", true] }]),
                       { $ne: ["$is_deleted", true] }
                     ],
                   },

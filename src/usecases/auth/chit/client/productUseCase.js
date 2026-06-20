@@ -165,7 +165,7 @@ class ProductUseCase {
 
   async findById(id) {
     try {
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
 
       if (existingProduct) {
         let finalData = existingProduct;
@@ -394,7 +394,7 @@ class ProductUseCase {
       const idValidation = this.validateObjectId(id, "Product");
       if (idValidation) return idValidation;
 
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
       if (!existingProduct) {
         return { success: false, message: "Product not found" };
       }
@@ -733,7 +733,7 @@ class ProductUseCase {
 
   async toggleBestSeller(id) {
     try {
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
       if (!existingProduct) return { success: false, message: "Product not found" };
       const newStatus = !existingProduct.bestSeller;
       const result = await this.productRepository.updateProduct(id, { bestSeller: newStatus });
