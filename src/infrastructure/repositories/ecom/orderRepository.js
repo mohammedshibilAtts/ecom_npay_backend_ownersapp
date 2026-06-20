@@ -1677,6 +1677,11 @@ class OrderRepository {
           await itemModel.findByIdAndUpdate(itemToReduce._id, {
             $set: { status: 2 }, // Mark as Out/Sold and Inactive
           });
+
+          await productModel.findByIdAndUpdate(orderItem.productId, {
+            $set: { onlineProduct: false },
+          });
+
           console.error(`✅ Item ${itemToReduce.tagNo} marked as sold.`);
         } else {
           console.warn(
