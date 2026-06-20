@@ -382,7 +382,6 @@ class CustomerRepository {
 
   async findInfo(id) {
     try {
-      console.log(id)
       const data = await customerModel.findById(id).select("mobile").lean();
 
       if (!data) {
