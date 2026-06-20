@@ -10,8 +10,7 @@ const CartItemSchema = new Schema(
     // variantId: { type: Types.ObjectId, ref: "Variant" },
     collectionId: { type: Types.ObjectId, ref: "Collection", default: null },
     sizeId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "SizeMaster",
+      type: String,
       required: false,
     },
     categoryId: { type: Types.ObjectId, ref: "Category" },

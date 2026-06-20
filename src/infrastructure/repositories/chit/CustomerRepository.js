@@ -382,6 +382,7 @@ class CustomerRepository {
 
   async findInfo(id) {
     try {
+      console.log(id)
       const data = await customerModel.findById(id).select("mobile").lean();
 
       if (!data) {
@@ -556,14 +557,14 @@ class CustomerRepository {
     try {
       const matchStage = idCustomer
         ? {
-            _id: new mongoose.Types.ObjectId(idCustomer),
-            active: true,
-          }
+          _id: new mongoose.Types.ObjectId(idCustomer),
+          active: true,
+        }
         : {
-            id_branch: new mongoose.Types.ObjectId(branch),
-            mobile: mobile,
-            active: true,
-          };
+          id_branch: new mongoose.Types.ObjectId(branch),
+          mobile: mobile,
+          active: true,
+        };
 
       const result = await customerModel.aggregate([
         { $match: matchStage },
