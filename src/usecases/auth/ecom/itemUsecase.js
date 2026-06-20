@@ -277,7 +277,6 @@ class ItemUseCase {
 
       const forbiddenFields = [
         "productId",
-        "size",
         "tagNo",
         "active",
         "status",
