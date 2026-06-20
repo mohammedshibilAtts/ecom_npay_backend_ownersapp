@@ -11,7 +11,7 @@ const itemSchema = new mongoose.Schema(
     },
 
     size: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "SizeMaster",
     },
 
@@ -33,12 +33,12 @@ const itemSchema = new mongoose.Schema(
     sizeValue: {
       type: String,
       required: true,
-      index:true,
+      index: true,
     },
-    unit: {
-      type: String,
-      required: true,
-    },
+    // unit: {
+    //   type: String,
+    //   required: true,
+    // },
 
     grossWt: {
       type: Number,
@@ -94,9 +94,9 @@ const itemSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    status:{
-      type:Number,
-      default:1
+    status: {
+      type: Number,
+      default: 1
     },
     stoneDetails: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoneDetails" }],
     id_color: {

@@ -59,7 +59,7 @@ class ItemUseCase {
         const itemPayload = {
           productId: data.productId,
           size: data.size || null,
-          unit: data.unit || "",
+          // unit: data.unit || "",
           sizeValue: data.sizeValue || 0,
           id_purity: data.id_purity,
           id_color: data.id_color || null,

@@ -73,9 +73,9 @@ class ProductUseCase {
         productData.sizeId = productData.availableSizes.sizeId;
       }
 
-      if (!productData.sizeId) {
-        return { success: false, message: "Size ID is required" };
-      }
+      // if (!productData.sizeId) {
+      //   return { success: false, message: "Size ID is required" };
+      // }
 
       // ===== UNIQUE CHECKS =====
       const checkProductCode = await this.productRepository.findByField({

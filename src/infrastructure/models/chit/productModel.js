@@ -66,13 +66,13 @@ const productSchema = new mongoose.Schema(
       required: true,
       ref: "SubCategory",
     },
-    
-    sizeId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "SizeMaster",
-      required: true,
-    },
-    
+
+    // sizeId: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "SizeMaster",
+    //   required: true,
+    // },
+
     sku: {
       type: String,
       default: null,
