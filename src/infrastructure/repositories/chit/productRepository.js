@@ -583,7 +583,7 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
-        ...(isWeb ? [] : getPricingPipeline("$id_branch._id", "firstItem")),
+        ...getPricingPipeline("$id_branch._id", "firstItem"),
         ...(searchOptions && searchOptions.term
           ? [
             {
@@ -613,6 +613,7 @@ class ProductRepository {
                   product_image: 1,
                   active: 1,
                   bestSeller: 1,
+                  tagNo: "$firstItem.tagNo",
                   price: { $ifNull: ["$calculatedPrice", 0] },
                   totalprice: { $ifNull: ["$calculatedTotalPrice", 0] },
                   branchName: "$id_branch.branch_name",
@@ -1290,19 +1291,19 @@ class ProductRepository {
           },
         },
         {
-  $addFields: {
-    totalStock: { $size: "$items" },
-    grossWeight: {
-      $sum: {
-        $map: {
-          input: "$items",
-          as: "item",
-          in: { $ifNull: ["$$item.grossWt", 0] }
-        }
-      }
-    }
-  }
-},
+          $addFields: {
+            totalStock: { $size: "$items" },
+            grossWeight: {
+              $sum: {
+                $map: {
+                  input: "$items",
+                  as: "item",
+                  in: { $ifNull: ["$$item.grossWt", 0] }
+                }
+              }
+            }
+          }
+        },
         { $project: { items: 0 } },
         { $sort: { createdAt: -1 } },
         {
