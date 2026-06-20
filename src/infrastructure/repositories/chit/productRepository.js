@@ -200,10 +200,10 @@ class ProductRepository {
                       }
                     }
                   ],
-                  as: "id_color"
+                  as: "colorDetails"
                 }
               },
-              { $unwind: { path: "$id_color", preserveNullAndEmptyArrays: true } },
+              { $unwind: { path: "$colorDetails", preserveNullAndEmptyArrays: true } },
               {
                 $lookup: {
                   from: "certificates",
@@ -220,10 +220,10 @@ class ProductRepository {
                       }
                     }
                   ],
-                  as: "id_certificate"
+                  as: "certificateDetails"
                 }
               },
-              { $unwind: { path: "$id_certificate", preserveNullAndEmptyArrays: true } },
+              { $unwind: { path: "$certificateDetails", preserveNullAndEmptyArrays: true } },
               {
                 $lookup: {
                   from: "stonedetails",
@@ -246,9 +246,11 @@ class ProductRepository {
               {
                 $addFields: {
                   purityName: "$purityDetails.purity_name",
+                  colorName: "$colorDetails.color",
+                  certificateName: "$certificateDetails.name",
                 },
               },
-              { $project: { purityDetails: 0 } },
+              { $project: { purityDetails: 0, colorDetails: 0, certificateDetails: 0 } },
             ],
             as: "firstItem",
           },
@@ -341,8 +343,8 @@ class ProductRepository {
           totalAmount: "$calculatedPrice", // Alias for OrderUseCase
           discountedAmount: "$calculatedPrice", // Alias for OrderUseCase
           id_purity: "$firstItem.id_purity",
-          id_color: "$firstItem.id_color.color",
-          id_certificate: "$firstItem.id_certificate.name",
+          id_color: "$firstItem.colorName",
+          id_certificate: "$firstItem.certificateName",
           purityName: 1,
           metalValue: 1,
           makingValue: 1,
@@ -368,6 +370,7 @@ class ProductRepository {
               `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
             ],
           },
+          // output: "$firstItem"
         }
       });
 
@@ -876,6 +879,21 @@ class ProductRepository {
         ...getPricingPipeline("$id_branch", "firstItem")
       ];
 
+      if (filter.priceRange) {
+        const parts = filter.priceRange.split("-");
+        if (parts.length === 2) {
+          const minPrice = parseFloat(parts[0]);
+          const maxPrice = parseFloat(parts[1]);
+          if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+            pipeline.push({
+              $match: {
+                calculatedTotalPrice: { $gte: minPrice, $lte: maxPrice }
+              }
+            });
+          }
+        }
+      }
+
       if (customerId) {
         pipeline.push({
           $lookup: {
@@ -898,6 +916,12 @@ class ProductRepository {
         });
       }
 
+      pipeline.push({
+        $addFields: {
+          calculatedTotalPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
+          calculatedPrice: { $ifNull: ["$calculatedPrice", 0] }
+        }
+      });
       pipeline.push({ $sort: sortValue });
       pipeline.push({
         $facet: {
@@ -1028,7 +1052,7 @@ class ProductRepository {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
                       { $eq: ["$active", true] },
-                      { $eq: ["$status", 1] },
+                      // { $eq: ["$status", 1] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -1064,6 +1088,21 @@ class ProductRepository {
         ...getPricingPipeline("$id_branch", "firstItem")
       ];
 
+      if (filter.priceRange) {
+        const parts = filter.priceRange.split("-");
+        if (parts.length === 2) {
+          const minPrice = parseFloat(parts[0]);
+          const maxPrice = parseFloat(parts[1]);
+          if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+            pipeline.push({
+              $match: {
+                calculatedTotalPrice: { $gte: minPrice, $lte: maxPrice }
+              }
+            });
+          }
+        }
+      }
+
       if (customerId) {
         pipeline.push({
           $lookup: {
@@ -1086,6 +1125,12 @@ class ProductRepository {
         });
       }
 
+      pipeline.push({
+        $addFields: {
+          calculatedTotalPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
+          calculatedPrice: { $ifNull: ["$calculatedPrice", 0] }
+        }
+      });
       pipeline.push({ $sort: sortValue });
       pipeline.push({
         $facet: {
@@ -1099,6 +1144,7 @@ class ProductRepository {
                 product_name: 1,
                 product_image: 1,
                 bestSeller: 1,
+                status: "$firstItem.status",
                 isWishlisted: {
                   $cond: [
                     { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] },

@@ -68,7 +68,7 @@ class SubCategoryRepository {
     try {
       const update = await subCategoryModel.updateMany(
         { _id: id },
-        { isDeleted: true,active:false }
+        { isDeleted: true, active: false }
       );
       await ProductModel.updateMany({ id_subcategory: id }, { $set: { is_deleted: true } });
 
@@ -115,58 +115,58 @@ class SubCategoryRepository {
     }
   }
 
-   async getSubCategory(filter, skip, limit) {
-      try {
-        const categories = await subCategoryModel.aggregate([
-          { $match: filter },
-          {
-            $lookup: {
-              from: "categories",
-              localField: "categoryId",
-              foreignField: "_id",
-              as: "category",
-            },
+  async getSubCategory(filter, skip, limit) {
+    try {
+      const categories = await subCategoryModel.aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "categoryId",
+            foreignField: "_id",
+            as: "category",
           },
-            { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
-          {
+        },
+        { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+        {
           $lookup: {
             from: "s3bucketsettings",
             pipeline: [{ $limit: 1 }],
             as: "s3Details",
           },
         },
-          { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
-  
-          { $sort: { _id: -1 } },
-          { $skip: skip },
-          { $limit: limit },
-  
-          {
-            $project: {
-               categoryName: "$category.category_name",
-              name:1,
-              description: 1,
-              active: 1,
-              isDeleted: 1,
-              bannerImage: 1,
-              icon: 1,
-              image: "$categoryBanner",
-              createdAt: 1,
-              pathurl: {
-                $concat: [
-                  { $ifNull: ["$s3Details.s3display_url", ""] },
-                  `${config?.AWS_LOCAL_PATH || ""}subcategory/`,
-                ],
-              },
+        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+
+        { $sort: { _id: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+
+        {
+          $project: {
+            categoryName: "$category.category_name",
+            name: 1,
+            description: 1,
+            active: 1,
+            isDeleted: 1,
+            bannerImage: 1,
+            icon: 1,
+            image: "$categoryBanner",
+            createdAt: 1,
+            pathurl: {
+              $concat: [
+                { $ifNull: ["$s3Details.s3display_url", ""] },
+                `${config?.AWS_LOCAL_PATH || ""}subcategory/`,
+              ],
             },
           },
-        ]);
-  
-        return categories;
-      } catch (err) {
-        throw new Error("Database error occurred while fetching categories: " + err.message);
-      }
+        },
+      ]);
+
+      return categories;
+    } catch (err) {
+      throw new Error("Database error occurred while fetching categories: " + err.message);
     }
+  }
 
   async countSubCategory(filter) {
     return await subCategoryModel.countDocuments(filter);
@@ -184,20 +184,17 @@ class SubCategoryRepository {
     }
   }
 
-  async findByCategoryId(categoryId){
-    try{
-       return await subCategoryModel.find({
+  async findByCategoryId(categoryId) {
+    try {
+      return await subCategoryModel.find({
         active: true,
         isDeleted: false,
         categoryId,
       });
-    }catch(err){
+    } catch (err) {
       throw new Error("Database error occurred while getting subcategories")
     }
   }
-
-
-
 
   async getAllSubCategories(categoryId) {
     try {

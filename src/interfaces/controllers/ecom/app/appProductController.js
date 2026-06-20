@@ -5,10 +5,13 @@ class AppProductController {
 
   async ProductById(req, res) {
     try {
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ message: "Product Id is required" });
+      const rawId = req.params.id;
+      const id = rawId ? rawId.replace(/[^a-fA-F0-9]/g, "") : "";
+
+      if (!id || id.length !== 24) {
+        return res.status(400).json({ message: "Invalid Product Id" });
       }
+
       const productData = await this.usecase.findById(id, req.user);
 
       if (productData.success) {

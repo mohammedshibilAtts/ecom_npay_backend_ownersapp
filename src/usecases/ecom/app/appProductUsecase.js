@@ -136,6 +136,9 @@ class AppProductUsecase {
       diamondwt: item.diamondwt,
       diaCertificateNo: item.diaCertificateNo,
       huidNo: item.huidNo,
+      status: item?.status,
+      id_certificate: item?.certificateName || "",
+      id_color: item?.colorName || "",
       stoneDetails: item.stoneDetails || item?._doc?.stoneDetails || [],
       price: calculations.price,
       subtotal: calculations.subtotal, //price to subtotal
