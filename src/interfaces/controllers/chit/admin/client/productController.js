@@ -308,36 +308,6 @@ class ProductController {
     }
   }
 
-  async getProductStockReport(req, res) {
-    try {
-      const { page } = req.query;
-      const limit = 10;
-
-      const result = await this.productUsecase.getProductStockReport(
-        page,
-        limit
-      );
-
-      if (result.success) {
-        return res.status(200).json({
-          message: result.message,
-          data: result.data.products,
-          pagination: result.data.pagination,
-          pathUrl: result.pathUrl,
-        });
-      }
-
-      return res.status(404).json({
-        message: result.message,
-        data: result.data.products,
-        pagination: result.data.pagination,
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  }
-
   async toggleBestSeller(req, res) {
     try {
       const { id } = req.params;
@@ -355,16 +325,6 @@ class ProductController {
       console.error(err);
       res.status(500).json({ message: "Internal server error" });
     }
-    
-    return res.status(404).json({ 
-      message: result.message,
-      data: result.data.products,  
-      pagination: result.data.pagination 
-    });
-    
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
   }
 
   async allProductsData(req, res) {
@@ -417,9 +377,9 @@ class ProductController {
 
   async getProductStockReport(req, res) {
     try {
-      const { page, limit,search,from_date,to_date,category,subcategory } = req.query;
+      const { page, limit,search,from_date,to_date,category,subcategory,metal } = req.query;
 
-      const response = await this.productUsecase.getProductStockReport(page, limit,search,from_date,to_date,category,subcategory);
+      const response = await this.productUsecase.getProductStockReport(page, limit,search,from_date,to_date,category,subcategory,metal);
 
       if (response.success) {
         return res.status(200).json(response);

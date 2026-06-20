@@ -713,9 +713,9 @@ class ProductUseCase {
     };
   }
 
-  async getProductStockReport(page, limit, search, from_date, to_date, category, subcategory) {
+  async getProductStockReport(page, limit, search, from_date, to_date, category, subcategory, metal) {
     try {
-      const result = await this.productRepository.getProductStockReport(page, limit, { search, from_date, to_date, category, subcategory });
+      const result = await this.productRepository.getProductStockReport(page, limit, { search, from_date, to_date, category, subcategory, metal });
       return { success: true, message: "Stock report fetched successfully", ...result };
     } catch (err) {
       return { success: false, message: "Error fetching stock report", error: err.message };

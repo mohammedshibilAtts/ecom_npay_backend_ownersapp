@@ -1195,6 +1195,7 @@ class ProductRepository {
     try {
       const skip = (parseInt(page) - 1) * parseInt(limit);
       const query = { is_deleted: false, active: true };
+      let metalNameFilter = null;
 
       if (filters.category) {
         query.id_category = new mongoose.Types.ObjectId(filters.category);
@@ -1203,7 +1204,18 @@ class ProductRepository {
         query.subcategoryId = new mongoose.Types.ObjectId(filters.subcategory);
       }
       if (filters.search) {
-        query.product_name = { $regex: filters.search, $options: "i" };
+        query.$or = [
+          { product_name: { $regex: filters.search, $options: "i" } },
+          { sku: { $regex: filters.search, $options: "i" } },
+        ];
+      }
+      if (filters.metal) {
+        const metalFilter = String(filters.metal).trim();
+        if (mongoose.Types.ObjectId.isValid(metalFilter)) {
+          query.id_metal = new mongoose.Types.ObjectId(metalFilter);
+        } else {
+          metalNameFilter = metalFilter;
+        }
       }
 
       const pipeline = [
@@ -1235,6 +1247,28 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$sizeId", preserveNullAndEmptyArrays: true } },
+      ];
+
+      if (metalNameFilter) {
+        pipeline.push(
+          {
+            $lookup: {
+              from: "metals",
+              localField: "id_metal",
+              foreignField: "_id",
+              as: "metalDetails",
+            },
+          },
+          { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
+          {
+            $match: {
+              "metalDetails.metal_name": { $regex: new RegExp(`^${metalNameFilter}$`, "i") },
+            },
+          }
+        );
+      }
+
+      pipeline.push(
         {
           $lookup: {
             from: "items",
@@ -1256,10 +1290,19 @@ class ProductRepository {
           },
         },
         {
-          $addFields: {
-            totalStock: { $size: "$items" },
-          },
-        },
+  $addFields: {
+    totalStock: { $size: "$items" },
+    grossWeight: {
+      $sum: {
+        $map: {
+          input: "$items",
+          as: "item",
+          in: { $ifNull: ["$$item.grossWt", 0] }
+        }
+      }
+    }
+  }
+},
         { $project: { items: 0 } },
         { $sort: { createdAt: -1 } },
         {
@@ -1271,7 +1314,7 @@ class ProductRepository {
             ],
           },
         },
-      ];
+      );
 
       const result = await ProductModel.aggregate(pipeline);
       const data = result[0]?.data || [];
