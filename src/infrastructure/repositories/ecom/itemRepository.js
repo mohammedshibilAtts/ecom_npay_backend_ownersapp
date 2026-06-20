@@ -100,11 +100,38 @@ class ItemRepository {
       path: "stoneDetails",
       populate: { path: "itemId" }
     })
-    .populate("id_purity")
-    .populate("id_color")
-    .populate("id_certificate");
+      .populate("id_purity")
+      .populate("id_color")
+      .populate("id_certificate");
 
-    if (item && item.productId && item.id_purity && item.status !== 2) {
+    if (item && item.productId && item.id_purity) {
+      const [product, latestRate] = await Promise.all([
+        mongoose.model("Product").findById(item.productId).select("isMrp").lean(),
+        mongoose.model("MetalRate")
+          .findOne({ purity_id: item.id_purity._id })
+          .sort({ createdAt: -1 })
+          .select("rate")
+          .lean()
+      ]);
+
+      if (product && product.isMrp === false && latestRate) {
+        item.currentMetalRate = latestRate.rate;
+      }
+    }
+
+    return item;
+  }
+
+  async findFirstByProductId(productId) {
+    const item = await itemModel
+      .findOne({ productId: new mongoose.Types.ObjectId(productId), is_deleted: { $ne: true } })
+      .sort({ createdAt: 1 })
+      .populate({ path: "stoneDetails", populate: { path: "itemId" } })
+      .populate("id_purity")
+      .populate("id_color")
+      .populate("id_certificate");
+
+    if (item && item.id_purity) {
       const [product, latestRate] = await Promise.all([
         mongoose.model("Product").findById(item.productId).select("isMrp").lean(),
         mongoose.model("MetalRate")

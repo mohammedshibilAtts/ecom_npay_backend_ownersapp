@@ -32,8 +32,14 @@ class AppProductUsecase {
 
       if (productData) {
         let finalData = productData;
-        if (productData.firstItem) {
-          finalData = this._mergeItemData(productData, productData.firstItem);
+        let itemSource = productData.firstItem;
+
+        if (!itemSource) {
+          itemSource = await this.itemRepository.findFirstByProductId(productData._id);
+        }
+
+        if (itemSource) {
+          finalData = this._mergeItemData(productData, itemSource);
           finalData._id = productData._id;
         }
 
@@ -46,7 +52,7 @@ class AppProductUsecase {
             ...restData,
             purityName:
               finalData.purityName ||
-              (firstItem && firstItem.purityName ? firstItem.purityName : null),
+              (itemSource && itemSource.purityName ? itemSource.purityName : null),
             isWishlisted: productData.isWishlisted || false,
             purity: productData.purityList || [],
           },
@@ -89,8 +95,12 @@ class AppProductUsecase {
   }
 
   _mergeItemData(product, item) {
+    const itemObj = item.toObject ? item.toObject() : item;
+    if (item.currentMetalRate !== undefined) {
+      itemObj.currentMetalRate = item.currentMetalRate;
+    }
     const calculations = this._calculateItemPricing({
-      ...item,
+      ...itemObj,
       isMrp: product?.isMrp || false,
     });
 
@@ -203,6 +213,7 @@ class AppProductUsecase {
         alreadyOrdered: false,
         orderId: "",
       },
+      status: item.status,
       stoneDiamondDetails: calculations.stoneDiamondDetails,
       totalDiamondWeight: calculations.totalDiamondWeight,
       totalDiamondCost: calculations.totalDiamondCost,

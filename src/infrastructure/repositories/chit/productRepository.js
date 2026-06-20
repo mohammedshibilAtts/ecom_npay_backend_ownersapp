@@ -786,7 +786,6 @@ class ProductRepository {
                   $expr: {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
-                      { $eq: ["$active", true] },
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -817,7 +816,7 @@ class ProductRepository {
             as: "firstItem",
           },
         },
-        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: false } },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
         { $addFields: { s3DisplayUrl: s3Url } },
         ...getPricingPipeline("$id_branch", "firstItem")
       ];
@@ -858,11 +857,13 @@ class ProductRepository {
                 product_image: 1,
                 bestSeller: 1,
                 meta: 1,
+                status: "$firstItem.status",
                 metalrate: 1,
                 price: "$calculatedPrice",
                 totalprice: "$calculatedTotalPrice",
                 categoryName: "$categoryDetails.category_name",
                 metalName: "$metalDetails.metal_name",
+                // stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
                 stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
                 isWishlisted: customerId ? { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] } : { $literal: false },
                 pathurl: {

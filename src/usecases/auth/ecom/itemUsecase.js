@@ -234,12 +234,12 @@ class ItemUseCase {
 
       if (!item) return { success: false, message: "Item not found" };
 
-      if (item.status === 2) {
-        return {
-          success: false,
-          message: "This item has already been sold and cannot be modified.",
-        };
-      }
+      // if (item.status === 2) {
+      //   return {
+      //     success: false,
+      //     message: "This item has already been sold and cannot be modified.",
+      //   };
+      // }
 
       const updatedItem = await this.itemRepository.updateStatus(
         itemId,
@@ -300,16 +300,16 @@ class ItemUseCase {
               .deleteMany({ _id: { $in: item.stoneDetails } });
           }
           const combinedStones = [
-            ...(payload.stoneData || []).map((s) => ({
-              ...s,
-              type: "stone",
-              _id: undefined,
-            })),
-            ...(payload.diamondData || []).map((d) => ({
-              ...d,
-              type: "diamond",
-              _id: undefined,
-            })),
+            ...(payload.stoneData || []).map((s) => {
+              const stoneCopy = { ...s, type: "stone" };
+              delete stoneCopy._id;
+              return stoneCopy;
+            }),
+            ...(payload.diamondData || []).map((d) => {
+              const diamondCopy = { ...d, type: "diamond" };
+              delete diamondCopy._id;
+              return diamondCopy;
+            }),
           ];
 
           if (combinedStones.length > 0) {
