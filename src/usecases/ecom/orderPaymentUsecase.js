@@ -256,16 +256,6 @@ class OrderPaymentUsecase {
         this.paymentRepository.bulkWrite(paymentBulk),
       ]);
 
-      // await this.OrderTransactionDetailsRepository.updateTransactionDetails(
-      //   { transactionId: orderId },
-      //   { paymentStatus: 1 }
-      // );
-
-      // await this.transactionRepository.updateTransactions(
-      //   { transactionid: orderId },
-      //   { payment_status: 1 }
-      // );
-
       const orderObjId = updatedPaymentOrder?.orderObjId;
       if (orderObjId) {
         await this.orderRepo.updatePaymentCount(orderObjId, updatedPaymentOrder?.product_payment_ids);

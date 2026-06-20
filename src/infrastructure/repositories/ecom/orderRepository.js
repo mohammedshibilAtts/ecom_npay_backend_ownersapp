@@ -1345,12 +1345,12 @@ class OrderRepository {
     try {
       const skip = (page - 1) * limit;
       const { id_category, ...orderFilter } = filter;
-            console.log(filter)
+      console.log(filter)
 
       let basePipeline = [
         {
           $match: {
-          ...orderFilter,
+            ...orderFilter,
             orderStatus: {
               $nin: [ORDER_STATUS_NO.CANCELLED, ORDER_STATUS_NO.PROCESSING],
             },
@@ -1400,7 +1400,7 @@ class OrderRepository {
             id_purity: { $first: "$productInfo.id_purity" },
             tagNumber: { $first: "$productInfo.code" },
             totalPrice: { $first: "$orderItem.totalPrice" },
-             customerPhone: { $first: "$phone" },
+            customerPhone: { $first: "$phone" },
 
           },
         },
@@ -1473,7 +1473,7 @@ class OrderRepository {
         //     soldData: { $ne: [] }
         //   }
         // },
-        
+
 
         {
           $project: {
@@ -1488,7 +1488,7 @@ class OrderRepository {
             totalGrossWeight: 1,
             totalPrice: 1,
             totalNetWeight: 1,
-            productType:1,
+            productType: 1,
             tagNumber: 1,
             customerPhone: 1, // <-- add
             totalStock: {
@@ -1675,7 +1675,7 @@ class OrderRepository {
 
         if (itemToReduce) {
           await itemModel.findByIdAndUpdate(itemToReduce._id, {
-            $set: { status: 2, active: false }, // Mark as Out/Sold and Inactive
+            $set: { status: 2 }, // Mark as Out/Sold and Inactive
           });
           console.error(`✅ Item ${itemToReduce.tagNo} marked as sold.`);
         } else {

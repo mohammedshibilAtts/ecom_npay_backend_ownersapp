@@ -549,8 +549,9 @@ class ProductRepository {
                   $expr: {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
-                      { $eq: ["$status", 2] },
-                      { $ne: ["$is_deleted", true] },
+                      // { $eq: ["$status", 2] },
+                      { $eq: ["$active", true] },
+                      // { $ne: ["$is_deleted", true] },
                     ],
                   },
                 },
@@ -613,6 +614,7 @@ class ProductRepository {
                   product_image: 1,
                   active: 1,
                   bestSeller: 1,
+                  status: "$firstItem.status",
                   tagNo: "$firstItem.tagNo",
                   price: { $ifNull: ["$calculatedPrice", 0] },
                   totalprice: { $ifNull: ["$calculatedTotalPrice", 0] },
@@ -719,18 +721,18 @@ class ProductRepository {
 
       const product = await ProductModel.findById(productId);
 
-      if (product && product?.onlineProduct !== false) {
+      if (product) {
+        let status = product.onlineProduct == true ? false : true;
+
         await ProductModel.updateOne(
           { _id: new mongoose.Types.ObjectId(productId) },
-          { $set: { onlineProduct: false } }
+          { $set: { onlineProduct: status } }
         )
       }
 
       const newStatus = item.status === 1 ? 2 : 1;
-      const newActive = newStatus === 1;
 
       item.status = newStatus;
-      // item.active = newActive;
       await item.save();
       return item;
     } catch (err) {
