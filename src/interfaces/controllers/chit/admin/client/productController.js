@@ -166,6 +166,7 @@ class ProductController {
           .json({
             message: result.message,
             data: result.allProducts,
+            ...(result.suggestions ? { suggestions: result.suggestions } : {}),
             totalDocument: result.totalproducts,
             totalPages: result.totalPages,
             currentPage: result.currentPage,

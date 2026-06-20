@@ -224,14 +224,21 @@ class ProductUseCase {
 
       const searchOptions = search ? { term: search.trim() } : null;
 
-      const { data: products, total: totalproducts } = await this.productRepository.getProducts(
-        filter,
-        skip,
-        pageSize,
-        searchOptions,
-        customer ? customer : null,
-        web
-      );
+      const [productsResult, suggestions] = await Promise.all([
+        this.productRepository.getProducts(
+          filter,
+          skip,
+          pageSize,
+          searchOptions,
+          customer ? customer : null,
+          web
+        ),
+        (!web && searchOptions)
+          ? this.productRepository.getSearchSuggestions(filter, searchOptions)
+          : Promise.resolve([])
+      ]);
+
+      const { data: products, total: totalproducts } = productsResult;
 
       if (!products.length) {
         return { success: false, message: "No products found" };
@@ -241,6 +248,7 @@ class ProductUseCase {
         success: true,
         message: "Product retrieved successfully",
         allProducts: products,
+        suggestions,
         totalproducts,
         totalPages: Math.ceil(totalproducts / pageSize),
         currentPage: pageNum,

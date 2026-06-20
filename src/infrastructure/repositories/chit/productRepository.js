@@ -843,7 +843,7 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
-        ...getPricingPipeline("$id_branch._id", "firstItem"),
+        ...(isWeb ? [] : getPricingPipeline("$id_branch._id", "firstItem")),
         ...(searchOptions && searchOptions.term
           ? [
             {
@@ -873,8 +873,8 @@ class ProductRepository {
                   product_image: 1,
                   active: 1,
                   bestSeller: 1,
-                  price: "$calculatedPrice",
-                  totalprice: "$calculatedTotalPrice",
+                  price: { $ifNull: ["$calculatedPrice", 0] },
+                  totalprice: { $ifNull: ["$calculatedTotalPrice", 0] },
                   branchName: "$id_branch.branch_name",
                   metalName: "$id_metal.metal_name",
                   categoryName: "$id_category.category_name",
@@ -909,6 +909,44 @@ class ProductRepository {
     } catch (err) {
       console.error(err);
       throw new Error("Database error getting products via aggregation");
+    }
+  }
+
+  async getSearchSuggestions(filter, searchOptions) {
+    try {
+      const s3Url = await getS3DisplayUrl();
+
+      const pipeline = [
+        { $match: filter },
+        {
+          $match: {
+            $or: [
+              { product_name: { $regex: new RegExp(searchOptions.term, "i") } },
+              { sku: { $regex: new RegExp(searchOptions.term, "i") } },
+            ],
+          },
+        },
+        { $limit: 10 },
+        {
+          $project: {
+            _id: 1,
+            product_name: 1,
+            // sku: 1,
+            // pathurl: {
+            //   $concat: [
+            //     { $ifNull: [s3Url, ""] },
+            //     `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
+            //   ],
+            // },
+            // product_image: { $arrayElemAt: ["$product_image", 0] }
+          }
+        }
+      ];
+
+      return await ProductModel.aggregate(pipeline);
+    } catch (err) {
+      console.error("Database error getting search suggestions:", err);
+      return [];
     }
   }
 
