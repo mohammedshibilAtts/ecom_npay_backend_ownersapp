@@ -476,6 +476,7 @@ class PaymentUseCase {
           itr_utr: data.itr_utr || null,
           total_amt: totalAmount,
           paymentModeName: paymentMode.mode_name,
+          // metal_rate:finalMetalRate,
           installment:
             Number(schemeAccData.paid_installments) + Number(data.installments),
           metal_weight: rejectWeightField.includes(schemeData?.scheme_type)
