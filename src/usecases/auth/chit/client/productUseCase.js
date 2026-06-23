@@ -1,6 +1,7 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import config from "../../../../config/chit/env.js";
 import s3Helper from "../../../../utils/s3Helper.js";
+import sharp from "sharp";
 
 class ProductUseCase {
   constructor(
@@ -115,7 +116,38 @@ class ProductUseCase {
           console.warn(`Skipping invalid image at index ${index}`);
           return null;
         }
-        return this.s3Service.uploadToS3(image, "products", s3configs);
+
+        try {
+          const thumbBuffer = await sharp(image.buffer)
+            .resize(300, 300, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+          const detailBuffer = await sharp(image.buffer)
+            .resize(1200, 1200, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+          const zoomBuffer = await sharp(image.buffer)
+            .resize(2000, 2000, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+          const baseName = image.originalname.substring(0, image.originalname.lastIndexOf('.')) || image.originalname;
+          const ext = 'webp';
+          const webpImage = { ...image, mimetype: 'image/webp' };
+
+          const [thumbUrl, detailUrl, zoomUrl] = await Promise.all([
+            this.s3Service.uploadToS3({ ...webpImage, buffer: thumbBuffer, originalname: `${baseName}_thumb.${ext}` }, "products", s3configs),
+            this.s3Service.uploadToS3({ ...webpImage, buffer: detailBuffer, originalname: `${baseName}_detail.${ext}` }, "products", s3configs),
+            this.s3Service.uploadToS3({ ...webpImage, buffer: zoomBuffer, originalname: `${baseName}_zoom.${ext}` }, "products", s3configs)
+          ]);
+
+          return { thumbnail: thumbUrl, detail: detailUrl, zoom: zoomUrl };
+        } catch (error) {
+          console.error(`Error processing image ${image.originalname}:`, error);
+          return null;
+        }
       });
 
       const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean);
@@ -224,35 +256,61 @@ class ProductUseCase {
 
       const searchOptions = search ? { term: search.trim() } : null;
 
-      const [productsResult, suggestions] = await Promise.all([
-        this.productRepository.getProducts(
-          filter,
-          skip,
-          pageSize,
-          searchOptions,
-          customer ? customer : null,
-          web
-        ),
-        (!web && searchOptions)
-          ? this.productRepository.getSearchSuggestions(filter, searchOptions)
-          : Promise.resolve([])
-      ]);
+      let productsResult, suggestions;
 
-      const { data: products, total: totalproducts } = productsResult;
+      if (web) {
+        [productsResult, suggestions] = await Promise.all([
+          this.productRepository.getProducts(
+            filter,
+            skip,
+            pageSize,
+            searchOptions,
+            customer ? customer : null,
+            web
+          ),
+          (!web && searchOptions)
+            ? this.productRepository.getSearchSuggestions(filter, searchOptions)
+            : Promise.resolve([])
+        ]);
+      } else {
+        [productsResult, suggestions] = await Promise.all([
+          this.productRepository.getProductsWithCursor(
+            filter,
+            pageSize, // Limit
+            searchOptions,
+            customer ? customer : null,
+            web,
+            query.cursor // Add cursor parameter
+          ),
+          (searchOptions)
+            ? this.productRepository.getSearchSuggestions(filter, searchOptions)
+            : Promise.resolve([])
+        ]);
+      }
+
+      const products = productsResult.data || [];
 
       if (!products.length) {
         return { success: false, message: "No products found" };
       }
 
-      return {
+      const response = {
         success: true,
         message: "Product retrieved successfully",
         allProducts: products,
-        suggestions,
-        totalproducts,
-        totalPages: Math.ceil(totalproducts / pageSize),
-        currentPage: pageNum,
+        suggestions
       };
+
+      if (web) {
+        response.totalproducts = productsResult.total;
+        response.totalPages = Math.ceil(productsResult.total / pageSize);
+        response.currentPage = pageNum;
+      } else {
+        response.nextCursor = productsResult.nextCursor;
+        response.hasNextPage = productsResult.hasNextPage;
+      }
+
+      return response;
     } catch (err) {
       console.error(err);
       return {
@@ -418,10 +476,42 @@ class ProductUseCase {
         updatedImages = [...existingImages];
 
         if (images?.product_image?.length > 0) {
-          const uploadPromises = images.product_image.map((image) =>
-            this.s3Service.uploadToS3(image, "products", s3configs)
-          );
-          const uploadedImages = await Promise.all(uploadPromises);
+          const uploadPromises = images.product_image.map(async (image) => {
+            if (!image.buffer || !image.mimetype || !image.originalname) return null;
+
+            try {
+              const thumbBuffer = await sharp(image.buffer)
+                .resize(300, 300, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+              const detailBuffer = await sharp(image.buffer)
+                .resize(1200, 1200, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+              const zoomBuffer = await sharp(image.buffer)
+                .resize(2000, 2000, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+              const baseName = image.originalname.substring(0, image.originalname.lastIndexOf('.')) || image.originalname;
+              const ext = 'webp';
+              const webpImage = { ...image, mimetype: 'image/webp' };
+
+              const [thumbUrl, detailUrl, zoomUrl] = await Promise.all([
+                this.s3Service.uploadToS3({ ...webpImage, buffer: thumbBuffer, originalname: `${baseName}_thumb.${ext}` }, "products", s3configs),
+                this.s3Service.uploadToS3({ ...webpImage, buffer: detailBuffer, originalname: `${baseName}_detail.${ext}` }, "products", s3configs),
+                this.s3Service.uploadToS3({ ...webpImage, buffer: zoomBuffer, originalname: `${baseName}_zoom.${ext}` }, "products", s3configs)
+              ]);
+
+              return { thumbnail: thumbUrl, detail: detailUrl, zoom: zoomUrl };
+            } catch (error) {
+              console.error(`Error processing image ${image.originalname}:`, error);
+              return null;
+            }
+          });
+          const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean);
           updatedImages.push(...uploadedImages);
         }
       }
@@ -522,11 +612,11 @@ class ProductUseCase {
     }
   }
 
-  async getProductByCategory(id, page, limit, token, filter) {
+  async getProductByCategory(id, limit, token, filter, cursor) {
     try {
       const customerId = token?._id;
-      const result = await this.productRepository.getProductByCategory(id, page, limit, filter, customerId);
-
+      const result = await this.productRepository.getProductByCategory(id, limit, filter, customerId, cursor);
+      console.log(result, "result")
       return {
         success: true,
         message: "Products fetched successfully",

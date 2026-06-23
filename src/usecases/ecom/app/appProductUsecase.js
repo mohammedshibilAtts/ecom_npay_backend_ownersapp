@@ -135,6 +135,7 @@ class AppProductUsecase {
       diamondcts: item.diamondcts,
       diamondwt: item.diamondwt,
       diaCertificateNo: item.diaCertificateNo,
+      diacertificate: item.diacertificate,
       huidNo: item.huidNo,
       status: item?.status,
       id_certificate: item?.certificateName || "",

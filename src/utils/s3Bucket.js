@@ -18,7 +18,9 @@ class S3Service {
       });
       const Bucket = s3details.s3bucket_name;
       const fileExtension = path.extname(file.originalname);
-      const fileName = `${config.AWS_LOCAL_PATH}${folder}/${Date.now()}${fileExtension}`;
+      const baseName = path.basename(file.originalname, fileExtension);
+      // Ensure unique filename even if Date.now() is identical during parallel uploads
+      const fileName = `${config.AWS_LOCAL_PATH}${folder}/${Date.now()}_${baseName.replace(/[^a-zA-Z0-9_-]/g, '')}${fileExtension}`;
 
       if (!file.buffer) {
         throw new Error('File buffer is empty or invalid.');
