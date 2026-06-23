@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import s3Helper from "../../../utils/s3Helper.js";
+import S3Service from "../../../utils/s3Bucket.js";
+
+const s3Service = new S3Service();
 
 class ItemUseCase {
   constructor(itemRepository, productRepository, stoneDetailsRepository) {
@@ -7,10 +11,29 @@ class ItemUseCase {
     this.stoneDetailsRepository = stoneDetailsRepository;
   }
 
-  async createBulkItems(items) {
+  async createBulkItems(payload, files = []) {
     try {
+      let items = payload;
+      if (typeof items === "string") {
+        items = JSON.parse(items);
+      }
       if (!Array.isArray(items) || items.length === 0) {
-        return { success: false, message: "Items are required" };
+        throw new Error("Invalid payload: expected an array of items.");
+      }
+
+      const s3configs = await s3Helper();
+      const uploadedFiles = {};
+      
+      if (files && files.length > 0) {
+        for (const file of files) {
+          if (file.fieldname === "diaCertificateFile" || file.fieldname.startsWith("diaCertificateFile_")) {
+            const fileName = await s3Service.uploadToS3(file, "certificates", s3configs);
+            if (!uploadedFiles[file.fieldname]) {
+              uploadedFiles[file.fieldname] = [];
+            }
+            uploadedFiles[file.fieldname].push(fileName);
+          }
+        }
       }
 
       const tagNumbers = items.map((item) => item.tagNo);
@@ -23,7 +46,8 @@ class ItemUseCase {
       const validItems = [];
       const skippedItems = [];
 
-      for (const data of items) {
+      for (let i = 0; i < items.length; i++) {
+        const data = items[i];
         if (!data.productId || !data.tagNo) {
           skippedItems.push({
             tagNo: data.tagNo,
@@ -38,6 +62,14 @@ class ItemUseCase {
             reason: "Tag already exists",
           });
           continue;
+        }
+
+        let diacertificateUrls = [];
+        const fileKey = `diaCertificateFile_${i}`;
+        if (uploadedFiles[fileKey]) {
+          diacertificateUrls = uploadedFiles[fileKey];
+        } else if (uploadedFiles["diaCertificateFile"] && items.length === 1) {
+          diacertificateUrls = uploadedFiles["diaCertificateFile"];
         }
 
         const stoneIds = [];
@@ -75,6 +107,7 @@ class ItemUseCase {
           diamondwt: Number(data.diamondwt || 0),
 
           diaCertificateNo: data.diaCertificateNo || "",
+          diacertificate: diacertificateUrls.length > 0 ? diacertificateUrls : (Array.isArray(data.diacertificate) ? data.diacertificate : (data.diacertificate ? [data.diacertificate] : [])),
 
           huidCharges: Number(data.huidCharges || 0),
           huidNo: data.huidNo || "",
@@ -261,13 +294,28 @@ class ItemUseCase {
     }
   }
 
-  async editItem(itemId, payload) {
+  async editItem(itemId, payload, files = []) {
     try {
       const item = await this.itemRepository.findById(itemId);
 
       if (!item) {
         throw new Error("Item not found");
       }
+
+      let currentCerts = payload.diacertificate || [];
+      if (!Array.isArray(currentCerts)) currentCerts = currentCerts ? [currentCerts] : [];
+
+      if (files && files.length > 0) {
+        const s3configs = await s3Helper();
+        const certFiles = files.filter(f => f.fieldname === "diaCertificateFile" || f.fieldname === "diaCertificateFile[]");
+        if (certFiles.length > 0) {
+          const uploadedNames = await Promise.all(
+            certFiles.map(file => s3Service.uploadToS3(file, "certificates", s3configs))
+          );
+          currentCerts = [...currentCerts, ...uploadedNames];
+        }
+      }
+      payload.diacertificate = currentCerts;
 
       // if (item.status === 2) {
       //   throw new Error(

@@ -550,6 +550,8 @@ class ProductUseCase {
       currentMetalRate: item.currentMetalRate,
       huidCharges: item.huidCharges,
       huidNo: item.huidNo,
+      diacertificate: item.diacertificate,
+      diaCertificateNo: item.diaCertificateNo,
       stoneDetails: item.stoneDetails || item?._doc?.stoneDetails || [],
       price: calculations.price,
       subtotal: calculations.price,

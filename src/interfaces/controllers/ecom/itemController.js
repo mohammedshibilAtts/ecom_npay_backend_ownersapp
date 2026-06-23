@@ -7,7 +7,12 @@ class ItemController {
 
   async createBulkItems(req, res) {
     try {
-      const result = await this.itemUseCase.createBulkItems(req.body);
+      let payload = req.body;
+      if (req.body.data) {
+        payload = JSON.parse(req.body.data);
+      }
+      const files = req.files || [];
+      const result = await this.itemUseCase.createBulkItems(payload, files);
 
       if (!result.success) {
         return res.status(400).json(result);
@@ -91,7 +96,12 @@ class ItemController {
   async updateItem(req, res) {
     try {
       const { id } = req.params;
-      const result = await this.itemUseCase.editItem(id, req.body);
+      let payload = req.body;
+      if (req.body.data) {
+        payload = JSON.parse(req.body.data);
+      }
+      const files = req.files || [];
+      const result = await this.itemUseCase.editItem(id, payload, files);
 
       if (!result.success) {
         return res.status(400).json(result);

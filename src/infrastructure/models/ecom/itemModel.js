@@ -54,6 +54,10 @@ const itemSchema = new mongoose.Schema(
     diamondwt: Number,
 
     diaCertificateNo: String,
+    diacertificate: {
+      type: [String],
+      default: []
+    },
 
     huidCharges: Number,
     huidNo: String,
