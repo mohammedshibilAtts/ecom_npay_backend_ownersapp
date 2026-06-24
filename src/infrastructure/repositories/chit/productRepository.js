@@ -904,9 +904,7 @@ class ProductRepository {
             },
           ]
           : []),
-        // Sort must be on indexed, stable fields for deterministic cursor pagination
         { $sort: { createdAt: -1, _id: -1 } },
-        // Fetch limit + 1 to determine if there's a next page
         { $limit: limit + 1 },
         {
           $project: {
@@ -947,7 +945,6 @@ class ProductRepository {
       const hasNextPage = results.length > limit;
       const data = hasNextPage ? results.slice(0, limit) : results;
 
-      // Build next cursor from the last item in the returned page
       const lastItem = data[data.length - 1];
       const nextCursor =
         hasNextPage && lastItem ? encodeCursor({ _id: lastItem._id, createdAt: lastItem.createdAt }) : null;
@@ -961,9 +958,42 @@ class ProductRepository {
 
   async getSearchSuggestions(filter, searchOptions) {
     try {
-      const s3Url = await getS3DisplayUrl();
+      const CategoryModel = mongoose.model("Category");
+      const SubCategoryModel = mongoose.model("SubCategory");
 
-      const pipeline = [
+      const categoryPipeline = [
+        {
+          $match: {
+            category_name: { $regex: new RegExp(searchOptions.term, "i") },
+            is_deleted: false,
+            active: true
+          }
+        },
+        { $limit: 3 },
+        {
+          $project: {
+            name: "$category_name",
+          }
+        }
+      ];
+
+      const subCategoryPipeline = [
+        {
+          $match: {
+            subcategory_name: { $regex: new RegExp(searchOptions.term, "i") },
+            is_deleted: false,
+            active: true
+          }
+        },
+        { $limit: 3 },
+        {
+          $project: {
+            name: "$subcategory_name",
+          }
+        }
+      ];
+
+      const productPipeline = [
         { $match: filter },
         {
           $match: {
@@ -973,24 +1003,21 @@ class ProductRepository {
             ],
           },
         },
-        { $limit: 10 },
+        { $limit: 6 },
         {
           $project: {
-            _id: 1,
-            product_name: 1,
-            // sku: 1,
-            // pathurl: {
-            //   $concat: [
-            //     { $ifNull: [s3Url, ""] },
-            //     `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
-            //   ],
-            // },
-            // product_image: { $arrayElemAt: ["$product_image", 0] }
+            name: "$product_name",
           }
         }
       ];
 
-      return await ProductModel.aggregate(pipeline);
+      const [categories, subcategories, products] = await Promise.all([
+        CategoryModel.aggregate(categoryPipeline),
+        SubCategoryModel.aggregate(subCategoryPipeline),
+        ProductModel.aggregate(productPipeline)
+      ]);
+
+      return [...categories, ...subcategories, ...products];
     } catch (err) {
       console.error("Database error getting search suggestions:", err);
       return [];
@@ -1070,10 +1097,9 @@ class ProductRepository {
     }
   }
 
-  async getProductBySubcategory(id, page, limit, filter, customerId = null) {
+  async getProductBySubcategory(id, limit, filter, customerId = null, cursor = null) {
     try {
       const s3Url = await getS3DisplayUrl();
-      const skip = (page - 1) * limit;
       const match = {
         subcategoryId: new mongoose.Types.ObjectId(id),
         is_deleted: false,
@@ -1087,21 +1113,103 @@ class ProductRepository {
         };
       }
 
+      if (filter.purity) {
+        const purityIds = filter.purity.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
+        const ItemModel = mongoose.model("Item");
+        const matchingItems = await ItemModel.find({ id_purity: { $in: purityIds }, is_deleted: { $ne: true } }).select("productId").lean();
+        const productIds = matchingItems.map(item => item.productId);
+        match._id = { $in: productIds };
+      }
+
+      // Cursor filtering logic based on sort type
+      let cursorFilter = {};
+      if (cursor) {
+        const decoded = decodeCursor(cursor);
+        if (filter.sort === "latest") {
+          cursorFilter = {
+            $or: [
+              { createdAt: { $lt: new Date(decoded.createdAt) } },
+              { createdAt: { $eq: new Date(decoded.createdAt) }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "price_lth") {
+          cursorFilter = {
+            $or: [
+              { staticSortPrice: { $gt: decoded.staticSortPrice } },
+              { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "price_htl") {
+          cursorFilter = {
+            $or: [
+              { staticSortPrice: { $lt: decoded.staticSortPrice } },
+              { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "weight_lth") {
+          cursorFilter = {
+            $or: [
+              { staticSortWeight: { $gt: decoded.staticSortWeight } },
+              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "weight_htl") {
+          cursorFilter = {
+            $or: [
+              { staticSortWeight: { $lt: decoded.staticSortWeight } },
+              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        }
+      }
+
       const sortValue = {};
       if (filter.sort === "latest") {
         sortValue.createdAt = -1;
+        sortValue._id = -1;
       } else if (filter.sort === "price_lth") {
-        sortValue.calculatedTotalPrice = 1;
+        sortValue.staticSortPrice = 1;
+        sortValue._id = 1;
       } else if (filter.sort === "price_htl") {
-        sortValue.calculatedTotalPrice = -1;
+        sortValue.staticSortPrice = -1;
+        sortValue._id = -1;
+      } else if (filter.sort === "weight_lth") {
+        sortValue.staticSortWeight = 1;
+        sortValue._id = 1;
+      } else if (filter.sort === "weight_htl") {
+        sortValue.staticSortWeight = -1;
+        sortValue._id = -1;
       } else {
         sortValue.createdAt = -1;
+        sortValue._id = -1;
       }
 
       const pipeline = [
         {
-          $match: match,
+          $match: { ...match, ...cursorFilter },
         },
+        ...(filter.priceRange ? [{
+          $match: (() => {
+            const parts = filter.priceRange.split("-");
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              return { staticSortPrice: { $gte: parseFloat(parts[0]), $lte: parseFloat(parts[1]) } };
+            }
+            return {};
+          })()
+        }] : []),
+        ...(filter.weightRange ? [{
+          $match: (() => {
+            const parts = filter.weightRange.split("-");
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              return { staticSortWeight: { $gte: parseFloat(parts[0]), $lte: parseFloat(parts[1]) } };
+            }
+            return {};
+          })()
+        }] : []),
+        { $sort: sortValue },
+        { $limit: parseInt(limit) + 1 }, // fetch extra
+
+        // computations on limited items
         {
           $lookup: {
             from: "categories",
@@ -1120,7 +1228,6 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$metalDetails", preserveNullAndEmptyArrays: true } },
-        { $addFields: { s3DisplayUrl: s3Url } },
         {
           $lookup: {
             from: "items",
@@ -1185,26 +1292,7 @@ class ProductRepository {
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
         { $addFields: { s3DisplayUrl: s3Url } },
-        ...getPricingPipeline("$id_branch", "firstItem")
-      ];
-
-      if (filter.priceRange) {
-        const parts = filter.priceRange.split("-");
-        if (parts.length === 2) {
-          const minPrice = parseFloat(parts[0]);
-          const maxPrice = parseFloat(parts[1]);
-          if (!isNaN(minPrice) && !isNaN(maxPrice)) {
-            pipeline.push({
-              $match: {
-                calculatedTotalPrice: { $gte: minPrice, $lte: maxPrice }
-              }
-            });
-          }
-        }
-      }
-
-      if (customerId) {
-        pipeline.push({
+        ...(customerId ? [{
           $lookup: {
             from: "wishlists",
             let: { pId: "$_id" },
@@ -1222,59 +1310,59 @@ class ProductRepository {
             ],
             as: "wishlistData"
           }
-        });
-      }
-
-      pipeline.push({
-        $addFields: {
-          calculatedTotalPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
-          calculatedPrice: { $ifNull: ["$calculatedPrice", 0] }
-        }
-      });
-      pipeline.push({ $sort: sortValue });
-      pipeline.push({
-        $facet: {
-          metadata: [{ $count: "total" }],
-          data: [
-            { $skip: skip },
-            { $limit: parseInt(limit) },
-            {
-              $project: {
-                _id: 1,
-                product_name: 1,
-                product_image: 1,
-                bestSeller: 1,
-                meta: 1,
-                status: "$firstItem.status",
-                metalrate: 1,
-                price: "$calculatedPrice",
-                totalprice: "$calculatedTotalPrice",
-                categoryName: "$categoryDetails.category_name",
-                metalName: "$metalDetails.metal_name",
-                // stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
-                stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
-                isWishlisted: customerId ? { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] } : { $literal: false },
-                pathurl: {
-                  $concat: [
-                    { $ifNull: ["$s3DisplayUrl", ""] },
-                    `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
-                  ],
-                },
-              },
-            },
-          ],
+        }] : []),
+        {
+          $addFields: {
+            calculatedTotalPrice: { $ifNull: ["$staticSortPrice", 0] },
+            calculatedPrice: { $ifNull: ["$staticSortPrice", 0] }
+          }
         },
-      });
+        {
+          $project: {
+            _id: 1,
+            product_name: 1,
+            product_image: 1,
+            bestSeller: 1,
+            meta: 1,
+            createdAt: 1,
+            status: "$firstItem.status",
+            staticSortPrice: 1,
+            staticSortWeight: 1,
+            metalrate: 1,
+            price: "$calculatedPrice",
+            totalprice: "$calculatedTotalPrice",
+            categoryName: "$categoryDetails.category_name",
+            metalName: "$metalDetails.metal_name",
+            stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
+            isWishlisted: customerId ? {
+              $cond: [
+                { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] },
+                true,
+                false
+              ]
+            } : { $literal: false },
+            pathurl: {
+              $concat: [
+                { $ifNull: ["$s3DisplayUrl", ""] },
+                `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
+              ],
+            },
+          }
+        }
+      ];
 
-      const result = await ProductModel.aggregate(pipeline);
-      const total = result[0].metadata[0]?.total || 0;
-      const products = result[0].data;
+      const results = await ProductModel.aggregate(pipeline);
+      const hasNextPage = results.length > limit;
+      const data = hasNextPage ? results.slice(0, limit) : results;
+
+      const lastItem = data[data.length - 1];
+      const nextCursor =
+        hasNextPage && lastItem ? encodeCursor({ _id: lastItem._id, createdAt: lastItem.createdAt, staticSortPrice: lastItem.staticSortPrice, staticSortWeight: lastItem.staticSortWeight }) : null;
 
       return {
-        products,
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(total / limit),
-        totalDocs: total,
+        products: data,
+        nextCursor,
+        hasNextPage
       };
     } catch (err) {
       console.error(err);
@@ -1298,7 +1386,19 @@ class ProductRepository {
         };
       }
 
-      // Cursor filtering logic based on sort type
+      if (filter.subcategory) {
+        const subCategoryIds = filter.subcategory.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
+        match.subcategoryId = { $in: subCategoryIds };
+      }
+
+      if (filter.purity) {
+        const purityIds = filter.purity.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
+        const ItemModel = mongoose.model("Item");
+        const matchingItems = await ItemModel.find({ id_purity: { $in: purityIds }, is_deleted: { $ne: true } }).select("productId").lean();
+        const productIds = matchingItems.map(item => item.productId);
+        match._id = { $in: productIds };
+      }
+
       let cursorFilter = {};
       if (cursor) {
         const decoded = decodeCursor(cursor);
@@ -1323,6 +1423,20 @@ class ProductRepository {
               { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
             ]
           };
+        } else if (filter.sort === "weight_lth") {
+          cursorFilter = {
+            $or: [
+              { staticSortWeight: { $gt: decoded.staticSortWeight } },
+              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "weight_htl") {
+          cursorFilter = {
+            $or: [
+              { staticSortWeight: { $lt: decoded.staticSortWeight } },
+              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
         }
       }
 
@@ -1335,6 +1449,12 @@ class ProductRepository {
         sortValue._id = 1;
       } else if (filter.sort === "price_htl") {
         sortValue.staticSortPrice = -1;
+        sortValue._id = -1;
+      } else if (filter.sort === "weight_lth") {
+        sortValue.staticSortWeight = 1;
+        sortValue._id = 1;
+      } else if (filter.sort === "weight_htl") {
+        sortValue.staticSortWeight = -1;
         sortValue._id = -1;
       } else {
         sortValue.createdAt = -1;
@@ -1351,6 +1471,15 @@ class ProductRepository {
             const parts = filter.priceRange.split("-");
             if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
               return { staticSortPrice: { $gte: parseFloat(parts[0]), $lte: parseFloat(parts[1]) } };
+            }
+            return {};
+          })()
+        }] : []),
+        ...(filter.weightRange ? [{
+          $match: (() => {
+            const parts = filter.weightRange.split("-");
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              return { staticSortWeight: { $gte: parseFloat(parts[0]), $lte: parseFloat(parts[1]) } };
             }
             return {};
           })()
@@ -1438,7 +1567,6 @@ class ProductRepository {
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: false } },
         { $addFields: { s3DisplayUrl: s3Url } },
-        ...getPricingPipeline("$id_branch", "firstItem"),
         ...(customerId ? [{
           $lookup: {
             from: "wishlists",
@@ -1460,8 +1588,8 @@ class ProductRepository {
         }] : []),
         {
           $addFields: {
-            calculatedTotalPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
-            calculatedPrice: { $ifNull: ["$calculatedPrice", 0] }
+            calculatedTotalPrice: { $ifNull: ["$staticSortPrice", 0] },
+            calculatedPrice: { $ifNull: ["$staticSortPrice", 0] }
           }
         },
         {
@@ -1473,6 +1601,7 @@ class ProductRepository {
             createdAt: 1,
             status: "$firstItem.status",
             staticSortPrice: 1,
+            staticSortWeight: 1,
             isWishlisted: customerId ? {
               $cond: [
                 { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] },
@@ -1505,7 +1634,7 @@ class ProductRepository {
 
       const lastItem = data[data.length - 1];
       const nextCursor =
-        hasNextPage && lastItem ? encodeCursor({ _id: lastItem._id, createdAt: lastItem.createdAt, staticSortPrice: lastItem.staticSortPrice }) : null;
+        hasNextPage && lastItem ? encodeCursor({ _id: lastItem._id, createdAt: lastItem.createdAt, staticSortPrice: lastItem.staticSortPrice, staticSortWeight: lastItem.staticSortWeight }) : null;
 
       return {
         products: data,

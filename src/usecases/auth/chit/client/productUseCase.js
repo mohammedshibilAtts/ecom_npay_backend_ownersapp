@@ -321,7 +321,6 @@ class ProductUseCase {
     }
   }
 
-
   async findByBranchId(id) {
     try {
       const idValidation = this.validateObjectId(id, "Branch");
@@ -597,10 +596,10 @@ class ProductUseCase {
     }
   }
 
-  async getProductBySubcategroy(id, page, limit, token, filter) {
+  async getProductBySubcategroy(id, limit, token, filter, cursor) {
     try {
       const customerId = token?._id;
-      const result = await this.productRepository.getProductBySubcategory(id, page, limit, filter, customerId);
+      const result = await this.productRepository.getProductBySubcategory(id, limit, filter, customerId, cursor);
 
       return {
         success: true,
@@ -616,7 +615,7 @@ class ProductUseCase {
     try {
       const customerId = token?._id;
       const result = await this.productRepository.getProductByCategory(id, limit, filter, customerId, cursor);
-      console.log(result, "result")
+
       return {
         success: true,
         message: "Products fetched successfully",

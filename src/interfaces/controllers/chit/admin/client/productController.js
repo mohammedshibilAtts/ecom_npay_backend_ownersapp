@@ -229,41 +229,49 @@ class ProductController {
       const { id } = req.params;
 
       const {
-        page = 1,
-        sort = 'latest',  //price_lth, price_htl,discount,latest
+        sort = 'latest',  //price_lth, price_htl, weight_lth, weight_htl, discount, latest
         priceRange,
+        weightRange,
         search,
-        limit = 10
+        limit = 10,
+        cursor,
+        subcategory,
+        purity
       } = req.query;
 
       const filters = {
         sort,
         priceRange,
+        weightRange,
+        subcategory,
+        purity,
         search,
         from_date: req.query.from_date,
         to_date: req.query.to_date
       };
       const result = await this.productUsecase.getProductBySubcategroy(
         id,
-        parseInt(page),
         parseInt(limit),
         req.user,
-        filters
+        filters,
+        cursor
       );
 
       if (result.success) {
         return res.status(200).json({
           message: result.message,
           data: result.data.products,
-          pagination: result.data.pagination,
+          nextCursor: result.data.nextCursor,
+          hasNextPage: result.data.hasNextPage,
           pathUrl: result.pathUrl,
         });
       }
 
       return res.status(404).json({
         message: result.message,
-        data: result.data.products,
-        pagination: result.data.pagination,
+        data: result.data?.products || [],
+        nextCursor: result.data?.nextCursor || null,
+        hasNextPage: result.data?.hasNextPage || false,
         pathUrl: result.pathUrl
       });
     } catch (err) {
@@ -278,14 +286,20 @@ class ProductController {
       const {
         sort = 'latest',
         priceRange,
+        weightRange,
         search,
         limit = 10,
-        cursor
+        cursor,
+        subcategory,
+        purity
       } = req.query;
 
       const filters = {
         sort,
-        priceRange: priceRange,
+        priceRange,
+        weightRange,
+        subcategory,
+        purity,
         search,
         from_date: req.query.from_date,
         to_date: req.query.to_date
