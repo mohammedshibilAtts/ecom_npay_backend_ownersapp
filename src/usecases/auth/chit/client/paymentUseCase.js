@@ -327,19 +327,19 @@ class PaymentUseCase {
   async addPayment(data, token) {
     try {
       let backDated = false;
-      if (data?.date_payment && new Date(data.date_payment) < new Date()) {
-        backDated = true;
-        const validation = await validateBackDatedPayment(
-          data.date_payment,
-          data.id_scheme_account,
-          this.paymentRepository,
-          this.schemeAccountRepository,
-        );
+      // if (data?.date_payment && new Date(data.date_payment) < new Date()) {
+      //   backDated = true;
+      //   const validation = await validateBackDatedPayment(
+      //     data.date_payment,
+      //     data.id_scheme_account,
+      //     this.paymentRepository,
+      //     this.schemeAccountRepository,
+      //   );
 
-        if (!validation.isValid) {
-          return { success: false, message: validation.message };
-        }
-      }
+      //   if (!validation.isValid) {
+      //     return { success: false, message: validation.message };
+      //   }
+      // }
 
       const schemeData = await this.schemeRepository.findById(data.id_scheme);
 

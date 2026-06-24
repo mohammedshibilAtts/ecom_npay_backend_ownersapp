@@ -163,6 +163,11 @@ class ItemUseCase {
 
       const createdItems = await this.itemRepository.bulkCreate(validItems);
 
+      const uniqueProductIds = [...new Set(validItems.map(item => item.productId.toString()))];
+      for (const pId of uniqueProductIds) {
+        this.productRepository.syncProductStaticFields(null, pId).catch(err => console.error("Sync error:", err));
+      }
+
       return {
         success: true,
         message: `${createdItems.length} items created successfully`,
@@ -279,6 +284,10 @@ class ItemUseCase {
         !item.active,
       );
 
+      if (updatedItem && updatedItem.productId) {
+        this.productRepository.syncProductStaticFields(null, updatedItem.productId).catch(err => console.error("Sync error:", err));
+      }
+
       return {
         success: true,
         message: updatedItem.active
@@ -376,6 +385,10 @@ class ItemUseCase {
       }
 
       const updatedItem = await this.itemRepository.updateItem(itemId, payload);
+
+      if (updatedItem && updatedItem.productId) {
+        this.productRepository.syncProductStaticFields(null, updatedItem.productId).catch(err => console.error("Sync error:", err));
+      }
 
       return {
         success: true,

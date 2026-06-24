@@ -379,6 +379,12 @@ class ProductRepository {
               `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
             ],
           },
+          diamontUrl: {
+            $concat: [
+              { $ifNull: ["$s3DisplayUrl", ""] },
+              `${config?.AWS_LOCAL_PATH || "uploads/"}certificates/`,
+            ],
+          },
           // output: "$firstItem"
         }
       });
