@@ -85,13 +85,86 @@ class AppProductController {
   async getProductBySubcategory(req, res) {
     try {
       const { id } = req.params;
-      const { page = 1, limit = 10, sort = "latest", cursor } = req.query;
+      const {
+        page = 1,
+        limit = 10,
+        sort = "latest",//price_lth,price_htl,weigt_lth,weigt_htl
+        cursor,
+        subcategory,
+        purity,
+        priceRange,
+        weightRange,
+        search,
+        from_date,
+        to_date
+      } = req.query;
+
+      const filters = {
+        sort,
+        subcategory,
+        purity,
+        priceRange,
+        weightRange,
+        search,
+        from_date,
+        to_date
+      };
+
+      const safeLimit = parseInt(limit, 10) || 10;
 
       const result = await this.usecase.getProductBySubcategory(
         id,
         page,
-        limit,
+        safeLimit,
+        filters,
+        req.user,
+        cursor
+      );
+
+      if (result.success) {
+        return res.status(200).json(result);
+      }
+
+      return res.status(400).json({ message: result.message });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getProductByCategory(req, res) {
+    try {
+      const { id } = req.params;
+      const {
+        limit = 10,
+        sort = "latest", //price_lth,price_htl,weigt_lth,weigt_htl
+        cursor,
+        subcategory,
+        purity,
+        priceRange,
+        weightRange,
+        search,
+        from_date,
+        to_date
+      } = req.query;
+
+      const filters = {
         sort,
+        subcategory,
+        purity,
+        priceRange,
+        weightRange,
+        search,
+        from_date,
+        to_date
+      };
+
+      const safeLimit = parseInt(limit, 10) || 10;
+
+      const result = await this.usecase.getProductByCategory(
+        id,
+        safeLimit,
+        filters,
         req.user,
         cursor
       );

@@ -249,9 +249,10 @@ class ProductController {
         from_date: req.query.from_date,
         to_date: req.query.to_date
       };
+      const safeLimit = parseInt(limit, 10) || 10;
       const result = await this.productUsecase.getProductBySubcategroy(
         id,
-        parseInt(limit),
+        safeLimit,
         req.user,
         filters,
         cursor
@@ -305,9 +306,10 @@ class ProductController {
         to_date: req.query.to_date
       };
 
+      const safeLimit = parseInt(limit, 10) || 10;
       const result = await this.productUsecase.getProductByCategory(
         id,
-        parseInt(limit),
+        safeLimit,
         req.user,
         filters,
         cursor

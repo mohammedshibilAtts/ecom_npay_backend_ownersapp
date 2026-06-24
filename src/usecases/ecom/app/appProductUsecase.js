@@ -526,18 +526,52 @@ class AppProductUsecase {
     id,
     page = 1,
     limit = 10,
-    sort = "latest",
+    filters = {},
     user,
     cursor = null,
   ) {
     try {
       const customerId = user && user._id ? user._id : null;
-      const filter = { sort };
       const { products, nextCursor, hasNextPage } =
         await this.productRepository.getProductBySubcategory(
           id,
           limit,
-          filter,
+          filters,
+          customerId,
+          cursor
+        );
+
+      return {
+        success: true,
+        message: "Products retrieved successfully",
+        data: products,
+        nextCursor,
+        hasNextPage,
+      };
+    } catch (err) {
+      console.error(err);
+      return {
+        success: false,
+        message: "Error retrieving products",
+        error: err.message,
+      };
+    }
+  }
+
+  async getProductByCategory(
+    id,
+    limit = 10,
+    filters = {},
+    user,
+    cursor = null,
+  ) {
+    try {
+      const customerId = user && user._id ? user._id : null;
+      const { products, nextCursor, hasNextPage } =
+        await this.productRepository.getProductByCategory(
+          id,
+          limit,
+          filters,
           customerId,
           cursor
         );

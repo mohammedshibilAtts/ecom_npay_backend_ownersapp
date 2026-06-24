@@ -57,6 +57,9 @@ router.get("/items", (req, res) => controller.getItemsByCriteria(req, res));
 router.get("/subcategory/:id", (req, res) =>
   controller.getProductBySubcategory(req, res),
 );
+router.get("/category/:id", (req, res) =>
+  controller.getProductByCategory(req, res),
+);
 router.get("/category/:id/filters", (req, res) =>
   controller.getCategoryFilters(req, res),
 );
