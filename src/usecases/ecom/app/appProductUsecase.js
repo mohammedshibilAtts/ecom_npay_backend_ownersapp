@@ -476,31 +476,78 @@ class AppProductUsecase {
     }
   }
 
+  async getCategoryFilters(categoryId) {
+    try {
+      if (!categoryId || categoryId.length !== 24) {
+        return { success: false, message: "Invalid Category Id" };
+      }
+
+      const category = await this.categoryRepository.findById(categoryId);
+      if (!category) {
+        return { success: false, message: "Category not found" };
+      }
+
+      const subcategories = await this.subCategoryRepository.findByCategoryId(categoryId);
+      const purities = await this.purityRepository.find({ id_metal: category.id_metal, active: true, is_deleted: false });
+
+      const filteredSubcategories = (subcategories || []).map(sub => ({
+        _id: sub._id,
+        categoryId: sub.categoryId,
+        name: sub.name
+      }));
+
+      const filteredPurities = (purities || []).map(purity => ({
+        _id: purity._id,
+        id_purity: purity.id_purity,
+        id_metal: purity.id_metal ? {
+          _id: purity.id_metal._id,
+          id_metal: purity.id_metal.id_metal,
+          metal_name: purity.id_metal.metal_name,
+          active: purity.id_metal.active
+        } : null,
+        purity_name: purity.purity_name
+      }));
+
+      return {
+        success: true,
+        message: "Category filters retrieved successfully",
+        data: {
+          subcategories: filteredSubcategories,
+          purities: filteredPurities
+        }
+      };
+    } catch (err) {
+      console.error(err);
+      return { success: false, message: "Error retrieving category filters", error: err.message };
+    }
+  }
+
   async getProductBySubcategory(
     id,
     page = 1,
     limit = 10,
     sort = "latest",
     user,
+    cursor = null,
   ) {
     try {
       const customerId = user && user._id ? user._id : null;
-      const { products, currentPage, totalPages, totalDocs } =
+      const filter = { sort };
+      const { products, nextCursor, hasNextPage } =
         await this.productRepository.getProductBySubcategory(
           id,
-          page,
           limit,
-          sort,
+          filter,
           customerId,
+          cursor
         );
 
       return {
         success: true,
         message: "Products retrieved successfully",
         data: products,
-        currentPage,
-        totalPages,
-        totalDocs,
+        nextCursor,
+        hasNextPage,
       };
     } catch (err) {
       console.error(err);

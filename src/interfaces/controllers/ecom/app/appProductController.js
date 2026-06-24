@@ -66,17 +66,34 @@ class AppProductController {
     }
   }
 
+  async getCategoryFilters(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await this.usecase.getCategoryFilters(id);
+
+      if (result.success) {
+        return res.status(200).json({ message: result.message, data: result.data });
+      }
+
+      return res.status(400).json({ message: result.message });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
   async getProductBySubcategory(req, res) {
     try {
       const { id } = req.params;
-      const { page = 1, limit = 10, sort = "latest" } = req.query;
+      const { page = 1, limit = 10, sort = "latest", cursor } = req.query;
 
       const result = await this.usecase.getProductBySubcategory(
         id,
         page,
         limit,
         sort,
-        req.user
+        req.user,
+        cursor
       );
 
       if (result.success) {

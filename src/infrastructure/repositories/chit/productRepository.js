@@ -5,7 +5,13 @@ import { getPricingPipeline } from "../ecom/helpers/pricingPipeline.js";
 import { getS3DisplayUrl } from "../ecom/helpers/s3Cache.js";
 
 const encodeCursor = (payload) => Buffer.from(JSON.stringify(payload)).toString("base64");
-const decodeCursor = (cursor) => JSON.parse(Buffer.from(cursor, "base64").toString("utf-8"));
+const decodeCursor = (cursor) => {
+  try {
+    return JSON.parse(Buffer.from(cursor, "base64").toString("utf-8"));
+  } catch (err) {
+    return null;
+  }
+};
 
 class ProductRepository {
   async findByName(product_name, id_branch, id) {
@@ -1121,45 +1127,46 @@ class ProductRepository {
         match._id = { $in: productIds };
       }
 
-      // Cursor filtering logic based on sort type
       let cursorFilter = {};
       if (cursor) {
         const decoded = decodeCursor(cursor);
-        if (filter.sort === "latest") {
-          cursorFilter = {
-            $or: [
-              { createdAt: { $lt: new Date(decoded.createdAt) } },
-              { createdAt: { $eq: new Date(decoded.createdAt) }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
-            ]
-          };
-        } else if (filter.sort === "price_lth") {
-          cursorFilter = {
-            $or: [
-              { staticSortPrice: { $gt: decoded.staticSortPrice } },
-              { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
-            ]
-          };
-        } else if (filter.sort === "price_htl") {
-          cursorFilter = {
-            $or: [
-              { staticSortPrice: { $lt: decoded.staticSortPrice } },
-              { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
-            ]
-          };
-        } else if (filter.sort === "weight_lth") {
-          cursorFilter = {
-            $or: [
-              { staticSortWeight: { $gt: decoded.staticSortWeight } },
-              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
-            ]
-          };
-        } else if (filter.sort === "weight_htl") {
-          cursorFilter = {
-            $or: [
-              { staticSortWeight: { $lt: decoded.staticSortWeight } },
-              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
-            ]
-          };
+        if (decoded) {
+          if (filter.sort === "latest") {
+            cursorFilter = {
+              $or: [
+                { createdAt: { $lt: new Date(decoded.createdAt) } },
+                { createdAt: { $eq: new Date(decoded.createdAt) }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+              ]
+            };
+          } else if (filter.sort === "price_lth") {
+            cursorFilter = {
+              $or: [
+                { staticSortPrice: { $gt: decoded.staticSortPrice } },
+                { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
+              ]
+            };
+          } else if (filter.sort === "price_htl") {
+            cursorFilter = {
+              $or: [
+                { staticSortPrice: { $lt: decoded.staticSortPrice } },
+                { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+              ]
+            };
+          } else if (filter.sort === "weight_lth") {
+            cursorFilter = {
+              $or: [
+                { staticSortWeight: { $gt: decoded.staticSortWeight } },
+                { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
+              ]
+            };
+          } else if (filter.sort === "weight_htl") {
+            cursorFilter = {
+              $or: [
+                { staticSortWeight: { $lt: decoded.staticSortWeight } },
+                { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+              ]
+            };
+          }
         }
       }
 
