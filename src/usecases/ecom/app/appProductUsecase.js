@@ -358,8 +358,8 @@ class AppProductUsecase {
     const totalPrice = Math.round((totalOut + (totalOut * gstRate) / 100) * 100) / 100;
 
     return {
-      price: outprice,
-      totalprice: totalPrice,
+      price: Math.round(outprice),
+      totalprice: Math.round(totalPrice),
       metalrate: rate,
       metalValue,
       makingValue,

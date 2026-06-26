@@ -23,7 +23,7 @@ class ItemUseCase {
 
       const s3configs = await s3Helper();
       const uploadedFiles = {};
-      
+
       if (files && files.length > 0) {
         for (const file of files) {
           if (file.fieldname === "diaCertificateFile" || file.fieldname.startsWith("diaCertificateFile_")) {
@@ -232,7 +232,7 @@ class ItemUseCase {
           totalprice: calculations.totalprice,
         };
       });
-
+      console.log(processedItems, "prod")
       return {
         success: true,
         message: "Items fetched successfully",
@@ -490,9 +490,9 @@ class ItemUseCase {
     const totalPrice = actualSubTotal + actualGstValue;
 
     return {
-      price: Number(subTotal.toFixed(2)),
-      totalprice: Number(outprice.toFixed(2)),
-      actualTotalPrice: Number(totalPrice.toFixed(2)),
+      price: Number(subTotal.toFixed()),
+      totalprice: Number(outprice.toFixed(0)),
+      actualTotalPrice: Number(totalPrice.toFixed(0)),
       metalValue,
       makingValue,
       wastageValue,
