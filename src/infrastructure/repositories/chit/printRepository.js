@@ -214,7 +214,7 @@ class PrintRepository {
           .join(", "), // join with commas only when values exist
         phone: [
           findCompanyData?.branch_landline &&
-            `Cell ${findCompanyData?.branch_landline}`,
+          `Cell ${findCompanyData?.branch_landline}`,
           findCompanyData?.mobile && findCompanyData?.mobile,
         ]
           .filter(Boolean)
@@ -321,7 +321,7 @@ class PrintRepository {
             payment_amount: 1,
             metal_rate: 1,
             metal_weight: 1,
-            accWeight: 1,
+            accWeight: { $round: ["$accWeight", 3] },
           },
         },
         {

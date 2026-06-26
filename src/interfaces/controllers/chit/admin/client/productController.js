@@ -1,3 +1,5 @@
+import ProductRepository from "../../../../../infrastructure/repositories/chit/productRepository.js";
+
 class ProductController {
   constructor(productUsecase, validator) {
     this.productUsecase = productUsecase;
@@ -17,12 +19,16 @@ class ProductController {
 
       req.body.created_by = req.user.id_employee;
       req.body.modified_by = req.user.id_employee;
-    const addProductResult = await this.productUsecase.addProduct(
+      const addProductResult = await this.productUsecase.addProduct(
         req.body,
         req.files.product_image
       );
       if (addProductResult.success) {
-        return res.status(201).json({ message: addProductResult.message,pid:addProductResult.pid });
+        // Asynchronously sync the newly added product's static fields
+        const productRepo = new ProductRepository();
+        productRepo.syncProductStaticFields(null, addProductResult.pid).catch(err => console.error("Sync error:", err));
+
+        return res.status(201).json({ message: addProductResult.message, pid: addProductResult.pid });
       }
       return res.status(400).json({ message: addProductResult.message });
     } catch (err) {
@@ -52,6 +58,10 @@ class ProductController {
         req.files
       );
       if (updateProduct.success) {
+        // Asynchronously sync the edited product's static fields
+        const productRepo = new ProductRepository();
+        productRepo.syncProductStaticFields(null, id).catch(err => console.error("Sync error:", err));
+
         return res.status(200).json({ message: updateProduct.message });
       }
       return res.status(400).json({ message: updateProduct.message });
@@ -97,6 +107,25 @@ class ProductController {
     }
   }
 
+  async toggleSoldStatus(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({ message: "Product Id is required" });
+      }
+
+      const result = await this.productUsecase.toggleSoldStatus(id);
+      if (result.success) {
+        return res.status(200).json({ message: result.message });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
   async ProductById(req, res) {
     try {
       const { id } = req.params;
@@ -104,8 +133,8 @@ class ProductController {
       if (!id) {
         return res.status(400).json({ message: "Product Id is required" });
       }
-     
-      const productData = await this.productUsecase.findById(id,req.user);
+
+      const productData = await this.productUsecase.findById(id, req.user);
       if (productData.success) {
         return res
           .status(200)
@@ -140,16 +169,19 @@ class ProductController {
 
   async allProducts(req, res) {
     try {
-      const result = await this.productUsecase.getProducts(req.body,req.user);
+      const result = await this.productUsecase.getProducts(req.body, req.user);
       if (result.success) {
         return res
           .status(200)
           .json({
             message: result.message,
             data: result.allProducts,
-            totalDocument: result.totalproducts,
-            totalPages: result.totalPages,
-            currentPage: result.currentPage,
+            ...(result.suggestions ? { suggestions: result.suggestions } : {}),
+            ...(result.totalproducts !== undefined && { totalDocument: result.totalproducts }),
+            ...(result.totalPages !== undefined && { totalPages: result.totalPages }),
+            ...(result.currentPage !== undefined && { currentPage: result.currentPage }),
+            ...(result.nextCursor !== undefined && { nextCursor: result.nextCursor }),
+            ...(result.hasNextPage !== undefined && { hasNextPage: result.hasNextPage }),
           });
       }
       return res.status(400).json({ message: result.message });
@@ -159,7 +191,7 @@ class ProductController {
     }
   }
 
- async searchProduct(req, res) {
+  async searchProduct(req, res) {
     try {
       const result = await this.productUsecase.searchProduct(req.body);
       if (result.success) {
@@ -176,14 +208,14 @@ class ProductController {
 
   async getCategoryByCollectionId(req, res) {
     try {
-      const {id} = req.params
+      const { id } = req.params
 
       const result = await this.productUsecase.getCategoryByCollectionId(id);
 
       if (result.success) {
         return res
           .status(200)
-          .json({message:result.message,data:result.data,pathUrl:result.pathUrl});
+          .json({ message: result.message, data: result.data, pathUrl: result.pathUrl });
       }
       return res.status(400).json({ message: result.message });
     } catch (err) {
@@ -196,42 +228,51 @@ class ProductController {
     try {
       const { id } = req.params;
 
-       const { 
-        page = 1, 
-        sort = 'latest',  //price_lth, price_htl,discount,latest
-       priceRange,
-       search,
-       limit = 10 
-     } = req.query;
-  
-     const filters = {
-       sort,
-       priceRange,
-       search,
-       from_date: req.query.from_date,
-       to_date: req.query.to_date
-     };
+      const {
+        sort = 'latest',  //price_lth, price_htl, weight_lth, weight_htl, discount, latest
+        priceRange,
+        weightRange,
+        search,
+        limit = 10,
+        cursor,
+        subcategory,
+        purity
+      } = req.query;
+
+      const filters = {
+        sort,
+        priceRange,
+        weightRange,
+        subcategory,
+        purity,
+        search,
+        from_date: req.query.from_date,
+        to_date: req.query.to_date
+      };
+      const safeLimit = parseInt(limit, 10) || 10;
       const result = await this.productUsecase.getProductBySubcategroy(
         id,
-        parseInt(page),
-        parseInt(limit),
+        safeLimit,
         req.user,
-        filters
+        filters,
+        cursor
       );
 
       if (result.success) {
         return res.status(200).json({
           message: result.message,
           data: result.data.products,
-          pagination: result.data.pagination,
+          nextCursor: result.data.nextCursor,
+          hasNextPage: result.data.hasNextPage,
           pathUrl: result.pathUrl,
         });
       }
 
       return res.status(404).json({
         message: result.message,
-        data: result.data.products,
-        pagination: result.data.pagination,  
+        data: result.data?.products || [],
+        nextCursor: result.data?.nextCursor || null,
+        hasNextPage: result.data?.hasNextPage || false,
         pathUrl: result.pathUrl
       });
     } catch (err) {
@@ -243,35 +284,43 @@ class ProductController {
   async getProductByCategory(req, res) {
     try {
       const { id } = req.params;
-      const { 
-        page = 1, 
-        sort = 'latest',  //price_lth, price_htl,discount,latest
-       priceRange,
+      const {
+        sort = 'latest',
+        priceRange,
+        weightRange,
         search,
-        limit = 10 
+        limit = 10,
+        cursor,
+        subcategory,
+        purity
       } = req.query;
 
       const filters = {
         sort,
-        priceRange:priceRange,
+        priceRange,
+        weightRange,
+        subcategory,
+        purity,
         search,
         from_date: req.query.from_date,
         to_date: req.query.to_date
       };
 
+      const safeLimit = parseInt(limit, 10) || 10;
       const result = await this.productUsecase.getProductByCategory(
         id,
-        parseInt(page),
-        parseInt(limit),
+        safeLimit,
         req.user,
-        filters
+        filters,
+        cursor
       );
 
       if (result.success) {
         return res.status(200).json({
           message: result.message,
           data: result.data.products,
-          pagination: result.data.pagination,
+          nextCursor: result.data.nextCursor,
+          hasNextPage: result.data.hasNextPage,
           pathUrl: result.pathUrl,
           filters: filters
         });
@@ -281,36 +330,6 @@ class ProductController {
         message: result.message,
         data: result.data?.products || [],
         pagination: result.data?.pagination || {},
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  }
-
-  async getProductStockReport(req, res) {
-    try {
-      const { page } = req.query;
-      const limit = 10;
-
-      const result = await this.productUsecase.getProductStockReport(
-        page,
-        limit
-      );
-
-      if (result.success) {
-        return res.status(200).json({
-          message: result.message,
-          data: result.data.products,
-          pagination: result.data.pagination,
-          pathUrl: result.pathUrl,
-        });
-      }
-
-      return res.status(404).json({
-        message: result.message,
-        data: result.data.products,
-        pagination: result.data.pagination,
       });
     } catch (err) {
       console.error(err);
@@ -335,16 +354,6 @@ class ProductController {
       console.error(err);
       res.status(500).json({ message: "Internal server error" });
     }
-    
-    return res.status(404).json({ 
-      message: result.message,
-      data: result.data.products,  
-      pagination: result.data.pagination 
-    });
-    
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
   }
 
   async allProductsData(req, res) {
@@ -366,40 +375,11 @@ class ProductController {
     }
   }
 
-//  async getProductByCategory(req, res) {
-//   try {
-//     const { id } = req.params;
-//     const { page } = req.query;
-//     const limit = 10;
-    
-//     const result = await this.productUsecase.getProductByCategory(id, page, limit,req.user);
-
-//     if (result.success) {
-//       return res.status(200).json({
-//         message: result.message,
-//         data: result.data.products,
-//         pagination: result.data.pagination,  
-//         pathUrl: result.pathUrl
-//       });
-//     }
-    
-//     return res.status(404).json({ 
-//       message: result.message,
-//       data: result.data.products,  
-//       pagination: result.data.pagination 
-//     });
-    
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// }
-
   async getProductStockReport(req, res) {
     try {
-      const { page, limit,search,from_date,to_date,category,subcategory } = req.query;
+      const { page, limit, search, from_date, to_date, category, subcategory, metal } = req.query;
 
-      const response = await this.productUsecase.getProductStockReport(page, limit,search,from_date,to_date,category,subcategory);
+      const response = await this.productUsecase.getProductStockReport(page, limit, search, from_date, to_date, category, subcategory, metal);
 
       if (response.success) {
         return res.status(200).json(response);
@@ -415,11 +395,11 @@ class ProductController {
     }
   }
 
-   async getProductLowStockReport(req, res) {
+  async getProductLowStockReport(req, res) {
     try {
-      const { page, limit,lowstock} = req.query;
+      const { page, limit, lowstock } = req.query;
 
-      const response = await this.productUsecase.getProductLowStockReport(page, limit,lowstock);
+      const response = await this.productUsecase.getProductLowStockReport(page, limit, lowstock);
 
       if (response.success) {
         return res.status(200).json(response);
@@ -434,7 +414,7 @@ class ProductController {
       });
     }
   }
-  
+
 }
 
 

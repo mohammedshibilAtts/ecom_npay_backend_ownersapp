@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import s3Helper from "../../../utils/s3Helper.js";
+import S3Service from "../../../utils/s3Bucket.js";
+
+const s3Service = new S3Service();
 
 class ItemUseCase {
   constructor(itemRepository, productRepository, stoneDetailsRepository) {
@@ -7,10 +11,29 @@ class ItemUseCase {
     this.stoneDetailsRepository = stoneDetailsRepository;
   }
 
-  async createBulkItems(items) {
+  async createBulkItems(payload, files = []) {
     try {
+      let items = payload;
+      if (typeof items === "string") {
+        items = JSON.parse(items);
+      }
       if (!Array.isArray(items) || items.length === 0) {
-        return { success: false, message: "Items are required" };
+        throw new Error("Invalid payload: expected an array of items.");
+      }
+
+      const s3configs = await s3Helper();
+      const uploadedFiles = {};
+      
+      if (files && files.length > 0) {
+        for (const file of files) {
+          if (file.fieldname === "diaCertificateFile" || file.fieldname.startsWith("diaCertificateFile_")) {
+            const fileName = await s3Service.uploadToS3(file, "certificates", s3configs);
+            if (!uploadedFiles[file.fieldname]) {
+              uploadedFiles[file.fieldname] = [];
+            }
+            uploadedFiles[file.fieldname].push(fileName);
+          }
+        }
       }
 
       const tagNumbers = items.map((item) => item.tagNo);
@@ -23,7 +46,8 @@ class ItemUseCase {
       const validItems = [];
       const skippedItems = [];
 
-      for (const data of items) {
+      for (let i = 0; i < items.length; i++) {
+        const data = items[i];
         if (!data.productId || !data.tagNo) {
           skippedItems.push({
             tagNo: data.tagNo,
@@ -38,6 +62,14 @@ class ItemUseCase {
             reason: "Tag already exists",
           });
           continue;
+        }
+
+        let diacertificateUrls = [];
+        const fileKey = `diaCertificateFile_${i}`;
+        if (uploadedFiles[fileKey]) {
+          diacertificateUrls = uploadedFiles[fileKey];
+        } else if (uploadedFiles["diaCertificateFile"] && items.length === 1) {
+          diacertificateUrls = uploadedFiles["diaCertificateFile"];
         }
 
         const stoneIds = [];
@@ -59,9 +91,11 @@ class ItemUseCase {
         const itemPayload = {
           productId: data.productId,
           size: data.size || null,
-          unit: data.unit || "",
+          // unit: data.unit || "",
           sizeValue: data.sizeValue || 0,
           id_purity: data.id_purity,
+          id_color: data.id_color || null,
+          id_certificate: data.id_certificate || null,
           currentMetalRate: Number(data.currentMetalRate || 0),
           tagNo: data.tagNo,
 
@@ -73,6 +107,7 @@ class ItemUseCase {
           diamondwt: Number(data.diamondwt || 0),
 
           diaCertificateNo: data.diaCertificateNo || "",
+          diacertificate: diacertificateUrls.length > 0 ? diacertificateUrls : (Array.isArray(data.diacertificate) ? data.diacertificate : (data.diacertificate ? [data.diacertificate] : [])),
 
           huidCharges: Number(data.huidCharges || 0),
           huidNo: data.huidNo || "",
@@ -84,7 +119,7 @@ class ItemUseCase {
           price: Number(data.price || 0),
           totalprice: Number(data.totalprice || 0),
 
-          stoneDetails: stoneIds, // ✅ Store stone IDs
+          stoneDetails: stoneIds,
 
           makingCharges: {
             makingMode: data.makingCharges?.makingMode ?? null,
@@ -128,6 +163,11 @@ class ItemUseCase {
 
       const createdItems = await this.itemRepository.bulkCreate(validItems);
 
+      const uniqueProductIds = [...new Set(validItems.map(item => item.productId.toString()))];
+      for (const pId of uniqueProductIds) {
+        this.productRepository.syncProductStaticFields(null, pId).catch(err => console.error("Sync error:", err));
+      }
+
       return {
         success: true,
         message: `${createdItems.length} items created successfully`,
@@ -160,12 +200,14 @@ class ItemUseCase {
       }
 
       const findProduct = await this.productRepository.findById(productId);
+
       if (!findProduct) {
         return {
           success: false,
           message: "Product Not Found",
         };
       }
+
       const pageNumber = Number(page);
       const limitNumber = Number(limit);
 
@@ -176,6 +218,7 @@ class ItemUseCase {
         search,
         sort,
         order,
+        isMrp: findProduct?.isMrp,
       });
 
       const processedItems = result.data.map((item) => {
@@ -229,17 +272,21 @@ class ItemUseCase {
 
       if (!item) return { success: false, message: "Item not found" };
 
-      if (item.status === 2) {
-        return {
-          success: false,
-          message: "This item has already been sold and cannot be modified.",
-        };
-      }
+      // if (item.status === 2) {
+      //   return {
+      //     success: false,
+      //     message: "This item has already been sold and cannot be modified.",
+      //   };
+      // }
 
       const updatedItem = await this.itemRepository.updateStatus(
         itemId,
         !item.active,
       );
+
+      if (updatedItem && updatedItem.productId) {
+        this.productRepository.syncProductStaticFields(null, updatedItem.productId).catch(err => console.error("Sync error:", err));
+      }
 
       return {
         success: true,
@@ -256,7 +303,7 @@ class ItemUseCase {
     }
   }
 
-  async editItem(itemId, payload) {
+  async editItem(itemId, payload, files = []) {
     try {
       const item = await this.itemRepository.findById(itemId);
 
@@ -264,15 +311,29 @@ class ItemUseCase {
         throw new Error("Item not found");
       }
 
-      if (item.status === 2) {
-        throw new Error(
-          "This item has already been sold and cannot be modified.",
-        );
+      let currentCerts = payload.diacertificate || [];
+      if (!Array.isArray(currentCerts)) currentCerts = currentCerts ? [currentCerts] : [];
+
+      if (files && files.length > 0) {
+        const s3configs = await s3Helper();
+        const certFiles = files.filter(f => f.fieldname === "diaCertificateFile" || f.fieldname === "diaCertificateFile[]");
+        if (certFiles.length > 0) {
+          const uploadedNames = await Promise.all(
+            certFiles.map(file => s3Service.uploadToS3(file, "certificates", s3configs))
+          );
+          currentCerts = [...currentCerts, ...uploadedNames];
+        }
       }
+      payload.diacertificate = currentCerts;
+
+      // if (item.status === 2) {
+      //   throw new Error(
+      //     "This item has already been sold and cannot be modified.",
+      //   );
+      // }
 
       const forbiddenFields = [
         "productId",
-        "size",
         "tagNo",
         "active",
         "status",
@@ -296,16 +357,16 @@ class ItemUseCase {
               .deleteMany({ _id: { $in: item.stoneDetails } });
           }
           const combinedStones = [
-            ...(payload.stoneData || []).map((s) => ({
-              ...s,
-              type: "stone",
-              _id: undefined,
-            })),
-            ...(payload.diamondData || []).map((d) => ({
-              ...d,
-              type: "diamond",
-              _id: undefined,
-            })),
+            ...(payload.stoneData || []).map((s) => {
+              const stoneCopy = { ...s, type: "stone" };
+              delete stoneCopy._id;
+              return stoneCopy;
+            }),
+            ...(payload.diamondData || []).map((d) => {
+              const diamondCopy = { ...d, type: "diamond" };
+              delete diamondCopy._id;
+              return diamondCopy;
+            }),
           ];
 
           if (combinedStones.length > 0) {
@@ -325,6 +386,10 @@ class ItemUseCase {
 
       const updatedItem = await this.itemRepository.updateItem(itemId, payload);
 
+      if (updatedItem && updatedItem.productId) {
+        this.productRepository.syncProductStaticFields(null, updatedItem.productId).catch(err => console.error("Sync error:", err));
+      }
+
       return {
         success: true,
         message: "Item updated successfully",
@@ -340,74 +405,112 @@ class ItemUseCase {
     const rate = Number(item.currentMetalRate || 0);
     const netWt = Number(item.netWeight || 0);
     const grossWt = Number(item.grossWt || 0);
-
     const metalValue = item.isMrp ? rate : netWt * rate;
 
     let makingValue = 0;
+    let actualMakingValue = 0;
     const mc = item.makingCharges || {};
+    const makingAmount = Number(mc.makingDiscountedValue || 0);
+    const actualMakingAmount = Number(mc.makingActualValue || 0);
+    const makingWeightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(mc.makingMode) === 1) {
-      makingValue = Number(
-        mc.makingDiscountedValue || mc.makingActualValue || 0,
-      );
+      makingValue = makingAmount;
+      actualMakingValue = actualMakingAmount;
     } else if (Number(mc.makingMode) === 2) {
-      const weightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
-      makingValue =
-        Number(mc.makingDiscountedValue || mc.makingActualValue || 0) *
-        weightBase;
+      makingValue = makingWeightBase * makingAmount;
+      actualMakingValue = makingWeightBase * actualMakingAmount;
     }
 
     let wastageValue = 0;
+    let actualWastageValue = 0;
     const wc = item.wastageCharges || {};
+    const wastageAmount = Number(wc.wastageDiscountedValue || 0);
+    const actualWastageAmount = Number(wc.wastageActualValue || 0);
+    const wastageWeightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(wc.wastageMode) === 1) {
-      wastageValue = Number(
-        wc.wastageDiscountedValue || wc.wastageActualValue || 0,
-      );
+      wastageValue = wastageAmount;
+      actualWastageValue = actualWastageAmount;
     } else if (Number(wc.wastageMode) === 2) {
-      const weightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
-      const percent = Number(
-        wc.wastageDiscountedValue || wc.wastageActualValue || 0,
-      );
-      wastageValue = (percent / 100) * rate * weightBase;
+      wastageValue = (wastageAmount / 100) * rate * wastageWeightBase;
+      actualWastageValue = (actualWastageAmount / 100) * rate * wastageWeightBase;
     }
 
     let stoneValue = 0;
+    let totalDiamondWeight = 0, totalDiamondCost = 0, totalDiamondPrice = 0, totalDiamondCount = 0;
+    let totalStoneWeight = 0, totalStoneCost = 0, totalStonePrice = 0, totalStoneCount = 0;
+    let stoneDiamondDetails = [];
+
     if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
-      item.stoneDetails.forEach((stone) => {
-        stoneValue += Number(stone.price || 0);
+      item.stoneDetails.forEach(stone => {
+        let price = Number(stone.price || 0);
+        if (price === 0 && stone.itemId && stone.itemId.percraterate) {
+          price = Number(stone.weight || 0) * Number(stone.itemId.percraterate || 0) + Number(stone.itemId.charge || 0);
+        }
+        stoneValue += price;
+
+        const detail = {
+          _id: stone._id,
+          type: stone.type ? stone.type.charAt(0).toUpperCase() + stone.type.slice(1) : "",
+          weight: stone.weight,
+          cost: stone.cost,
+          price: price,
+          stoneInfo: stone.itemId ? {
+            _id: stone.itemId._id,
+            stonename: stone.itemId.stonename,
+            percraterate: stone.itemId.percraterate,
+          } : null
+        };
+        stoneDiamondDetails.push(detail);
+
+        if (stone.type && stone.type.toLowerCase() === "diamond") {
+          totalDiamondWeight += Number(stone.weight || 0);
+          totalDiamondCost += Number(stone.cost || 0);
+          totalDiamondPrice += price;
+          totalDiamondCount += 1;
+        } else if (stone.type && stone.type.toLowerCase() === "stone") {
+          totalStoneWeight += Number(stone.weight || 0);
+          totalStoneCost += Number(stone.cost || 0);
+          totalStonePrice += price;
+          totalStoneCount += 1;
+        }
       });
     }
 
     const huid = Number(item.huidCharges || 0);
-    const subTotal =
-      metalValue + makingValue + wastageValue + stoneValue + huid;
-    const gstValue = (subTotal * Number(item.gst || 3)) / 100;
+    const gstPct = Number(item.gst || 3);
+
+    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
+    const gstValue = (subTotal * gstPct) / 100;
     const outprice = subTotal + gstValue;
 
-    const makingActualValue = Number(mc.makingActualValue || 0);
-    const wastageActualValue = Number(wc.wastageActualValue || 0);
-    const makingActualChargeValue =
-      Number(mc.makingMode) === 1
-        ? makingActualValue
-        : (Number(mc.calculationType) === 1 ? grossWt : netWt) *
-          makingActualValue;
-    const wastageActualChargeValue =
-      Number(wc.wastageMode) === 1
-        ? wastageActualValue
-        : (wastageActualValue / 100) *
-          rate *
-          (Number(wc.calculationType) === 1 ? grossWt : netWt);
-    const finalOut =
-      metalValue +
-      makingActualChargeValue +
-      wastageActualChargeValue +
-      stoneValue +
-      huid;
-    const findGst = (finalOut * Number(item.gst || 3)) / 100;
-    const totalPrice = finalOut + findGst;
+    const actualSubTotal = metalValue + actualMakingValue + actualWastageValue + stoneValue + huid;
+    const actualGstValue = (actualSubTotal * gstPct) / 100;
+    const totalPrice = actualSubTotal + actualGstValue;
 
     return {
-      price: Number(outprice.toFixed(2)),
-      totalprice: Number(totalPrice.toFixed(2)),
+      price: Number(subTotal.toFixed(2)),
+      totalprice: Number(outprice.toFixed(2)),
+      actualTotalPrice: Number(totalPrice.toFixed(2)),
+      metalValue,
+      makingValue,
+      wastageValue,
+      gstValue,
+      stoneValue,
+      huidCharges: huid,
+      subtotal: subTotal,
+      stoneDiamondDetails,
+      totalDiamondWeight,
+      totalDiamondCost,
+      totalDiamondPrice,
+      totalDiamondCount,
+      totalStoneWeight,
+      totalStoneCost,
+      totalStonePrice,
+      totalStoneCount,
+      finalMakingCharge: makingValue,
+      finalWastageCharge: wastageValue,
     };
   }
 }

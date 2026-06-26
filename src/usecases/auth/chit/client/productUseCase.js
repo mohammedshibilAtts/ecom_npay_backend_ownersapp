@@ -1,6 +1,7 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import config from "../../../../config/chit/env.js";
 import s3Helper from "../../../../utils/s3Helper.js";
+import sharp from "sharp";
 
 class ProductUseCase {
   constructor(
@@ -73,9 +74,9 @@ class ProductUseCase {
         productData.sizeId = productData.availableSizes.sizeId;
       }
 
-      if (!productData.sizeId) {
-        return { success: false, message: "Size ID is required" };
-      }
+      // if (!productData.sizeId) {
+      //   return { success: false, message: "Size ID is required" };
+      // }
 
       // ===== UNIQUE CHECKS =====
       const checkProductCode = await this.productRepository.findByField({
@@ -115,7 +116,38 @@ class ProductUseCase {
           console.warn(`Skipping invalid image at index ${index}`);
           return null;
         }
-        return this.s3Service.uploadToS3(image, "products", s3configs);
+
+        try {
+          const thumbBuffer = await sharp(image.buffer)
+            .resize(300, 300, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+          const detailBuffer = await sharp(image.buffer)
+            .resize(1200, 1200, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+          const zoomBuffer = await sharp(image.buffer)
+            .resize(2000, 2000, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+            .webp({ quality: 80 })
+            .toBuffer();
+
+          const baseName = image.originalname.substring(0, image.originalname.lastIndexOf('.')) || image.originalname;
+          const ext = 'webp';
+          const webpImage = { ...image, mimetype: 'image/webp' };
+
+          const [thumbUrl, detailUrl, zoomUrl] = await Promise.all([
+            this.s3Service.uploadToS3({ ...webpImage, buffer: thumbBuffer, originalname: `${baseName}_thumb.${ext}` }, "products", s3configs),
+            this.s3Service.uploadToS3({ ...webpImage, buffer: detailBuffer, originalname: `${baseName}_detail.${ext}` }, "products", s3configs),
+            this.s3Service.uploadToS3({ ...webpImage, buffer: zoomBuffer, originalname: `${baseName}_zoom.${ext}` }, "products", s3configs)
+          ]);
+
+          return { thumbnail: thumbUrl, detail: detailUrl, zoom: zoomUrl };
+        } catch (error) {
+          console.error(`Error processing image ${image.originalname}:`, error);
+          return null;
+        }
       });
 
       const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean);
@@ -134,7 +166,7 @@ class ProductUseCase {
 
       // ===== CONVERT BASIC TYPES =====
       if (productData.gst !== undefined) productData.gst = Number(productData.gst);
-      
+
       const booleanFields = ["showprice", "bestSeller", "onlineProduct", "active", "isMrp"];
       booleanFields.forEach((field) => {
         if (productData[field] !== undefined) {
@@ -165,7 +197,8 @@ class ProductUseCase {
 
   async findById(id) {
     try {
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
+
       if (existingProduct) {
         let finalData = existingProduct;
         if (existingProduct.firstItem) {
@@ -183,7 +216,7 @@ class ProductUseCase {
 
   async getProducts(query, token) {
     try {
-      const { page, limit, from_date, to_date, id_branch, search, active } = query;
+      const { page, limit, from_date, to_date, id_branch, search, active, web = false } = query;
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
       const skip = (pageNum - 1) * pageSize;
@@ -223,28 +256,61 @@ class ProductUseCase {
 
       const searchOptions = search ? { term: search.trim() } : null;
 
-      const products = await this.productRepository.getProducts(
-        filter,
-        skip,
-        pageSize,
-        searchOptions,
-        customer ? customer : null
-      );
+      let productsResult, suggestions;
 
-      if (!products.length >= 1) {
+      if (web) {
+        [productsResult, suggestions] = await Promise.all([
+          this.productRepository.getProducts(
+            filter,
+            skip,
+            pageSize,
+            searchOptions,
+            customer ? customer : null,
+            web
+          ),
+          (!web && searchOptions)
+            ? this.productRepository.getSearchSuggestions(filter, searchOptions)
+            : Promise.resolve([])
+        ]);
+      } else {
+        [productsResult, suggestions] = await Promise.all([
+          this.productRepository.getProductsWithCursor(
+            filter,
+            pageSize, // Limit
+            searchOptions,
+            customer ? customer : null,
+            web,
+            query.cursor // Add cursor parameter
+          ),
+          (searchOptions)
+            ? this.productRepository.getSearchSuggestions(filter, searchOptions)
+            : Promise.resolve([])
+        ]);
+      }
+
+      const products = productsResult.data || [];
+
+      if (!products.length) {
         return { success: false, message: "No products found" };
       }
 
-      const totalproducts = await this.productRepository.countProduct(filter);
-
-      return {
+      const response = {
         success: true,
         message: "Product retrieved successfully",
         allProducts: products,
-        totalproducts,
-        totalPages: Math.ceil(totalproducts / pageSize),
-        currentPage: pageNum,
+        suggestions
       };
+
+      if (web) {
+        response.totalproducts = productsResult.total;
+        response.totalPages = Math.ceil(productsResult.total / pageSize);
+        response.currentPage = pageNum;
+      } else {
+        response.nextCursor = productsResult.nextCursor;
+        response.hasNextPage = productsResult.hasNextPage;
+      }
+
+      return response;
     } catch (err) {
       console.error(err);
       return {
@@ -254,7 +320,6 @@ class ProductUseCase {
       };
     }
   }
-
 
   async findByBranchId(id) {
     try {
@@ -343,7 +408,7 @@ class ProductUseCase {
 
       const finalFilter = search ? { ...filter, ...searchOptions } : filter;
 
-      const products = await this.productRepository.getProducts(
+      const { data: products, total: totalProducts } = await this.productRepository.getProducts(
         finalFilter,
         skip,
         pageSize,
@@ -354,8 +419,6 @@ class ProductUseCase {
       if (!products.length) {
         return { success: false, message: "No products found" };
       }
-
-      const totalProducts = await this.productRepository.countProduct(finalFilter);
 
       return {
         success: true,
@@ -388,7 +451,7 @@ class ProductUseCase {
       const idValidation = this.validateObjectId(id, "Product");
       if (idValidation) return idValidation;
 
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
       if (!existingProduct) {
         return { success: false, message: "Product not found" };
       }
@@ -412,10 +475,42 @@ class ProductUseCase {
         updatedImages = [...existingImages];
 
         if (images?.product_image?.length > 0) {
-          const uploadPromises = images.product_image.map((image) =>
-            this.s3Service.uploadToS3(image, "products", s3configs)
-          );
-          const uploadedImages = await Promise.all(uploadPromises);
+          const uploadPromises = images.product_image.map(async (image) => {
+            if (!image.buffer || !image.mimetype || !image.originalname) return null;
+
+            try {
+              const thumbBuffer = await sharp(image.buffer)
+                .resize(300, 300, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+              const detailBuffer = await sharp(image.buffer)
+                .resize(1200, 1200, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+              const zoomBuffer = await sharp(image.buffer)
+                .resize(2000, 2000, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+              const baseName = image.originalname.substring(0, image.originalname.lastIndexOf('.')) || image.originalname;
+              const ext = 'webp';
+              const webpImage = { ...image, mimetype: 'image/webp' };
+
+              const [thumbUrl, detailUrl, zoomUrl] = await Promise.all([
+                this.s3Service.uploadToS3({ ...webpImage, buffer: thumbBuffer, originalname: `${baseName}_thumb.${ext}` }, "products", s3configs),
+                this.s3Service.uploadToS3({ ...webpImage, buffer: detailBuffer, originalname: `${baseName}_detail.${ext}` }, "products", s3configs),
+                this.s3Service.uploadToS3({ ...webpImage, buffer: zoomBuffer, originalname: `${baseName}_zoom.${ext}` }, "products", s3configs)
+              ]);
+
+              return { thumbnail: thumbUrl, detail: detailUrl, zoom: zoomUrl };
+            } catch (error) {
+              console.error(`Error processing image ${image.originalname}:`, error);
+              return null;
+            }
+          });
+          const uploadedImages = (await Promise.all(uploadPromises)).filter(Boolean);
           updatedImages.push(...uploadedImages);
         }
       }
@@ -461,7 +556,7 @@ class ProductUseCase {
 
   async changeStatus(id) {
     try {
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
       if (!existingProduct) return { success: false, message: "Product not found" };
       const newStatus = !existingProduct.active;
       const result = await this.productRepository.updateProduct(id, { active: newStatus });
@@ -471,29 +566,40 @@ class ProductUseCase {
     }
   }
 
+  async toggleSoldStatus(id) {
+    try {
+      const item = await this.productRepository.toggleItemSoldStatus(id);
+      const isSoldOut = item.status === 2;
+      return { success: true, message: `Product status updated to ${isSoldOut ? "Sold Out" : "In Stock"}` };
+    } catch (err) {
+      console.error(err);
+      return { success: false, message: "Error changing product status", error: err.message };
+    }
+  }
+
   async getCategoryByCollectionId(id) {
     try {
       const data = await this.productRepository.getCategoryByCollectionId(id);
       const s3configs = await s3Helper();
-      const pathurl = s3configs?.s3display_url 
+      const pathurl = s3configs?.s3display_url
         ? `${s3configs.s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}category/`
         : "";
 
-      return { 
-        success: true, 
-        message: "Categories fetched successfully", 
-        data, 
-        pathUrl: pathurl 
+      return {
+        success: true,
+        message: "Categories fetched successfully",
+        data,
+        pathUrl: pathurl
       };
     } catch (err) {
       return { success: false, message: "Error fetching categories", error: err.message };
     }
   }
 
-  async getProductBySubcategroy(id, page, limit, token, filter) {
+  async getProductBySubcategroy(id, limit, token, filter, cursor) {
     try {
       const customerId = token?._id;
-      const result = await this.productRepository.getProductBySubcategory(id, page, limit, filter, customerId);
+      const result = await this.productRepository.getProductBySubcategory(id, limit, filter, customerId, cursor);
 
       return {
         success: true,
@@ -505,10 +611,10 @@ class ProductUseCase {
     }
   }
 
-  async getProductByCategory(id, page, limit, token, filter) {
+  async getProductByCategory(id, limit, token, filter, cursor) {
     try {
       const customerId = token?._id;
-      const result = await this.productRepository.getProductByCategory(id, page, limit, filter, customerId);
+      const result = await this.productRepository.getProductByCategory(id, limit, filter, customerId, cursor);
 
       return {
         success: true,
@@ -526,12 +632,16 @@ class ProductUseCase {
 
     return {
       ...product,
-      sku: item.tagNo || product.sku,
+      tagNo: item.tagNo,
+      sku: product.sku,
       grossWeight: item.grossWt,
       netWeight: item.netWeight,
       currentMetalRate: item.currentMetalRate,
       huidCharges: item.huidCharges,
       huidNo: item.huidNo,
+      diacertificate: item.diacertificate,
+      diaCertificateNo: item.diaCertificateNo,
+      stoneDetails: item.stoneDetails || item?._doc?.stoneDetails || [],
       price: calculations.price,
       subtotal: calculations.price,
       totalprice: calculations.totalprice,
@@ -554,13 +664,13 @@ class ProductUseCase {
         mode: item.makingCharges?.makingMode || product.makingCharges?.mode,
         actualValue:
           item.makingCharges?.makingActualValue !== undefined ? item.makingCharges?.makingActualValue :
-          product.makingCharges?.actualValue,
+            product.makingCharges?.actualValue,
         discountedValue:
           item.makingCharges?.makingDiscountedValue !== undefined ? item.makingCharges?.makingDiscountedValue :
-          product.makingCharges?.discountedValue,
+            product.makingCharges?.discountedValue,
         discountedPercentage:
           item.makingCharges?.makingDiscountedPercentage !== undefined ? item.makingCharges?.makingDiscountedPercentage :
-          product.makingCharges?.discountedPercentage,
+            product.makingCharges?.discountedPercentage,
         discountView: item.makingCharges?.discountView ?? product.makingCharges?.discountView ?? true,
         mcView: item.makingCharges?.mcView ?? product.makingCharges?.mcView ?? true,
         _id: item.makingCharges?._id || product.makingCharges?._id || "MC001",
@@ -570,13 +680,13 @@ class ProductUseCase {
         mode: item.wastageCharges?.wastageMode || product.wastageCharges?.mode,
         actualValue:
           item.wastageCharges?.wastageActualValue !== undefined ? item.wastageCharges?.wastageActualValue :
-          product.wastageCharges?.actualValue,
+            product.wastageCharges?.actualValue,
         discountedValue:
           item.wastageCharges?.wastageDiscountedValue !== undefined ? item.wastageCharges?.wastageDiscountedValue :
-          product.wastageCharges?.discountedValue,
+            product.wastageCharges?.discountedValue,
         discountedPercentage:
           item.wastageCharges?.wastageDiscountedPercentage !== undefined ? item.wastageCharges?.wastageDiscountedPercentage :
-          product.wastageCharges?.discountedPercentage,
+            product.wastageCharges?.discountedPercentage,
         discountView: item.wastageCharges?.discountView ?? product.wastageCharges?.discountView ?? true,
         mcView: item.wastageCharges?.mcView ?? product.wastageCharges?.mcView ?? false,
         _id: item.wastageCharges?._id || product.wastageCharges?._id || "WC001",
@@ -604,30 +714,36 @@ class ProductUseCase {
     const rate = Number(item.currentMetalRate || 0);
     const netWt = Number(item.netWeight || 0);
     const grossWt = Number(item.grossWt || 0);
-    const metalValue = netWt * rate;
+    const metalValue = item.isMrp ? rate : netWt * rate;
 
     let makingValue = 0;
+    let actualMakingValue = 0;
     const mc = item.makingCharges || {};
+    const makingAmount = Number(mc.makingDiscountedValue || 0);
+    const actualMakingAmount = Number(mc.makingActualValue || 0);
+    const makingWeightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(mc.makingMode) === 1) {
-      makingValue =
-        Number(mc.makingActualValue || 0) -
-        Number(mc.makingDiscountedValue || 0);
+      makingValue = makingAmount;
+      actualMakingValue = actualMakingAmount;
     } else if (Number(mc.makingMode) === 2) {
-      makingValue =
-        Number(mc.makingActualValue || 0) * grossWt -
-        Number(mc.makingDiscountedValue || 0);
+      makingValue = makingWeightBase * makingAmount;
+      actualMakingValue = makingWeightBase * actualMakingAmount;
     }
 
     let wastageValue = 0;
+    let actualWastageValue = 0;
     const wc = item.wastageCharges || {};
+    const wastageAmount = Number(wc.wastageDiscountedValue || 0);
+    const actualWastageAmount = Number(wc.wastageActualValue || 0);
+    const wastageWeightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(wc.wastageMode) === 1) {
-      wastageValue =
-        Number(wc.wastageActualValue || 0) -
-        Number(wc.wastageDiscountedValue || 0);
+      wastageValue = wastageAmount;
+      actualWastageValue = actualWastageAmount;
     } else if (Number(wc.wastageMode) === 2) {
-      wastageValue =
-        metalValue * (Number(wc.wastageActualValue || 0) / 100) -
-        Number(wc.wastageDiscountedValue || 0);
+      wastageValue = (wastageAmount / 100) * rate * wastageWeightBase;
+      actualWastageValue = (actualWastageAmount / 100) * rate * wastageWeightBase;
     }
 
     let stoneValue = 0;
@@ -637,7 +753,10 @@ class ProductUseCase {
 
     if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
       item.stoneDetails.forEach(stone => {
-        const price = Number(stone.price || 0);
+        let price = Number(stone.price || 0);
+        if (price === 0 && stone.itemId && stone.itemId.percraterate) {
+          price = Number(stone.weight || 0) * Number(stone.itemId.percraterate || 0) + Number(stone.itemId.charge || 0);
+        }
         stoneValue += price;
 
         const detail = {
@@ -668,20 +787,28 @@ class ProductUseCase {
       });
     }
 
-    const huidCharges = Number(item.huidCharges || 0);
-    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huidCharges;
-    const gstValue = subTotal * 0.03;
-    const totalprice = subTotal + gstValue;
+    const huid = Number(item.huidCharges || 0);
+    const gstPct = Number(item.gst || 3);
+
+    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
+    const gstValue = (subTotal * gstPct) / 100;
+    const outprice = subTotal + gstValue;
+
+    const actualSubTotal = metalValue + actualMakingValue + actualWastageValue + stoneValue + huid;
+    const actualGstValue = (actualSubTotal * gstPct) / 100;
+    const totalPrice = actualSubTotal + actualGstValue;
 
     return {
-      price: Math.round(subTotal),
-      totalprice: Math.round(totalprice),
+      price: Number(subTotal.toFixed(2)),
+      totalprice: Number(outprice.toFixed(2)),
+      actualTotalPrice: Number(totalPrice.toFixed(2)),
       metalValue,
       makingValue,
       wastageValue,
-      stoneValue,
-      huidCharges,
       gstValue,
+      stoneValue,
+      huidCharges: huid,
+      subtotal: subTotal,
       stoneDiamondDetails,
       totalDiamondWeight,
       totalDiamondCost,
@@ -690,13 +817,15 @@ class ProductUseCase {
       totalStoneWeight,
       totalStoneCost,
       totalStonePrice,
-      totalStoneCount
+      totalStoneCount,
+      finalMakingCharge: makingValue,
+      finalWastageCharge: wastageValue,
     };
   }
 
-  async getProductStockReport(page, limit, search, from_date, to_date, category, subcategory) {
+  async getProductStockReport(page, limit, search, from_date, to_date, category, subcategory, metal) {
     try {
-      const result = await this.productRepository.getProductStockReport(page, limit, { search, from_date, to_date, category, subcategory });
+      const result = await this.productRepository.getProductStockReport(page, limit, { search, from_date, to_date, category, subcategory, metal });
       return { success: true, message: "Stock report fetched successfully", ...result };
     } catch (err) {
       return { success: false, message: "Error fetching stock report", error: err.message };
@@ -714,7 +843,7 @@ class ProductUseCase {
 
   async toggleBestSeller(id) {
     try {
-      const existingProduct = await this.productRepository.findById(id);
+      const existingProduct = await this.productRepository.findById(id, null, true);
       if (!existingProduct) return { success: false, message: "Product not found" };
       const newStatus = !existingProduct.bestSeller;
       const result = await this.productRepository.updateProduct(id, { bestSeller: newStatus });

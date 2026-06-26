@@ -25,10 +25,14 @@ class CacheService {
   }
 
   invalidatePattern(pattern) {
+    const keysToDelete = [];
     for (const key of cache.keys()) {
       if (key.startsWith(pattern)) {
-        cache.delete(key);
+        keysToDelete.push(key);
       }
+    }
+    for (const key of keysToDelete) {
+      cache.delete(key);
     }
   }
 

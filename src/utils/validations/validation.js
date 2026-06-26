@@ -168,6 +168,30 @@ class Validator {
     }),
     description: Joi.string().allow(null, "").optional(),
   });
+
+  colorValidations = Joi.object({
+    color: Joi.string().trim().required().messages({
+      "any.required": "Color name is required",
+      "string.empty": "Color name cannot be empty",
+      "string.base": "Color name must be a string",
+    }),
+    code: Joi.number().required().messages({
+      "any.required": "Code is required",
+      "number.base": "Code must be a number",
+    }),
+  });
+
+  certificateValidations = Joi.object({
+    name: Joi.string().trim().required().messages({
+      "any.required": "Certificate name is required",
+      "string.empty": "Certificate name cannot be empty",
+      "string.base": "Certificate name must be a string",
+    }),
+    id: Joi.number().required().messages({
+      "any.required": "ID is required",
+      "number.base": "ID must be a number",
+    }),
+  });
 }
 
 export default Validator;

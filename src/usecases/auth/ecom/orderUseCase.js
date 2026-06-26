@@ -130,136 +130,140 @@ class OrderUseCase {
       if (!productId) {
         throw new Error("Address Id is required");
       }
-      const findAddress =
-        await this.deliveryAddressRepository.findById(addressId);
 
-      if (!findAddress) {
-        return {
-          success: false,
-          message: "Invalid Address Id",
-        };
-      }
-      const findProduct = await this.productRepository.findById(productId);
+      return await this.orderNowItem(userData, addressId, productId);
 
-      if (!findProduct && findProduct.onlineProduct) {
-        return {
-          success: false,
-          message: "Product not found",
-        };
-      }
+      // const findAddress =
+      //   await this.deliveryAddressRepository.findById(addressId);
 
-      const findProductForOrderNow =
-        await this.orderRepository.findProductForOrderNow(
-          productId,
-          userData._id,
-        );
-      if (findProductForOrderNow.alreadyOrdered) {
-        return {
-          success: false,
-          message:
-            "Order confirmation is pending. You can place a new order after it's confirmed.",
-        };
-      }
+      // if (!findAddress) {
+      //   return {
+      //     success: false,
+      //     message: "Invalid Address Id",
+      //   };
+      // }
 
-      const cartData = {};
-      const findCart = await this.cartRepository.findByUserId(userData._id);
-      let cartId = findCart && findCart._id ? findCart._id : null;
-      cartData.userId = userData._id;
-      if (!findCart) {
-        const cart = {
-          ...cartData,
-          status: "active",
-        };
-        const createCart = await this.cartRepository.create(cart);
-        cartId = createCart._id;
-      }
+      // const findProduct = await this.productRepository.findById(productId);
 
-      const shppingCharge = 0;
-      const raw = `${userData._id}${Date.now()}`;
-      const transactionId = crypto
-        .createHash("sha256")
-        .update(raw)
-        .digest("hex")
-        .slice(0, 15);
-      const processingStatus = await this.orderRepository.findStatusByNo(
-        ORDER_STATUS_NO.PROCESSING,
-      );
+      // if (!findProduct && findProduct.onlineProduct) {
+      //   return {
+      //     success: false,
+      //     message: "Product not found",
+      //   };
+      // }
 
-      const orderData = {
-        orderId: `ORD-${transactionId}`,
-        userId: userData._id,
-        phone: userData?.mobile,
-        cartId: findCart?._id || null,
-        shipping_is_billing: true,
-        itemsCount: 1,
-        subtotal: findProduct.totalAmount || findProduct.price || 0,
-        totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
-        shippingFee: shppingCharge,
-        totalAmount:
-          (findProduct.discountedAmount || findProduct.price || 0) +
-          shppingCharge,
-        savedAmount:
-          (findProduct.totalAmount || findProduct.price || 0) -
-          (findProduct.discountedAmount || findProduct.price || 0),
-        status: processingStatus?.name || "Processing",
-        deliveryAddress: addressId,
-        active: true,
-        orderStatus: ORDER_STATUS_NO.PROCESSING,
-        orderType: ORDER_TYPE.OFFLINE_ORDER,
-      };
-      const orderItems = {
-        productId: findProduct._id,
-        itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id,
-        productName: findProduct.product_name,
-        sku: findProduct.sku,
-        image: findProduct.product_image[0],
-        grossWeight: findProduct.grossWeight || findProduct.firstItem?.grossWt,
-        price: findProduct.discountedAmount || findProduct.price || 0,
-        totalPrice:
-          findProduct.totalprice ||
-          findProduct.totalAmount ||
-          findProduct.price ||
-          0,
-        quantity: 1,
-        discountAmount: findProduct.discountedAmount || findProduct.price || 0,
-        categoryId: findProduct.id_category,
-        subCategoryId: findProduct.subcategoryId,
-        collectionId: findProduct.collectionId,
-        status: "pending",
-        trackingNumber: null,
-        shippedAt: new Date(),
-        returnStatus: "none",
-        refundAmount: 0,
-        metalRate: findProduct?.latestMetalPrice,
-        netWt: findProduct?.netWeight || findProduct.firstItem?.netWeight,
-        id_purity: findProduct.id_purity || findProduct.firstItem?.id_purity,
-        purityName: findProduct.purityName,
-        id_metal: findProduct.id_metal,
-        makingCharges: findProduct.makingCharges ?? null,
-        wastageCharges: findProduct.wastageCharges ?? null,
-        gstAmount: findProduct.gstValue || findCart?.gst || 0,
-      };
-      const createOrder = await this.orderRepository.createOrder(orderData, [
-        orderItems,
-      ]);
+      // const findProductForOrderNow =
+      //   await this.orderRepository.findProductForOrderNow(
+      //     productId,
+      //     userData._id,
+      //   );
+      // if (findProductForOrderNow.alreadyOrdered) {
+      //   return {
+      //     success: false,
+      //     message:
+      //       "Order confirmation is pending. You can place a new order after it's confirmed.",
+      //   };
+      // }
 
-      if (!createOrder) {
-        return {
-          success: false,
-          message: "Failed to create order now",
-        };
-      }
+      // const cartData = {};
+      // const findCart = await this.cartRepository.findByUserId(userData._id);
+      // let cartId = findCart && findCart._id ? findCart._id : null;
+      // cartData.userId = userData._id;
+      // if (!findCart) {
+      //   const cart = {
+      //     ...cartData,
+      //     status: "active",
+      //   };
+      //   const createCart = await this.cartRepository.create(cart);
+      //   cartId = createCart._id;
+      // }
 
-      // Reduce stock immediately for offline orders
-      await this.orderRepository.reduceProductQuatityCount(
-        createOrder.order._id,
-      );
+      // const shppingCharge = 0;
+      // const raw = `${userData._id}${Date.now()}`;
+      // const transactionId = crypto
+      //   .createHash("sha256")
+      //   .update(raw)
+      //   .digest("hex")
+      //   .slice(0, 15);
+      // const processingStatus = await this.orderRepository.findStatusByNo(
+      //   ORDER_STATUS_NO.PROCESSING,
+      // );
 
-      return {
-        success: true,
-        message: "Your order has been placed successfully",
-        data: createOrder?.data,
-      };
+      // const orderData = {
+      //   orderId: `ORD-${transactionId}`,
+      //   userId: userData._id,
+      //   phone: userData?.mobile,
+      //   cartId: findCart?._id || null,
+      //   shipping_is_billing: true,
+      //   itemsCount: 1,
+      //   subtotal: findProduct.totalAmount || findProduct.price || 0,
+      //   totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
+      //   shippingFee: shppingCharge,
+      //   totalAmount:
+      //     (findProduct.discountedAmount || findProduct.price || 0) +
+      //     shppingCharge,
+      //   savedAmount:
+      //     (findProduct.totalAmount || findProduct.price || 0) -
+      //     (findProduct.discountedAmount || findProduct.price || 0),
+      //   status: processingStatus?.name || "Processing",
+      //   deliveryAddress: addressId,
+      //   active: true,
+      //   orderStatus: ORDER_STATUS_NO.PROCESSING,
+      //   orderType: ORDER_TYPE.OFFLINE_ORDER,
+      // };
+      // const orderItems = {
+      //   productId: findProduct._id,
+      //   itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id,
+      //   productName: findProduct.product_name,
+      //   sku: findProduct.sku,
+      //   image: findProduct.product_image[0],
+      //   grossWeight: findProduct.grossWeight || findProduct.firstItem?.grossWt,
+      //   price: findProduct.discountedAmount || findProduct.price || 0,
+      //   totalPrice:
+      //     findProduct.totalprice ||
+      //     findProduct.totalAmount ||
+      //     findProduct.price ||
+      //     0,
+      //   quantity: 1,
+      //   discountAmount: findProduct.discountedAmount || findProduct.price || 0,
+      //   categoryId: findProduct.id_category,
+      //   subCategoryId: findProduct.subcategoryId,
+      //   collectionId: findProduct.collectionId,
+      //   status: "pending",
+      //   trackingNumber: null,
+      //   shippedAt: new Date(),
+      //   returnStatus: "none",
+      //   refundAmount: 0,
+      //   metalRate: findProduct?.latestMetalPrice,
+      //   netWt: findProduct?.netWeight || findProduct.firstItem?.netWeight,
+      //   id_purity: findProduct.id_purity || findProduct.firstItem?.id_purity,
+      //   purityName: findProduct.purityName,
+      //   id_metal: findProduct.id_metal,
+      //   makingCharges: findProduct.makingCharges ?? null,
+      //   wastageCharges: findProduct.wastageCharges ?? null,
+      //   gstAmount: findProduct.gstValue || findCart?.gst || 0,
+      // };
+      // const createOrder = await this.orderRepository.createOrder(orderData, [
+      //   orderItems,
+      // ]);
+
+      // if (!createOrder) {
+      //   return {
+      //     success: false,
+      //     message: "Failed to create order now",
+      //   };
+      // }
+
+      // // Reduce stock immediately for offline orders
+      // await this.orderRepository.reduceProductQuatityCount(
+      //   createOrder.order._id,
+      // );
+
+      // return {
+      //   success: true,
+      //   message: "Your order has been placed successfully",
+      //   data: createOrder?.data,
+      // };
     } catch (error) {
       console.error(error);
       throw new Error(`Failed to place order: ${error.message}`);
@@ -307,10 +311,11 @@ class OrderUseCase {
       }
 
       const findProductForOrderNow =
-        await this.orderRepository.findProductForOrderNow(
-          findProduct._id,
+        await this.orderRepository.findItemForOrderNow(
+          itemId,
           userData._id,
         );
+
       if (findProductForOrderNow.alreadyOrdered) {
         return {
           success: false,
@@ -358,8 +363,7 @@ class OrderUseCase {
         totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
         shippingFee: shppingCharge,
         totalAmount:
-          (findItem.totalprice ||
-            findProduct.discountedAmount ||
+          (findProduct.discountedAmount ||
             findProduct.price ||
             0) + shppingCharge,
         savedAmount:
@@ -371,16 +375,18 @@ class OrderUseCase {
         orderStatus: ORDER_STATUS_NO.PROCESSING,
         orderType: ORDER_TYPE.OFFLINE_ORDER,
       };
+
       const orderItems = {
         productId: findProduct._id,
         itemId: findItem._id,
         sizeId: findItem.size,
         productName: findProduct.product_name,
         sku: findItem.tagNo || findProduct.sku,
-        image: findProduct.product_image[0],
+        image: findProduct.product_image && findProduct.product_image[0]
+          ? (typeof findProduct.product_image[0] === "string" ? findProduct.product_image[0] : findProduct.product_image[0].thumbnail || "")
+          : "",
         grossWeight: findItem.grossWt,
         price:
-          findItem.price ||
           findProduct.discountedAmount ||
           findProduct.price ||
           0,
@@ -418,6 +424,7 @@ class OrderUseCase {
         diaCertificateNo: findItem.diaCertificateNo || null,
         size: `${findItem.sizeValue || ""}${findItem.unit || ""}`,
       };
+
       const createOrder = await this.orderRepository.createOrder(orderData, [
         orderItems,
       ]);
@@ -430,9 +437,9 @@ class OrderUseCase {
       }
 
       // Reduce stock immediately for offline orders
-      await this.orderRepository.reduceProductQuatityCount(
-        createOrder.order._id,
-      );
+      // await this.orderRepository.reduceProductQuatityCount(
+      //   createOrder.order._id,
+      // );
 
       return {
         success: true,
@@ -472,7 +479,6 @@ class OrderUseCase {
       }
 
       const cartItems = await this.cartRepository.findById(findCart._id);
-      console.log(cartItems, "cartItems");
 
       if (!cartItems) {
         return {
@@ -536,7 +542,6 @@ class OrderUseCase {
           totalStonePrice: 0,
         },
       );
-
       const orderData = {
         orderId: `ORD-${transactionId}`,
         userId: token._id,
@@ -550,7 +555,7 @@ class OrderUseCase {
           0,
         totalDiscount: cartItems.overAllAmount?.totalDiscount || 0,
         shippingFee: shppingCharge,
-        totalAmount: cartItems.overAllAmount?.totalAmount || 0,
+        totalAmount: cartItems.overAllAmount?.withoutGstPrice || 0,
         totalGstAmount:
           cartItems.overAllAmount?.totalGstAmount ||
           cartItems.overAllAmount?.gstRate ||
@@ -558,9 +563,9 @@ class OrderUseCase {
         savedAmount:
           (cartItems.overAllAmount?.subTotal || 0) -
             (cartItems.overAllAmount?.totalAmount || 0) >
-          0
+            0
             ? (cartItems.overAllAmount?.subTotal || 0) -
-              (cartItems.overAllAmount?.totalAmount || 0)
+            (cartItems.overAllAmount?.totalAmount || 0)
             : 0,
         status: "Payment Pending",
         deliveryAddress: addressId,
@@ -589,7 +594,9 @@ class OrderUseCase {
         sizeId: item.sizeId,
         productName: item.productName,
         sku: item.sku,
-        image: item.productImg,
+        image: item.productImg
+          ? (typeof item.productImg === "string" ? item.productImg : item.productImg.thumbnail || "")
+          : "",
         grossWeight: item.grossWt,
         price: item.price,
         totalPrice: item.totalprice,
@@ -696,14 +703,14 @@ class OrderUseCase {
       const findOrderItems = await this.orderRepository.findOrderItems(
         findOrder._id,
       );
-
+      console.log(findOrderItems, "item")
       if (!findOrderItems) {
         return {
           success: false,
           message: "Failed to get orders",
         };
       }
-      console.log(findOrderItems);
+
       findOrderItems.overAll.orderType = ORDER_TYPE_NAME[findOrder.orderType];
 
       return {
@@ -894,7 +901,7 @@ class OrderUseCase {
   }
 
   async getOrderItemReport(orderId) {
-    try { 
+    try {
       const findOrder = await this.orderRepository.findById(orderId);
       if (!findOrder) {
         return {
@@ -1029,7 +1036,7 @@ class OrderUseCase {
 
   async changeOrderStatus(statusId, orderId, remarks, orderStatusData) {
     try {
-      const orderData = await this.orderRepository.findById({ _id: orderId });
+      const orderData = await this.orderRepository.findById(orderId);
       const statusData = await this.orderRepository.findStatusById(statusId);
 
       if (statusData?.statusNo == "2") {
@@ -1085,9 +1092,17 @@ class OrderUseCase {
           message = `Your order has been delivered successfully. Order ID: ${orderData?.orderId}`;
         } else if (statusData?.statusNo == "4") {
           message = `Your order has been cancelled. Order ID: ${orderData?.orderId}`;
+        } else if (statusData?.statusNo == "6") {
+          message = `Your order has been shipped. Order ID: ${orderData?.orderId}`;
+        } else if (statusData?.statusNo == "8") {
+          message = `Your order is ready for pickup. Order ID: ${orderData?.orderId}`;
         }
 
-        await this.sendNotification(orderData?.userId, title, message);
+        if (message && orderData?.userId) {
+          console.log(orderData?.userId, title, message);
+          await this.sendNotification(orderData.userId, title, message);
+        }
+
         return {
           success: true,
           data: result,

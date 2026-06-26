@@ -41,7 +41,7 @@ const OrderItemSchema = new Schema(
     // Product linkage
     productId: { type: Types.ObjectId, ref: "Product", required: true },
     itemId: { type: Types.ObjectId, ref: "Item", required: false },
-    sizeId: { type: Types.ObjectId, ref: "SizeMaster", required: false },
+    sizeId: { type: String, required: false },
     categoryId: { type: Types.ObjectId, ref: "Category" },
     subCategoryId: { type: Types.ObjectId, ref: "SubCategory" },
     productName: { type: String, required: true },

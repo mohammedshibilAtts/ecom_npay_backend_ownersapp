@@ -47,7 +47,7 @@ const productSchema = new mongoose.Schema(
     },
 
     product_image: {
-      type: [String],
+      type: [Schema.Types.Mixed],
       default: [],
     },
 
@@ -66,13 +66,13 @@ const productSchema = new mongoose.Schema(
       required: true,
       ref: "SubCategory",
     },
-    
-    sizeId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "SizeMaster",
-      required: true,
-    },
-    
+
+    // sizeId: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "SizeMaster",
+    //   required: true,
+    // },
+
     sku: {
       type: String,
       default: null,
@@ -122,10 +122,36 @@ const productSchema = new mongoose.Schema(
         message: "All items must be valid ObjectIds",
       },
     },
+
+    staticSortPrice: {
+      type: Number,
+      default: 0,
+    },
+
+    staticSortWeight: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
   },
 );
+
+// Compound indexes for product listing and filter queries
+productSchema.index({ is_deleted: 1, active: 1 });
+productSchema.index({ is_deleted: 1, active: 1, id_category: 1 });
+productSchema.index({ is_deleted: 1, active: 1, subcategoryId: 1 });
+productSchema.index({ is_deleted: 1, active: 1, id_branch: 1 });
+productSchema.index({ is_deleted: 1, active: 1, collection: 1 });
+productSchema.index({ createdAt: -1 });
+productSchema.index({ product_name: 1 });
+productSchema.index({ sku: 1 });
+
+// Indexes for static cursor pagination
+productSchema.index({ id_category: 1, staticSortPrice: 1, _id: 1 });
+productSchema.index({ id_category: 1, staticSortPrice: -1, _id: -1 });
+productSchema.index({ id_category: 1, staticSortWeight: 1, _id: 1 });
+productSchema.index({ id_category: 1, staticSortWeight: -1, _id: -1 });
 
 export default mongoose.model("Product", productSchema);

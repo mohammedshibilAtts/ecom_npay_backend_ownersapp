@@ -11,7 +11,7 @@ const itemSchema = new mongoose.Schema(
     },
 
     size: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: "SizeMaster",
     },
 
@@ -33,12 +33,12 @@ const itemSchema = new mongoose.Schema(
     sizeValue: {
       type: String,
       required: true,
-      index:true,
+      index: true,
     },
-    unit: {
-      type: String,
-      required: true,
-    },
+    // unit: {
+    //   type: String,
+    //   required: true,
+    // },
 
     grossWt: {
       type: Number,
@@ -54,6 +54,10 @@ const itemSchema = new mongoose.Schema(
     diamondwt: Number,
 
     diaCertificateNo: String,
+    diacertificate: {
+      type: [String],
+      default: []
+    },
 
     huidCharges: Number,
     huidNo: String,
@@ -94,13 +98,26 @@ const itemSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    status:{
-      type:Number,
-      default:1   // 1 In 2 Out 
+    status: {
+      type: Number,
+      default: 1
     },
-    stoneDetails: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoneDetails" }]
+    stoneDetails: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoneDetails" }],
+    id_color: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Color",
+    },
+    id_certificate: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Certificate",
+    }
   },
   { timestamps: true },
 );
+
+// Compound indexes for product pipeline lookups — eliminates full collection scans
+itemSchema.index({ productId: 1, active: 1, is_deleted: 1 });
+itemSchema.index({ productId: 1, active: 1, status: 1, is_deleted: 1 });
+itemSchema.index({ productId: 1, id_purity: 1, active: 1, is_deleted: 1 });
 
 export default mongoose.model("Item", itemSchema);

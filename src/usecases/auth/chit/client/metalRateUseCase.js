@@ -2,6 +2,45 @@ import { isValidObjectId } from "mongoose";
 import mongoose from "mongoose";
 import smsService from "../../../../config/chit/smsService.js";
 import CustomerRepository from "../../../../infrastructure/repositories/chit/CustomerRepository.js";
+import cacheService from "../../../../utils/cacheService.js";
+import ItemModel from "../../../../infrastructure/models/ecom/itemModel.js";
+import ProductModel from "../../../../infrastructure/models/chit/productModel.js";
+import ItemUseCase from "../../ecom/itemUsecase.js";
+
+async function syncItemPricesForMetalRate(purityId, newRate, isMrp) {
+  try {
+    if (!purityId) return;
+
+    const itemUseCase = new ItemUseCase();
+    const items = await ItemModel.find({ id_purity: purityId, is_deleted: { $ne: true } });
+    
+    for (let item of items) {
+      const product = await ProductModel.findById(item.productId).select("isMrp active is_deleted").lean();
+      if (!product || product.is_deleted) continue;
+
+      const productIsMrp = product.isMrp || false;
+
+      if (productIsMrp === isMrp) {
+        item.currentMetalRate = newRate;
+        
+        // Pass productIsMrp into item so _calculateItemPricing works correctly
+        const itemWithMrp = { ...item.toObject(), isMrp: productIsMrp };
+        const calcs = itemUseCase._calculateItemPricing(itemWithMrp);
+        
+        item.price = calcs.price;
+        item.totalprice = calcs.totalprice;
+        await item.save();
+
+        await ProductModel.updateOne(
+          { _id: item.productId },
+          { $set: { staticSortPrice: calcs.totalprice, staticSortWeight: item.netWeight } }
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error syncing item prices for metal rate:", error);
+  }
+}
 
 class metalRateUseCase {
   constructor(metalrateRepository, metalRepo, branchRepo) {
@@ -23,11 +62,20 @@ class metalRateUseCase {
         return { success: false, message: "Failed to add metal rate" };
       }
 
+      cacheService.invalidatePattern("dashboard:");
+
       const response = {
         success: true,
         message: "Metal rate added successfully",
         data: savedData,
       };
+
+      if (savedData && savedData.data) {
+        const rates = Array.isArray(savedData.data) ? savedData.data : [savedData.data];
+        rates.forEach(rate => {
+          syncItemPricesForMetalRate(rate.purity_id, rate.rate, rate.isMrp || false);
+        });
+      }
 
       process.nextTick(async () => {
         try {
@@ -165,6 +213,10 @@ class metalRateUseCase {
       );
 
       if (editedData) {
+        cacheService.invalidatePattern("dashboard:");
+        if (fieldsToUpdate.rate) {
+          syncItemPricesForMetalRate(exists.purity_id, fieldsToUpdate.rate, exists.isMrp || false);
+        }
         return { success: true, message: "Metal rate edited successfully" };
       }
 

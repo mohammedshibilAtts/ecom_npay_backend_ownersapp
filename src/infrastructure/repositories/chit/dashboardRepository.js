@@ -1257,7 +1257,7 @@ class DashboardRepository {
       const completedAccounts =
         schData.completedAccounts_overall?.[0]?.count || 0;
       const closedAccounts = schData.closedAccounts_overall?.[0]?.count || 0;
-
+      console.log(payOverall, "payOverall")
       return {
         newCustomer: newCustomer,
         receivedWeights: payOverall.totalMetalWeight || 0,

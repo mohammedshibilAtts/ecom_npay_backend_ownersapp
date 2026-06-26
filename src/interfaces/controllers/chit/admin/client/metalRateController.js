@@ -1,5 +1,6 @@
 import moment from "moment";
 import mongoose from "mongoose";
+import ProductRepository from "../../../../../infrastructure/repositories/chit/productRepository.js";
 
 class metalRateController {
   constructor(metalrateUseCase, validator) {
@@ -37,6 +38,11 @@ class metalRateController {
         return res.status(400).json({ message: result.message });
       }
 
+      // Asynchronously trigger product static price sync for this purity
+      // DO NOT await it to prevent blocking the API response
+      const productRepo = new ProductRepository();
+      productRepo.syncProductStaticFields().catch(err => console.error("Background sync failed:", err));
+
       return res
         .status(201)
         .json({ message: result.message, data: result.data });
@@ -59,6 +65,11 @@ class metalRateController {
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
+
+      // Asynchronously trigger product static price sync for this purity
+      // DO NOT await it to prevent blocking the API response
+      const productRepo = new ProductRepository();
+      productRepo.syncProductStaticFields().catch(err => console.error("Background sync failed:", err));
 
       return res.status(200).json({ message: result.message });
     } catch (error) {

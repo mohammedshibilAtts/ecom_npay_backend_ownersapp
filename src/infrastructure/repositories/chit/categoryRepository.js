@@ -225,6 +225,7 @@ class CategoryRepository {
         {
           $match: {
             active: true,
+            is_deleted: false,
             id_branch: new mongoose.Types.ObjectId(branch),
           },
         },

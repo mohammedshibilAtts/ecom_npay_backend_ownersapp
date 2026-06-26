@@ -148,7 +148,7 @@ class OrderRepository {
                     Math.round(
                       (rawMakingCharge -
                         (product.makingCharges.discountedValue || 0)) *
-                        100,
+                      100,
                     ) / 100;
                 }
 
@@ -172,7 +172,7 @@ class OrderRepository {
                     Math.round(
                       (rawWastageCharge -
                         (product.wastageCharges.discountedValue || 0)) *
-                        100,
+                      100,
                     ) / 100;
                 }
 
@@ -260,20 +260,20 @@ class OrderRepository {
 
                   wastage: product.wastageCharges
                     ? {
-                        mode: product.wastageCharges.mode,
-                        percentage:
-                          product.wastageCharges.mode === 2 ||
+                      mode: product.wastageCharges.mode,
+                      percentage:
+                        product.wastageCharges.mode === 2 ||
                           product.wastageCharges.mode === 3
-                            ? product.wastageCharges.actualValue
-                            : null,
-                        amount:
-                          product.wastageCharges.mode === 1
-                            ? product.wastageCharges.actualValue
-                            : null,
-                        discountedValue:
-                          product.wastageCharges.discountedValue || 0,
-                        finalCharge: finalWastageCharge,
-                      }
+                          ? product.wastageCharges.actualValue
+                          : null,
+                      amount:
+                        product.wastageCharges.mode === 1
+                          ? product.wastageCharges.actualValue
+                          : null,
+                      discountedValue:
+                        product.wastageCharges.discountedValue || 0,
+                      finalCharge: finalWastageCharge,
+                    }
                     : null,
                   makingCharge: {
                     raw: rawMakingCharge,
@@ -321,6 +321,7 @@ class OrderRepository {
   async findOrderItems(orderId) {
     try {
       const findOrder = await Order.findById(orderId)
+
         .populate({
           path: "deliveryAddress",
           populate: [
@@ -462,6 +463,7 @@ class OrderRepository {
                 },
               ],
             },
+            sizeValue: "$ItemInfo.sizeValue",
             purityName: { $ifNull: ["$purityName", "$Purity.purity_name"] },
           },
         },
@@ -658,7 +660,6 @@ class OrderRepository {
             preserveNullAndEmptyArrays: true,
           },
         },
-        // Now match sizeId with product.availableSizes.values._id
         {
           $addFields: {
             matchedSize: {
@@ -716,9 +717,8 @@ class OrderRepository {
           shippingCharge: findOrder.shippingFee,
           status: findOrder.status,
           savedAmount: findOrder.savedAmount,
-          name: `${findOrder.userId.firstname} ${
-            findOrder.userId.lastname ?? ""
-          }`,
+          name: `${findOrder.userId.firstname} ${findOrder.userId.lastname ?? ""
+            }`,
           mobile: findOrder.userId?.mobile,
           email: findOrder.userId?.email,
           cus_img: findOrder.userId?.cus_img,
@@ -1344,10 +1344,13 @@ class OrderRepository {
   ) {
     try {
       const skip = (page - 1) * limit;
+      const { id_category, ...orderFilter } = filter;
+      console.log(filter)
+
       let basePipeline = [
         {
           $match: {
-            ...filter,
+            ...orderFilter,
             orderStatus: {
               $nin: [ORDER_STATUS_NO.CANCELLED, ORDER_STATUS_NO.PROCESSING],
             },
@@ -1378,7 +1381,7 @@ class OrderRepository {
           $match: {
             "productInfo.active": true,
             "productInfo.is_deleted": { $ne: true },
-            "productInfo.onlineProduct": { $eq: true },
+            // "productInfo.onlineProduct": { $eq: true },
           },
         },
 
@@ -1391,21 +1394,26 @@ class OrderRepository {
             totalNetWeight: { $sum: "$orderItem.netWt" },
             purityName: { $first: "$orderItem.purityName" },
             productName: { $first: "$productInfo.product_name" },
+            productType: { $first: "$productInfo.onlineProduct" },
             id_metal: { $first: "$productInfo.id_metal" },
             id_category: { $first: "$productInfo.id_category" },
             id_purity: { $first: "$productInfo.id_purity" },
+            tagNumber: { $first: "$productInfo.code" },
+            totalPrice: { $first: "$orderItem.totalPrice" },
+            customerPhone: { $first: "$phone" },
+
           },
         },
       ];
 
-      //  CATEGORY FILTER
-      if (filter.id_category) {
-        basePipeline.push({
-          $match: {
-            id_category: new mongoose.Types.ObjectId(filter.id_category),
-          },
-        });
-      }
+      // //  CATEGORY FILTER
+      // if (id_category) {
+      //   basePipeline.push({
+      //     $match: {
+      //       id_category: new mongoose.Types.ObjectId(filter.id_category),
+      //     },
+      //   });
+      // }
 
       // JOIN metadata
       basePipeline.push(
@@ -1449,7 +1457,7 @@ class OrderRepository {
                   $expr: {
                     $and: [
                       { $eq: ["$productId", "$$productId"] },
-                      { $eq: ["$active", true] },
+                      { $eq: ["$status", 2] }, // Sold
                       { $ne: ["$is_deleted", true] },
                     ],
                   },
@@ -1457,9 +1465,15 @@ class OrderRepository {
               },
               { $count: "count" },
             ],
-            as: "stockData",
+            as: "soldData",
           },
         },
+        // {
+        //   $match: {
+        //     soldData: { $ne: [] }
+        //   }
+        // },
+
 
         {
           $project: {
@@ -1472,7 +1486,11 @@ class OrderRepository {
             categoryName: { $ifNull: ["$category.category_name", ""] },
             totalAmount: 1,
             totalGrossWeight: 1,
+            totalPrice: 1,
             totalNetWeight: 1,
+            productType: 1,
+            tagNumber: 1,
+            customerPhone: 1, // <-- add
             totalStock: {
               $ifNull: [{ $arrayElemAt: ["$stockData.count", 0] }, 0],
             },
@@ -1488,7 +1506,7 @@ class OrderRepository {
           $match: {
             $or: [
               { name: { $regex: searchRegex } },
-              { categoryName: { $regex: searchRegex } },
+              { tagNumber: { $regex: searchRegex } },
               { metalName: { $regex: searchRegex } },
             ],
           },
@@ -1579,9 +1597,51 @@ class OrderRepository {
     }
   }
 
+  async findItemForOrderNow(itemId, userId) {
+    try {
+      const result = await OrderItem.aggregate([
+        {
+          $match: {
+            itemId: new mongoose.Types.ObjectId(itemId),
+          },
+        },
+        {
+          $lookup: {
+            from: "orders",
+            localField: "orderId",
+            foreignField: "_id",
+            as: "Order",
+          },
+        },
+        { $unwind: "$Order" },
+        {
+          $match: {
+            "Order.userId": new mongoose.Types.ObjectId(userId),
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            orderType: "$Order.orderType",
+            orderStatus: "$Order.orderStatus",
+          },
+        },
+      ]);
+
+      const hasActiveOrder = result.some(
+        (item) =>
+          item.orderType === ORDER_TYPE.OFFLINE_ORDER &&
+          item.orderStatus === ORDER_STATUS_NO.PROCESSING,
+      );
+
+      return { alreadyOrdered: hasActiveOrder };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async reduceProductQuatityCount(orderId) {
     try {
-      console.log(orderId);
       const orderItems = await OrderItem.find({ orderId }).lean();
 
       if (!orderItems.length) {
@@ -1615,8 +1675,13 @@ class OrderRepository {
 
         if (itemToReduce) {
           await itemModel.findByIdAndUpdate(itemToReduce._id, {
-            $set: { status: 2, active: false }, // Mark as Out/Sold and Inactive
+            $set: { status: 2 }, // Mark as Out/Sold and Inactive
           });
+
+          await productModel.findByIdAndUpdate(orderItem.productId, {
+            $set: { onlineProduct: false },
+          });
+
           console.error(`✅ Item ${itemToReduce.tagNo} marked as sold.`);
         } else {
           console.warn(

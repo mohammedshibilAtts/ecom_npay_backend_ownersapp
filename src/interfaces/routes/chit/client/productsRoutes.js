@@ -82,6 +82,7 @@ router.get("/report/stock",(req,res)=>controller.getProductStockReport(req,res))
 router.get("/report/lowstock/lowstock",(req,res)=>controller.getProductLowStockReport(req,res))
 
 router.patch('/:id/active',(req,res)=>controller.changeStatus(req,res))
+router.patch('/:id/toggle-sold',(req,res)=>controller.toggleSoldStatus(req,res))
 
 
 

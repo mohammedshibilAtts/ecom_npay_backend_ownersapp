@@ -27,13 +27,19 @@ class AppProductUsecase {
 
   async findById(id, user) {
     try {
-      const customerId = user && user._id ? user._id : null;
+      const customerId = user && user?._id ? user?._id : null;
       let productData = await this.productRepository.findById(id, customerId);
+
 
       if (productData) {
         let finalData = productData;
-        if (productData.firstItem) {
-          finalData = this._mergeItemData(productData, productData.firstItem);
+        let itemSource = productData.firstItem;
+
+        if (!itemSource) {
+          itemSource = await this.itemRepository.findFirstByProductId(productData._id);
+        }
+        if (itemSource) {
+          finalData = this._mergeItemData(productData, itemSource);
           finalData._id = productData._id;
         }
 
@@ -46,7 +52,7 @@ class AppProductUsecase {
             ...restData,
             purityName:
               finalData.purityName ||
-              (firstItem && firstItem.purityName ? firstItem.purityName : null),
+              (itemSource && itemSource.purityName ? itemSource.purityName : null),
             isWishlisted: productData.isWishlisted || false,
             purity: productData.purityList || [],
           },
@@ -89,8 +95,12 @@ class AppProductUsecase {
   }
 
   _mergeItemData(product, item) {
+    const itemObj = item.toObject ? item.toObject() : item;
+    if (item.currentMetalRate !== undefined) {
+      itemObj.currentMetalRate = item.currentMetalRate;
+    }
     const calculations = this._calculateItemPricing({
-      ...item,
+      ...itemObj,
       isMrp: product?.isMrp || false,
     });
 
@@ -125,13 +135,15 @@ class AppProductUsecase {
       diamondcts: item.diamondcts,
       diamondwt: item.diamondwt,
       diaCertificateNo: item.diaCertificateNo,
-      // huidCharges: item.huidCharges,
+      diacertificate: item.diacertificate,
       huidNo: item.huidNo,
-
-      // 🔥 Prioritize Item Calculations
+      status: item?.status,
+      id_certificate: item?.certificateName || "",
+      id_color: item?.colorName || "",
+      stoneDetails: item.stoneDetails || item?._doc?.stoneDetails || [],
       price: calculations.price,
-      subtotal: calculations.price,
-      totalWithGst: calculations.totalprice,
+      subtotal: calculations.subtotal, //price to subtotal
+      totalWithGst: calculations.price, //changed totalPrice to price
       totalAmount: calculations.price,
       discountedAmount: calculations.price,
       totalprice: calculations.totalprice,
@@ -205,6 +217,7 @@ class AppProductUsecase {
         alreadyOrdered: false,
         orderId: "",
       },
+      status: item.status,
       stoneDiamondDetails: calculations.stoneDiamondDetails,
       totalDiamondWeight: calculations.totalDiamondWeight,
       totalDiamondCost: calculations.totalDiamondCost,
@@ -226,7 +239,6 @@ class AppProductUsecase {
     const rate = Number(item.currentMetalRate || item?._doc?.currentMetalRate || 0);
     const netWt = Number(item.netWeight || item?._doc?.netWeight || 0);
     const grossWt = Number(item.grossWt || item?._doc?.grossWt || 0);
-
     const metalValue = item.isMrp ? rate : netWt * rate;
 
     let makingValue = 0;
@@ -274,10 +286,10 @@ class AppProductUsecase {
           price: price,
           stoneInfo: stone.itemId
             ? {
-                _id: stone.itemId._id,
-                stonename: stone.itemId.stonename,
-                percraterate: stone.itemId.percraterate,
-              }
+              _id: stone.itemId._id,
+              stonename: stone.itemId.stonename,
+              percraterate: stone.itemId.percraterate,
+            }
             : null,
         };
         stoneDiamondDetails.push(detail);
@@ -294,7 +306,7 @@ class AppProductUsecase {
           totalStoneCount += 1;
         }
       });
-    }else if(item?._doc?.stoneDetails && Array.isArray(item._doc.stoneDetails)){
+    } else if (item?._doc?.stoneDetails && Array.isArray(item._doc.stoneDetails)) {
       item._doc.stoneDetails.forEach((stone) => {
         const price = Number(stone.price || 0);
         stoneValue += price;
@@ -309,10 +321,10 @@ class AppProductUsecase {
           price: price,
           stoneInfo: stone.itemId
             ? {
-                _id: stone.itemId._id,
-                stonename: stone.itemId.stonename,
-                percraterate: stone.itemId.percraterate,
-              }
+              _id: stone.itemId._id,
+              stonename: stone.itemId.stonename,
+              percraterate: stone.itemId.percraterate,
+            }
             : null,
         };
         stoneDiamondDetails.push(detail);
@@ -333,7 +345,7 @@ class AppProductUsecase {
 
     const huid = Number(item.huidCharges || item?._doc?.huidCharges || 0);
     const gstRate = Number(item.gst || item?._doc?.gst || 3);
-    
+
     const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
     const outprice = Math.round((subTotal + (subTotal * gstRate) / 100) * 100) / 100;
 
@@ -355,6 +367,19 @@ class AppProductUsecase {
       stoneValue,
       gstValue: Math.round(((subTotal * gstRate) / 100) * 100) / 100,
       discount: Math.round((totalPrice - outprice) * 100) / 100,
+      subtotal: subTotal,
+      stoneDiamondDetails: stoneDiamondDetails,
+      totalDiamondWeight: totalDiamondWeight,
+      totalDiamondCost: totalDiamondCost,
+      totalDiamondPrice: totalDiamondPrice,
+      totalDiamondCount: totalDiamondCount,
+      totalStoneWeight: totalStoneWeight,
+      totalStoneCost: totalStoneCost,
+      totalStonePrice: totalStonePrice,
+      totalStoneCount: totalStoneCount,
+      finalMakingCharge: makingActualChargeValue,
+      finalWastageCharge: wastageActualChargeValue,
+      huidCharges: huid,
     };
   }
 
@@ -401,6 +426,7 @@ class AppProductUsecase {
         sizeValue,
         purityId,
       );
+
       const product = await this.productRepository.findById(productId);
 
       if (!product) {
@@ -412,6 +438,7 @@ class AppProductUsecase {
           ...item,
           isMrp: product?.isMrp || false,
         });
+
         return {
           _id: item._id,
           tagNo: item.tagNo,
@@ -449,31 +476,112 @@ class AppProductUsecase {
     }
   }
 
+  async getCategoryFilters(categoryId) {
+    try {
+      if (!categoryId || categoryId.length !== 24) {
+        return { success: false, message: "Invalid Category Id" };
+      }
+
+      const category = await this.categoryRepository.findById(categoryId);
+      if (!category) {
+        return { success: false, message: "Category not found" };
+      }
+
+      const subcategories = await this.subCategoryRepository.findByCategoryId(categoryId);
+      const purities = await this.purityRepository.find({ id_metal: category.id_metal, active: true, is_deleted: false });
+
+      const filteredSubcategories = (subcategories || []).map(sub => ({
+        _id: sub._id,
+        categoryId: sub.categoryId,
+        name: sub.name
+      }));
+
+      const filteredPurities = (purities || []).map(purity => ({
+        _id: purity._id,
+        id_purity: purity.id_purity,
+        id_metal: purity.id_metal ? {
+          _id: purity.id_metal._id,
+          id_metal: purity.id_metal.id_metal,
+          metal_name: purity.id_metal.metal_name,
+          active: purity.id_metal.active
+        } : null,
+        purity_name: purity.purity_name
+      }));
+
+      return {
+        success: true,
+        message: "Category filters retrieved successfully",
+        data: {
+          subcategories: filteredSubcategories,
+          purities: filteredPurities
+        }
+      };
+    } catch (err) {
+      console.error(err);
+      return { success: false, message: "Error retrieving category filters", error: err.message };
+    }
+  }
+
   async getProductBySubcategory(
     id,
     page = 1,
     limit = 10,
-    sort = "latest",
+    filters = {},
     user,
+    cursor = null,
   ) {
     try {
       const customerId = user && user._id ? user._id : null;
-      const { products, currentPage, totalPages, totalDocs } =
+      const { products, nextCursor, hasNextPage } =
         await this.productRepository.getProductBySubcategory(
           id,
-          page,
           limit,
-          sort,
+          filters,
           customerId,
+          cursor
         );
 
       return {
         success: true,
         message: "Products retrieved successfully",
         data: products,
-        currentPage,
-        totalPages,
-        totalDocs,
+        nextCursor,
+        hasNextPage,
+      };
+    } catch (err) {
+      console.error(err);
+      return {
+        success: false,
+        message: "Error retrieving products",
+        error: err.message,
+      };
+    }
+  }
+
+  async getProductByCategory(
+    id,
+    limit = 10,
+    filters = {},
+    user,
+    cursor = null,
+  ) {
+    try {
+      const customerId = user && user._id ? user._id : null;
+      const { products, nextCursor, hasNextPage } =
+        await this.productRepository.getProductByCategory(
+          id,
+          limit,
+          filters,
+          customerId,
+          cursor
+        );
+
+      return {
+        success: true,
+        message: "Products retrieved successfully",
+        data: products,
+        nextCursor,
+        hasNextPage,
       };
     } catch (err) {
       console.error(err);

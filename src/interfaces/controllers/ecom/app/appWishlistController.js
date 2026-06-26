@@ -19,9 +19,9 @@ class AppWishlistController {
 
       const result = await this.usecase.toggleWishlistItem(customerId, productId, id_branch);
       if (result.success) {
-        return res.status(200).json({ 
-          message: result.message, 
-          inWishlist: result.inWishlist 
+        return res.status(200).json({
+          message: result.message,
+          inWishlist: result.inWishlist
         });
       }
       return res.status(400).json({ message: result.message });
@@ -33,7 +33,7 @@ class AppWishlistController {
 
   async getWishlist(req, res) {
     try {
-      const customerId = req.user.id || req.user._id;
+      const customerId = req?.user?.id || req?.user?._id;
       const result = await this.usecase.getWishlist(customerId);
 
       if (result.success) {

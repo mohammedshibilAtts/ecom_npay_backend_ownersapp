@@ -52,15 +52,17 @@ class AppWishlistUsecase {
         {}
       );
 
-      const processedProducts = products.map((product) => {
+      const processedProducts = (products || []).map((product) => {
         if (product.firstItem) {
           const pricing = this.appProductUsecase._calculateItemPricing(product.firstItem);
           product.price = pricing.price;
           product.totalprice = pricing.totalprice;
+          product.status = product.firstItem.status ?? null;
           delete product.firstItem;
         } else {
           product.price = 0;
           product.totalprice = 0;
+          product.status = null;
         }
 
         // Cleanup unwanted fields

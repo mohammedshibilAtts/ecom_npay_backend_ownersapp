@@ -30,28 +30,28 @@ import config from '../../../config/chit/env.js';
 
 const verifyJwt = (req, res, next) => {
   try {
-    // const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-    // if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    //   return res.status(401).json({
-    //     success: false,
-    //     message: "Access token missing",
-    //   });
-    // }
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Access token missing",
+      });
+    }
 
-    // const token = authHeader.split(" ")[1];
-    // const key = config.ERP_JWT_SECRET_KEY
-    // const decoded = jwt.verify(token, key);
+    const token = authHeader.split(" ")[1];
+    const key = config.ERP_JWT_SECRET_KEY
+    const decoded = jwt.verify(token, key);
 
-    // req.erpUser = decoded;
+    req.erpUser = decoded;
     next();
   } catch (error) {
     next()
     console.log("JWT VERIFY ERROR:", error);
-    // return res.status(401).json({
-    //   success: false,
-    //   message: "Invalid or expired token",
-    // });
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
   }
 };
 

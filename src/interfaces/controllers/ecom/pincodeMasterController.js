@@ -180,13 +180,6 @@ class pincodeMasterController {
         }
       }
 
-      // if (!finalPincode) {
-      //   return res.status(400).json({
-      //     success: false,
-      //     message: "Delivery not available for this location",
-      //   });
-      // }
-
       const pincodeData = await this.usecase.getPincodesBylatandland({
         pincode: finalPincode,
       });
@@ -204,11 +197,7 @@ class pincodeMasterController {
           isDeliveryAvailable: pincodeData?.isDeliveryAvailable,
           estimatedDeliveryDays: pincodeData?.estimatedDeliveryDays,
           pincode: pincodeData?.pincode,
-          // location: {
-          //   country: pincodeData[0].country,
-          //   state: pincodeData[0].state,
-          //   city: pincodeData[0].city,
-          // },
+          deliveryDays: "Delivery in 10 to 12 days"
         },
       });
     } catch (error) {

@@ -6,6 +6,8 @@ import schemeRoutes from './schemeRoutes.js';
 import staffRoutes from './staffRoutes.js';
 import schemetypeRoutes from './schemeTypeRoutes.js';
 import metalRoutes from './metalRoutes.js';
+import colorRoutes from './colorRoutes.js';
+import certificateRoutes from './certificateRoutes.js';
 import paymentModeRoutes from './paymentModeRoutes.js'
 import menuRoutes from './menuSettingRoutes.js';
 import submenuRoutes from './subMenuSettingRoutes.js';
@@ -65,6 +67,8 @@ router.use('/scheme', schemeRoutes);
 router.use('/staff', staffRoutes);
 router.use('/schemetype', schemetypeRoutes);
 router.use('/metal', metalRoutes);
+router.use('/color', colorRoutes);
+router.use('/certificate', certificateRoutes);
 router.use('/paymentmode', paymentModeRoutes);
 router.use('/menusetting', menuRoutes);
 router.use('/submenusetting', submenuRoutes);

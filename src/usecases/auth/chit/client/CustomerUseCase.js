@@ -56,6 +56,13 @@ class CustomerUseCase {
   }
 
   async addCustomer(data, uploads, token) {
+    const genderImages = [
+      null,
+      "1781519568760.webp",
+      "1781519593700.webp",
+      "1781519618811.webp",
+    ]; //null,male,female, other
+
     try {
       const existingUser = await this.customerRepository.existingUser(
         data.mobile,
@@ -96,31 +103,40 @@ class CustomerUseCase {
       }
 
       if (uploads) {
-        if (uploads?.cus_img) {
-          try {
-            if (uploads?.cus_img[0]) {
-              dataToSave.cus_img = await this.s3service.uploadToS3(
-                uploads.cus_img[0],
-                "customer",
-                s3Configs,
-              );
+        try {
+          if (uploads.cus_img && uploads.cus_img[0]) {
+            dataToSave.cus_img = await this.s3service.uploadToS3(
+              uploads.cus_img[0],
+              "customer",
+              s3Configs,
+            );
+          } else if (data.gender !== undefined && data.gender !== null) {
+            const genderIndex = Number(data.gender);
+            if (!isNaN(genderIndex) && genderImages[genderIndex]) {
+              dataToSave.cus_img = genderImages[genderIndex];
             }
-            if (uploads.id_proof[0]) {
-              dataToSave.id_proof = await this.s3service.uploadToS3(
-                uploads.id_proof[0],
-                "customer",
-                s3Configs,
-              );
-            }
-          } catch (error) {
-            console.error(error);
           }
+
+          if (uploads.id_proof && uploads.id_proof[0]) {
+            dataToSave.id_proof = await this.s3service.uploadToS3(
+              uploads.id_proof[0],
+              "customer",
+              s3Configs,
+            );
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      } else if (data.gender !== undefined && data.gender !== null) {
+        const genderIndex = Number(data.gender);
+        if (!isNaN(genderIndex) && genderImages[genderIndex]) {
+          dataToSave.cus_img = genderImages[genderIndex];
         }
       }
 
       const referralCode = generateReferralCode(data.mobile);
       dataToSave.referral_code = `Cus-${referralCode}`;
-      
+
       if (data.password) {
         const hashPassword = await this.hashingService.hashPassword(
           data.password,
@@ -156,7 +172,7 @@ class CustomerUseCase {
         );
 
         const smsSendStatus = await this.smsSender.sendSms(urlToSend);
-        
+
         if (smsSendStatus) {
           await this.topupRepo.decrementField({}, "SMS", 1)
           return {
@@ -186,9 +202,9 @@ class CustomerUseCase {
   async editCustomer(id, data, uploads, token) {
     const genderImages = [
       null,
-      "1749878256269.webp",
-      "1749878753243.webp",
-      "1749878926644.webp",
+      "1781519568760.webp",
+      "1781519593700.webp",
+      "1781519618811.webp",
     ]; //null,male,female, other
 
     try {
@@ -235,7 +251,7 @@ class CustomerUseCase {
             key,
           ) ||
           normalizeValue(key, userExists[key]) ===
-            normalizeValue(key, newValue) ||
+          normalizeValue(key, newValue) ||
           newValue === "" ||
           newValue === null
         ) {
@@ -751,7 +767,7 @@ class CustomerUseCase {
         });
 
         if (saveOtp) {
-         await this.topupRepo.decrementField({}, "SMS", 1);
+          await this.topupRepo.decrementField({}, "SMS", 1);
           return { success: true, message: "Otp sent successfully" };
         }
 
@@ -799,14 +815,20 @@ class CustomerUseCase {
       if (!checkCusmoter) {
         return { success: false, message: "User not found" };
       }
-      
-      const comparePassword = await this.hashingService.comparePassword(
-        loginData.password,
-        checkCusmoter.password,
-      );
-      if (!comparePassword) {
-        return { success: false, message: "Incorrect password." };
+
+      if (checkCusmoter.password) {
+        const comparePassword = await this.hashingService.comparePassword(
+          loginData.password,
+          checkCusmoter.password,
+        );
+
+        if (!comparePassword) {
+          return { success: false, message: "Incorrect password." };
+        }
+      } else {
+        return { success: false, message: "set a password first" };
       }
+
       let payload = {
         _id: checkCusmoter._id,
         firstname: checkCusmoter.firstname,
@@ -814,9 +836,9 @@ class CustomerUseCase {
         id_branch: checkCusmoter.id_branch,
         mobile: checkCusmoter.mobile,
       };
-      const token = this.tokenService.generateToken(payload,null);
-    
-      return { success: true, message: "Login successful", token};
+      const token = this.tokenService.generateToken(payload, null);
+
+      return { success: true, message: "Login successful", token };
     } catch (err) {
       console.error(err);
       return { success: false, message: "Failed to login" };
@@ -1322,8 +1344,8 @@ class CustomerUseCase {
 
           const formattedDate = c.createdAt
             ? new Date(c.createdAt)
-                .toLocaleDateString("en-GB")
-                .replace(/\//g, "-")
+              .toLocaleDateString("en-GB")
+              .replace(/\//g, "-")
             : "";
 
           sheet
