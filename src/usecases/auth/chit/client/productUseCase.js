@@ -799,9 +799,9 @@ class ProductUseCase {
     const totalPrice = actualSubTotal + actualGstValue;
 
     return {
-      price: Number(subTotal.toFixed(2)),
-      totalprice: Number(outprice.toFixed(2)),
-      actualTotalPrice: Number(totalPrice.toFixed(2)),
+      price: Number(subTotal.toFixed(1)),
+      totalprice: Number(outprice.toFixed(1)),
+      actualTotalPrice: Number(totalPrice.toFixed(1)),
       metalValue,
       makingValue,
       wastageValue,

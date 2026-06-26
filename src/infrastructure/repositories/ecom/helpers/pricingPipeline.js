@@ -227,9 +227,9 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
     },
     {
       $addFields: {
-        calculatedPrice: { $round: [{ $add: ["$subTotal", "$gstAmount"] }, 2] }, // outprice
+        calculatedPrice: { $round: [{ $add: ["$subTotal", "$gstAmount"] }, 0] }, // outprice
         calculatedTotalPrice: {
-          $round: [{ $add: ["$actualSubTotal", "$actualGstAmount"] }, 2],
+          $round: [{ $add: ["$actualSubTotal", "$actualGstAmount"] }, 0],
         }, // totalPrice
       },
     },

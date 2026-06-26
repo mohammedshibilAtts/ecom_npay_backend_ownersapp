@@ -471,7 +471,7 @@ class CartRepository {
                     { $ifNull: ["$quantity", 1] },
                   ],
                 },
-                2,
+                0,
               ],
             },
             totalprice: {
@@ -482,7 +482,7 @@ class CartRepository {
                     { $ifNull: ["$quantity", 1] },
                   ],
                 },
-                2,
+                0,
               ],
             },
 
