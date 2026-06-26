@@ -382,7 +382,9 @@ class OrderUseCase {
         sizeId: findItem.size,
         productName: findProduct.product_name,
         sku: findItem.tagNo || findProduct.sku,
-        image: findProduct.product_image[0],
+        image: findProduct.product_image && findProduct.product_image[0]
+          ? (typeof findProduct.product_image[0] === "string" ? findProduct.product_image[0] : findProduct.product_image[0].thumbnail || "")
+          : "",
         grossWeight: findItem.grossWt,
         price:
           findProduct.discountedAmount ||
@@ -592,7 +594,9 @@ class OrderUseCase {
         sizeId: item.sizeId,
         productName: item.productName,
         sku: item.sku,
-        image: item.productImg,
+        image: item.productImg
+          ? (typeof item.productImg === "string" ? item.productImg : item.productImg.thumbnail || "")
+          : "",
         grossWeight: item.grossWt,
         price: item.price,
         totalPrice: item.totalprice,

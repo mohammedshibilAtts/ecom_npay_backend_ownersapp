@@ -91,7 +91,9 @@ class CartUseCase {
         subCategoryId: findProduct?.subcategoryId || null,
         productName: product_name,
         sku: findItem?.tagNo || null,
-        image: product_image[0],
+        image: product_image && product_image[0] 
+          ? (typeof product_image[0] === "string" ? product_image[0] : product_image[0].thumbnail || "")
+          : "",
         id_metal: id_metal || itemMetal,
         metalWeight: grossWt,
         id_purity: id_purity,

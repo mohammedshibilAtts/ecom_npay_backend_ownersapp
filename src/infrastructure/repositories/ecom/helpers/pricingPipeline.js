@@ -252,10 +252,6 @@ export const getPricingPipeline = (branchId, itemPrefix = "") => {
         actualWastageAmount: 0,
         actualMakingValue: 0,
         actualWastageValue: 0,
-        subTotal: 0,
-        actualSubTotal: 0,
-        gstAmount: 0,
-        actualGstAmount: 0,
       },
     },
   ];

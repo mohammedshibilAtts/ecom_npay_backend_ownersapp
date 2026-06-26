@@ -18,6 +18,7 @@ class ItemRepository {
 
   async findByProductId({ productId, page, limit, search, sort, order, isMrp }) {
     try {
+      console.log("kd")
       const query = {
         productId,
         is_deleted: { $ne: true },

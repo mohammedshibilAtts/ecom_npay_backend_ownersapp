@@ -714,30 +714,36 @@ class ProductUseCase {
     const rate = Number(item.currentMetalRate || 0);
     const netWt = Number(item.netWeight || 0);
     const grossWt = Number(item.grossWt || 0);
-    const metalValue = netWt * rate;
+    const metalValue = item.isMrp ? rate : netWt * rate;
 
     let makingValue = 0;
+    let actualMakingValue = 0;
     const mc = item.makingCharges || {};
+    const makingAmount = Number(mc.makingDiscountedValue || 0);
+    const actualMakingAmount = Number(mc.makingActualValue || 0);
+    const makingWeightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(mc.makingMode) === 1) {
-      makingValue =
-        Number(mc.makingActualValue || 0) -
-        Number(mc.makingDiscountedValue || 0);
+      makingValue = makingAmount;
+      actualMakingValue = actualMakingAmount;
     } else if (Number(mc.makingMode) === 2) {
-      makingValue =
-        Number(mc.makingActualValue || 0) * grossWt -
-        Number(mc.makingDiscountedValue || 0);
+      makingValue = makingWeightBase * makingAmount;
+      actualMakingValue = makingWeightBase * actualMakingAmount;
     }
 
     let wastageValue = 0;
+    let actualWastageValue = 0;
     const wc = item.wastageCharges || {};
+    const wastageAmount = Number(wc.wastageDiscountedValue || 0);
+    const actualWastageAmount = Number(wc.wastageActualValue || 0);
+    const wastageWeightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(wc.wastageMode) === 1) {
-      wastageValue =
-        Number(wc.wastageActualValue || 0) -
-        Number(wc.wastageDiscountedValue || 0);
+      wastageValue = wastageAmount;
+      actualWastageValue = actualWastageAmount;
     } else if (Number(wc.wastageMode) === 2) {
-      wastageValue =
-        metalValue * (Number(wc.wastageActualValue || 0) / 100) -
-        Number(wc.wastageDiscountedValue || 0);
+      wastageValue = (wastageAmount / 100) * rate * wastageWeightBase;
+      actualWastageValue = (actualWastageAmount / 100) * rate * wastageWeightBase;
     }
 
     let stoneValue = 0;
@@ -747,7 +753,10 @@ class ProductUseCase {
 
     if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
       item.stoneDetails.forEach(stone => {
-        const price = Number(stone.price || 0);
+        let price = Number(stone.price || 0);
+        if (price === 0 && stone.itemId && stone.itemId.percraterate) {
+          price = Number(stone.weight || 0) * Number(stone.itemId.percraterate || 0) + Number(stone.itemId.charge || 0);
+        }
         stoneValue += price;
 
         const detail = {
@@ -778,20 +787,28 @@ class ProductUseCase {
       });
     }
 
-    const huidCharges = Number(item.huidCharges || 0);
-    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huidCharges;
-    const gstValue = subTotal * 0.03;
-    const totalprice = subTotal + gstValue;
+    const huid = Number(item.huidCharges || 0);
+    const gstPct = Number(item.gst || 3);
+
+    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
+    const gstValue = (subTotal * gstPct) / 100;
+    const outprice = subTotal + gstValue;
+
+    const actualSubTotal = metalValue + actualMakingValue + actualWastageValue + stoneValue + huid;
+    const actualGstValue = (actualSubTotal * gstPct) / 100;
+    const totalPrice = actualSubTotal + actualGstValue;
 
     return {
-      price: Math.round(subTotal),
-      totalprice: Math.round(totalprice),
+      price: Number(subTotal.toFixed(2)),
+      totalprice: Number(outprice.toFixed(2)),
+      actualTotalPrice: Number(totalPrice.toFixed(2)),
       metalValue,
       makingValue,
       wastageValue,
-      stoneValue,
-      huidCharges,
       gstValue,
+      stoneValue,
+      huidCharges: huid,
+      subtotal: subTotal,
       stoneDiamondDetails,
       totalDiamondWeight,
       totalDiamondCost,
@@ -800,7 +817,9 @@ class ProductUseCase {
       totalStoneWeight,
       totalStoneCost,
       totalStonePrice,
-      totalStoneCount
+      totalStoneCount,
+      finalMakingCharge: makingValue,
+      finalWastageCharge: wastageValue,
     };
   }
 

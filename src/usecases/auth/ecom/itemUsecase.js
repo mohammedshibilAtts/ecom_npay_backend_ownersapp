@@ -405,75 +405,112 @@ class ItemUseCase {
     const rate = Number(item.currentMetalRate || 0);
     const netWt = Number(item.netWeight || 0);
     const grossWt = Number(item.grossWt || 0);
-
     const metalValue = item.isMrp ? rate : netWt * rate;
 
     let makingValue = 0;
+    let actualMakingValue = 0;
     const mc = item.makingCharges || {};
+    const makingAmount = Number(mc.makingDiscountedValue || 0);
+    const actualMakingAmount = Number(mc.makingActualValue || 0);
+    const makingWeightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(mc.makingMode) === 1) {
-      makingValue = Number(
-        mc.makingDiscountedValue || mc.makingActualValue || 0,
-      );
+      makingValue = makingAmount;
+      actualMakingValue = actualMakingAmount;
     } else if (Number(mc.makingMode) === 2) {
-      const weightBase = Number(mc.calculationType) === 1 ? grossWt : netWt;
-      makingValue =
-        Number(mc.makingDiscountedValue || mc.makingActualValue || 0) *
-        weightBase;
+      makingValue = makingWeightBase * makingAmount;
+      actualMakingValue = makingWeightBase * actualMakingAmount;
     }
 
     let wastageValue = 0;
+    let actualWastageValue = 0;
     const wc = item.wastageCharges || {};
+    const wastageAmount = Number(wc.wastageDiscountedValue || 0);
+    const actualWastageAmount = Number(wc.wastageActualValue || 0);
+    const wastageWeightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
+
     if (Number(wc.wastageMode) === 1) {
-      wastageValue = Number(
-        wc.wastageDiscountedValue || wc.wastageActualValue || 0,
-      );
+      wastageValue = wastageAmount;
+      actualWastageValue = actualWastageAmount;
     } else if (Number(wc.wastageMode) === 2) {
-      const weightBase = Number(wc.calculationType) === 1 ? grossWt : netWt;
-      const percent = Number(
-        wc.wastageDiscountedValue || wc.wastageActualValue || 0,
-      );
-      wastageValue = (percent / 100) * rate * weightBase;
+      wastageValue = (wastageAmount / 100) * rate * wastageWeightBase;
+      actualWastageValue = (actualWastageAmount / 100) * rate * wastageWeightBase;
     }
 
     let stoneValue = 0;
-    let diamondValue = 0
+    let totalDiamondWeight = 0, totalDiamondCost = 0, totalDiamondPrice = 0, totalDiamondCount = 0;
+    let totalStoneWeight = 0, totalStoneCost = 0, totalStonePrice = 0, totalStoneCount = 0;
+    let stoneDiamondDetails = [];
+
     if (item.stoneDetails && Array.isArray(item.stoneDetails)) {
-      item.stoneDetails.forEach((stone) => {
-        stoneValue += Number(stone?.weight || 0) * Number(stone?.itemId?.percraterate || 0) + Number(stone?.itemId?.charge || 0);
+      item.stoneDetails.forEach(stone => {
+        let price = Number(stone.price || 0);
+        if (price === 0 && stone.itemId && stone.itemId.percraterate) {
+          price = Number(stone.weight || 0) * Number(stone.itemId.percraterate || 0) + Number(stone.itemId.charge || 0);
+        }
+        stoneValue += price;
+
+        const detail = {
+          _id: stone._id,
+          type: stone.type ? stone.type.charAt(0).toUpperCase() + stone.type.slice(1) : "",
+          weight: stone.weight,
+          cost: stone.cost,
+          price: price,
+          stoneInfo: stone.itemId ? {
+            _id: stone.itemId._id,
+            stonename: stone.itemId.stonename,
+            percraterate: stone.itemId.percraterate,
+          } : null
+        };
+        stoneDiamondDetails.push(detail);
+
+        if (stone.type && stone.type.toLowerCase() === "diamond") {
+          totalDiamondWeight += Number(stone.weight || 0);
+          totalDiamondCost += Number(stone.cost || 0);
+          totalDiamondPrice += price;
+          totalDiamondCount += 1;
+        } else if (stone.type && stone.type.toLowerCase() === "stone") {
+          totalStoneWeight += Number(stone.weight || 0);
+          totalStoneCost += Number(stone.cost || 0);
+          totalStonePrice += price;
+          totalStoneCount += 1;
+        }
       });
     }
 
     const huid = Number(item.huidCharges || 0);
-    const subTotal =
-      metalValue + makingValue + wastageValue + Number(stoneValue.toFixed(2)) + huid;
-    const gstValue = (subTotal * Number(item.gst || 3)) / 100;
+    const gstPct = Number(item.gst || 3);
+
+    const subTotal = metalValue + makingValue + wastageValue + stoneValue + huid;
+    const gstValue = (subTotal * gstPct) / 100;
     const outprice = subTotal + gstValue;
 
-    const makingActualValue = Number(mc.makingActualValue || 0);
-    const wastageActualValue = Number(wc.wastageActualValue || 0);
-    const makingActualChargeValue =
-      Number(mc.makingMode) === 1
-        ? makingActualValue
-        : (Number(mc.calculationType) === 1 ? grossWt : netWt) *
-        makingActualValue;
-    const wastageActualChargeValue =
-      Number(wc.wastageMode) === 1
-        ? wastageActualValue
-        : (wastageActualValue / 100) *
-        rate *
-        (Number(wc.calculationType) === 1 ? grossWt : netWt);
-    const finalOut =
-      metalValue +
-      makingActualChargeValue +
-      wastageActualChargeValue +
-      stoneValue +
-      huid;
-    const findGst = (finalOut * Number(item.gst || 3)) / 100;
-    const totalPrice = finalOut + findGst;
+    const actualSubTotal = metalValue + actualMakingValue + actualWastageValue + stoneValue + huid;
+    const actualGstValue = (actualSubTotal * gstPct) / 100;
+    const totalPrice = actualSubTotal + actualGstValue;
 
     return {
-      price: Number(outprice.toFixed(2)),
-      totalprice: Number(totalPrice.toFixed(2)),
+      price: Number(subTotal.toFixed(2)),
+      totalprice: Number(outprice.toFixed(2)),
+      actualTotalPrice: Number(totalPrice.toFixed(2)),
+      metalValue,
+      makingValue,
+      wastageValue,
+      gstValue,
+      stoneValue,
+      huidCharges: huid,
+      subtotal: subTotal,
+      stoneDiamondDetails,
+      totalDiamondWeight,
+      totalDiamondCost,
+      totalDiamondPrice,
+      totalDiamondCount,
+      totalStoneWeight,
+      totalStoneCost,
+      totalStonePrice,
+      totalStoneCount,
+      finalMakingCharge: makingValue,
+      finalWastageCharge: wastageValue,
     };
   }
 }

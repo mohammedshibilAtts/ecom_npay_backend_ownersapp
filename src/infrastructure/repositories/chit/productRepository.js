@@ -347,8 +347,9 @@ class ProductRepository {
           categoryName: "$categoryNameRoot",
           metalName: "$metalDetails.metal_name",
           latestMetalPrice: { $ifNull: [{ $arrayElemAt: ["$metalRateInfo.rate", 0] }, 0] },
-          price: "$calculatedPrice",
-          totalprice: "$calculatedTotalPrice",
+          price: "$subTotal",
+          totalprice: "$calculatedPrice",
+          actualTotalPrice: "$calculatedTotalPrice",
           totalAmount: "$calculatedPrice", // Alias for OrderUseCase
           discountedAmount: "$calculatedPrice", // Alias for OrderUseCase
           id_purity: "$firstItem.id_purity",
@@ -631,8 +632,9 @@ class ProductRepository {
                   bestSeller: 1,
                   status: "$firstItem.status",
                   tagNo: "$firstItem.tagNo",
-                  price: { $ifNull: ["$calculatedPrice", 0] },
-                  totalprice: { $ifNull: ["$calculatedTotalPrice", 0] },
+                  price: { $ifNull: ["$subTotal", 0] },
+                  totalprice: { $ifNull: ["$calculatedPrice", 0] },
+                  actualTotalPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
                   branchName: "$id_branch.branch_name",
                   metalName: "$id_metal.metal_name",
                   categoryName: "$id_category.category_name",
@@ -726,10 +728,9 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
-        ...getPricingPipeline("$id_branch", "firstItem"),
         {
           $addFields: {
-            staticSortPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
+            staticSortPrice: { $ifNull: ["$firstItem.totalprice", 0] },
             staticSortWeight: { $ifNull: ["$firstItem.netWeight", 0] },
           },
         },
@@ -927,8 +928,9 @@ class ProductRepository {
             bestSeller: 1,
             status: "$firstItem.status",
             tagNo: "$firstItem.tagNo",
-            price: { $ifNull: ["$calculatedPrice", 0] },
-            totalprice: { $ifNull: ["$calculatedTotalPrice", 0] },
+            price: { $ifNull: ["$subTotal", 0] },
+            totalprice: { $ifNull: ["$calculatedPrice", 0] },
+            actualTotalPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
             branchName: "$id_branch.branch_name",
             metalName: "$id_metal.metal_name",
             categoryName: "$id_category.category_name",
@@ -1324,12 +1326,7 @@ class ProductRepository {
             as: "wishlistData"
           }
         }] : []),
-        {
-          $addFields: {
-            calculatedTotalPrice: { $ifNull: ["$staticSortPrice", 0] },
-            calculatedPrice: { $ifNull: ["$staticSortPrice", 0] }
-          }
-        },
+        ...getPricingPipeline("", "firstItem"),
         {
           $project: {
             _id: 1,
@@ -1342,8 +1339,12 @@ class ProductRepository {
             staticSortPrice: 1,
             staticSortWeight: 1,
             metalrate: 1,
+            // price: "$subTotal",
+            // totalprice: "$calculatedPrice",
+            // actualTotalPrice: "$calculatedTotalPrice",
             price: "$calculatedPrice",
             totalprice: "$calculatedTotalPrice",
+            // actualTotalPrice: "$calculatedTotalPrice",
             categoryName: "$categoryDetails.category_name",
             metalName: "$metalDetails.metal_name",
             stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
@@ -1448,6 +1449,13 @@ class ProductRepository {
             $or: [
               { staticSortWeight: { $lt: decoded.staticSortWeight } },
               { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else {
+          cursorFilter = {
+            $or: [
+              { createdAt: { $lt: new Date(decoded.createdAt) } },
+              { createdAt: { $eq: new Date(decoded.createdAt) }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
             ]
           };
         }
@@ -1599,12 +1607,7 @@ class ProductRepository {
             as: "wishlistData"
           }
         }] : []),
-        {
-          $addFields: {
-            calculatedTotalPrice: { $ifNull: ["$staticSortPrice", 0] },
-            calculatedPrice: { $ifNull: ["$staticSortPrice", 0] }
-          }
-        },
+        ...getPricingPipeline("", "firstItem"),
         {
           $project: {
             _id: 1,
@@ -1622,8 +1625,12 @@ class ProductRepository {
                 false
               ]
             } : { $literal: false },
-            price: "$calculatedPrice",
+            // price: "$subTotal",
+            // totalprice: "$calculatedPrice",
+            // actualTotalPrice: "$calculatedTotalPrice",
             totalprice: "$calculatedTotalPrice",
+            price: "$calculatedPrice",
+            actualTotalPrice: "$calculatedTotalPrice",
             stockStatus: {
               $cond: [
                 { $gt: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
