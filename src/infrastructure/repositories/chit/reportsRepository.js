@@ -2286,8 +2286,19 @@ class ReportRepository {
         {
           $lookup: {
             from: "payments",
-            localField: "_id",
-            foreignField: "id_scheme_account",
+            let: { schemeAccountId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                      { $eq: ["$payment_status", 1] },
+                    ],
+                  },
+                },
+              },
+            ],
             as: "Payment",
           },
         },
@@ -2591,6 +2602,8 @@ class ReportRepository {
           $match: {
             id_scheme: { $in: schemes.map((scheme) => scheme._id) },
             status: { $nin: [3, 4] },
+            active: true,
+            is_deleted: false,
           },
         },
         {
@@ -2673,6 +2686,8 @@ class ReportRepository {
           $match: {
             id_scheme: { $in: schemes.map((scheme) => scheme._id) },
             status: { $nin: [3, 4] },
+            active: true,
+            is_deleted: false,
           },
         },
         {
