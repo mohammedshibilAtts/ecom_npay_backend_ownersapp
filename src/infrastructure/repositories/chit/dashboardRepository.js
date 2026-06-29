@@ -1086,7 +1086,7 @@ class DashboardRepository {
             $match: {
               "schemeAccount.active": true,
               "schemeAccount.is_deleted": false,
-              "scheme.active": true,
+              // "scheme.active": true,
               "scheme.is_deleted": false,
             },
           },
