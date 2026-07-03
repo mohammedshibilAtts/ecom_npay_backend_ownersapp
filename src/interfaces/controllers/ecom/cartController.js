@@ -105,6 +105,40 @@ class CartController {
       });
     }
   }
+  async syncCart(req, res) {
+    try {
+      const { itemId } = req.body;
+
+      const items = req.body.productId || req.body.itemId || [];
+      if (!Array.isArray(items)) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid array of items must be provided.",
+        });
+      }
+
+      const result = await this.cartUseCase.syncCart(items, req.user);
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        cartCount: result.cartCount,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }
 
 export default CartController;

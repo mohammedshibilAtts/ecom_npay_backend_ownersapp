@@ -7,12 +7,18 @@ class AuthMiddleware {
   }
 
   protect = asyncHandler(async (req, res, next) => {
-    const token = req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
-      ? req.headers.authorization.split(' ')[1]
-      : null;
+    let token = null;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies && req.cookies.cookie) {
+      token = req.cookies.cookie;
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
 
     if (!token) {
-      throw new AppError('You are not logged in! Please log in to get access.', 401);
+      return res.status(401).json({ message: "Invalid token, Please login again" });
     }
 
     try {
@@ -22,36 +28,20 @@ class AuthMiddleware {
       next();
     } catch (error) {
       console.error(error);
-      return res.status(400).json({ message: "Invalid token, Please login again" })
+      return res.status(401).json({ message: "Invalid token, Please login again" });
     }
-  });
-  bypassProtect = asyncHandler(async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ')
-      ? authHeader.split(' ')[1]
-      : null;
-
-    if (!token) {
-      req.user = null;
-      return next();
-    }
-
-    try {
-      const decoded = await this.tokenService.verifyToken(token);
-      req.user = decoded;
-    } catch (error) {
-      console.warn('Invalid token in bypassProtect:', error.message);
-      req.user = null;
-    }
-
-    next();
   });
 
   bypassProtect = asyncHandler(async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ')
-      ? authHeader.split(' ')[1]
-      : null;
+    let token = null;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies && req.cookies.cookie) {
+      token = req.cookies.cookie;
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
 
     if (!token) {
       req.user = null;

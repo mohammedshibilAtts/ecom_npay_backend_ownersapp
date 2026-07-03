@@ -2118,7 +2118,7 @@ class ProductRepository {
           $project: {
             product_name: 1,
             createdAt: 1,
-            product_image: { $arrayElemAt: ["$product_image", 0] },
+            product_image: [{ $arrayElemAt: ["$product_image", 0] }],
             active: 1,
             bestSeller: 1,
             status: "$firstItem.status",
@@ -2132,7 +2132,7 @@ class ProductRepository {
             productDiscoudPersentage: {
               $let: {
                 vars: {
-                  tp: { $ifNull: ["$calculatedPrice", 0] },
+                  tp: { $ifNull: ["$calculatedTotalPrice", 0] },
                   p: { $ifNull: ["$subTotal", 0] }
                 },
                 in: {
