@@ -1908,6 +1908,288 @@ class ProductRepository {
       throw new Error("Database error finding products by branch ID");
     }
   }
+
+  async getBestSeller(limit, customerId = null, cursor = null) {
+    try {
+      const s3Url = await getS3DisplayUrl();
+      const isWeb = true
+
+      // Decode cursor: { _id, createdAt }
+      let cursorFilter = {};
+      if (cursor) {
+        const { _id, createdAt } = decodeCursor(cursor);
+        cursorFilter = {
+          $or: [
+            { createdAt: { $lt: new Date(createdAt) } },
+            {
+              createdAt: { $eq: new Date(createdAt) },
+              _id: { $lt: new mongoose.Types.ObjectId(_id) },
+            },
+          ],
+        };
+      }
+
+      const filter = {
+        is_deleted: false,
+        active: true,
+        bestSeller: true
+      };
+
+      const pipeline = [
+        { $match: { ...filter, ...cursorFilter } },
+        {
+          $lookup: {
+            from: "branches",
+            localField: "id_branch",
+            foreignField: "_id",
+            as: "id_branch",
+          },
+        },
+        { $unwind: { path: "$id_branch", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "id_category",
+            foreignField: "_id",
+            as: "id_category",
+          },
+        },
+        { $unwind: { path: "$id_category", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "id_subcategory",
+          },
+        },
+        { $unwind: { path: "$id_subcategory", preserveNullAndEmptyArrays: true } },
+        ...(!isWeb
+          ? [
+            {
+              $match: {
+                "id_category.active": { $ne: false },
+                "id_subcategory.active": { $ne: false },
+              },
+            },
+          ]
+          : []),
+        {
+          $lookup: {
+            from: "metals",
+            localField: "id_metal",
+            foreignField: "_id",
+            as: "id_metal",
+          },
+        },
+        { $unwind: { path: "$id_metal", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "sizemasters",
+            localField: "sizeId",
+            foreignField: "_id",
+            as: "sizeDetails",
+          },
+        },
+        { $unwind: { path: "$sizeDetails", preserveNullAndEmptyArrays: true } },
+        { $addFields: { s3DisplayUrl: s3Url } },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              { $count: "stockCount" },
+            ],
+            as: "stockData",
+          },
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                    ],
+                  },
+                },
+              },
+              { $limit: 1 },
+            ],
+            as: "soldItems",
+          },
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              { $sort: { netWeight: 1 } },
+              { $limit: 1 },
+              {
+                $lookup: {
+                  from: "purities",
+                  let: { pId: "$id_purity" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $eq: [
+                            "$_id",
+                            { $convert: { input: "$$pId", to: "objectId", onError: "$$pId", onNull: "$$pId" } }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  as: "purityDetails",
+                },
+              },
+              { $unwind: { path: "$purityDetails", preserveNullAndEmptyArrays: true } },
+            ],
+            as: "firstItem",
+          },
+        },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        ...getPricingPipeline("$id_branch._id", "firstItem"),
+        ...(customerId ? [{
+          $lookup: {
+            from: "wishlists",
+            let: { pId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$itemId", "$$pId"] },
+                      { $eq: ["$id_customer", new mongoose.Types.ObjectId(customerId)] }
+                    ]
+                  }
+                }
+              }
+            ],
+            as: "wishlistData"
+          }
+        }] : []),
+        ...(typeof searchOptions !== 'undefined' && searchOptions?.term
+          ? [
+            {
+              $match: {
+                $or: [
+                  { product_name: { $regex: new RegExp(searchOptions.term, "i") } },
+                  { sku: { $regex: new RegExp(searchOptions.term, "i") } },
+                  { "id_category.category_name": { $regex: new RegExp(searchOptions.term, "i") } },
+                  { "id_subcategory.name": { $regex: new RegExp(searchOptions.term, "i") } },
+                  { "id_metal.metal_name": { $regex: new RegExp(searchOptions.term, "i") } },
+                ],
+              },
+            },
+          ]
+          : []),
+        { $sort: { createdAt: -1, _id: -1 } },
+        { $limit: limit + 1 },
+        {
+          $project: {
+            product_name: 1,
+            createdAt: 1,
+            product_image: { $arrayElemAt: ["$product_image", 0] },
+            active: 1,
+            bestSeller: 1,
+            status: "$firstItem.status",
+            tagNo: "$firstItem.tagNo",
+            netWeight: "$firstItem.netWeight",
+            grossWeight: "$firstItem.grossWt",
+            // id_purity: "$firstItem.id_purity",
+            purity: "$firstItem.purityDetails.purity_name",
+            price: { $ifNull: ["$subTotal", 0] },
+            totalprice: { $ifNull: ["$calculatedPrice", 0] },
+            productDiscoudPersentage: {
+              $let: {
+                vars: {
+                  tp: { $ifNull: ["$calculatedPrice", 0] },
+                  p: { $ifNull: ["$subTotal", 0] }
+                },
+                in: {
+                  $cond: [
+                    { $gt: ["$$tp", 0] },
+                    { $round: [{ $multiply: [{ $divide: [{ $subtract: ["$$tp", "$$p"] }, "$$tp"] }, 100] }, 2] },
+                    0
+                  ]
+                }
+              }
+            },
+            actualTotalPrice: { $ifNull: ["$calculatedTotalPrice", 0] },
+            // branchName: "$id_branch.branch_name",
+            metalName: "$id_metal.metal_name",
+            // categoryName: "$id_category.category_name",
+            // subcategoryName: "$id_subcategory.name",
+            // stock: { $ifNull: [{ $arrayElemAt: ["$stockData.stockCount", 0] }, 0] },
+            // sold: {
+            //   $cond: {
+            //     if: { $gt: [{ $size: { $ifNull: ["$soldItems", []] } }, 0] },
+            //     then: false,
+            //     else: true,
+            //   },
+            // },
+            onlineProduct: 1,
+            isWishlisted: customerId ? {
+              $cond: [
+                { $gt: [{ $size: { $ifNull: ["$wishlistData", []] } }, 0] },
+                true,
+                false
+              ]
+            } : { $literal: false },
+            pathurl: {
+              $concat: [
+                { $ifNull: ["$s3DisplayUrl", ""] },
+                `${config?.AWS_LOCAL_PATH || "uploads/"}products/`,
+              ],
+            },
+          },
+        },
+      ];
+
+      const results = await ProductModel.aggregate(pipeline);
+
+      const hasNextPage = results.length > limit;
+      const data = hasNextPage ? results.slice(0, limit) : results;
+
+      const lastItem = data[data.length - 1];
+      const nextCursor =
+        hasNextPage && lastItem ? encodeCursor({ _id: lastItem._id, createdAt: lastItem.createdAt }) : null;
+
+      return { products: data, nextCursor, hasNextPage };
+    } catch (err) {
+      console.error("Error in getBestSeller repository:", err);
+      throw new Error("Database error retrieving best seller products");
+    }
+  }
 }
 
 export default ProductRepository;

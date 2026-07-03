@@ -49,6 +49,8 @@ const usecase = new AppProductUsecase(
 
 const controller = new ProductController(usecase);
 
+router.get("/bestseller", (req, res) => controller.getBestSeller(req, res));
+
 router.use(authMiddleware.bypassProtect);
 router.get("/available-sizes", (req, res) =>
   controller.getAvailableSizes(req, res),
