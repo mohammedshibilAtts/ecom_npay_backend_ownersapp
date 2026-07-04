@@ -415,6 +415,75 @@ class ProductController {
     }
   }
 
+  async listAllProducts(req, res) {
+    try {
+      const {
+        sort = 'latest',
+        priceRange,
+        weightRange,
+        search,
+        limit = 10,
+        cursor,
+        category,
+        subcategory,
+        purity,
+        metal,
+        collection,
+        bestseller,
+        storepickup,
+        ordernow,
+        products
+      } = req.body;
+
+      const filters = {
+        sort,
+        priceRange,
+        weightRange,
+        category,
+        subcategory,
+        purity,
+        metal,
+        collection,
+        search,
+        bestseller,
+        storepickup,
+        ordernow,
+        products,
+        from_date: req.body.from_date,
+        to_date: req.body.to_date
+      };
+
+      const safeLimit = parseInt(limit, 10) || 10;
+      const result = await this.productUsecase.listAllProducts(
+        safeLimit,
+        req.user,
+        filters,
+        cursor
+      );
+
+      if (result.success) {
+        return res.status(200).json({
+          message: result.message,
+          data: result.data.products,
+          nextCursor: result.data.nextCursor,
+          hasNextPage: result.data.hasNextPage,
+          pathUrl: result.pathUrl,
+          filters: filters
+        });
+      }
+
+      return res.status(404).json({
+        message: result.message,
+        data: result.data?.products || [],
+        nextCursor: result.data?.nextCursor || null,
+        hasNextPage: result.data?.hasNextPage || false,
+        pathUrl: result.pathUrl
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
 }
 
 

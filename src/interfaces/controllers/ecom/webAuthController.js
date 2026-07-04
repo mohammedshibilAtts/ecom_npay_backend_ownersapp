@@ -8,12 +8,12 @@ class WebAuthController {
       const { firstname, mobile } = req.body;
       const { customer, token } = await this.webAuthUsecase.signup({ firstname, mobile });
 
-      // Set the token as an HTTP-Only cookie
       res.cookie('token', token, {
+        path: "/",
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
+        sameSite: 'none',
+        maxAge: 24 * 60 * 60 * 1000
       });
 
       return res.status(201).json({
@@ -35,12 +35,13 @@ class WebAuthController {
       const { mobile } = req.body;
       const { customer, token } = await this.webAuthUsecase.login(mobile);
 
-      // Set the token as an HTTP-Only cookie
       res.cookie('token', token, {
+        path: "/",
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
+        // secure: process.env.NODE_ENV === 'production',
+        secure: true,
+        sameSite: 'none',
+        maxAge: 24 * 60 * 60 * 1000
       });
 
       return res.status(200).json({
@@ -62,7 +63,7 @@ class WebAuthController {
       res.clearCookie('token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
+        sameSite: 'none'
       });
 
       return res.status(200).json({
@@ -71,6 +72,38 @@ class WebAuthController {
       });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  async authMe(req, res) {
+    try {
+      let token = null;
+
+      if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+      } else if (req.cookies && req.cookies.cookie) {
+        token = req.cookies.cookie;
+      } else if (req.cookies && req.cookies.token) {
+        token = req.cookies.token;
+      }
+
+      if (!token) {
+        return res.status(401).json({ message: "Invalid token, Please login again" });
+      }
+
+      const customer = await this.webAuthUsecase.authMe(token);
+
+      return res.status(200).json({
+        success: true,
+        message: "user data retrived successfully",
+        data: {
+          _id: customer._id,
+          firstname: customer.firstname,
+          mobile: customer.mobile
+        }
+      });
+    } catch (error) {
+      return res.status(401).json({ message: "Invalid token, Please login again" });
     }
   }
 }

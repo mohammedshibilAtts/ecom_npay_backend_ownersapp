@@ -10,5 +10,6 @@ const controller = new WebAuthController(usecase);
 router.post('/signup', (req, res) => controller.signup(req, res));
 router.post('/login', (req, res) => controller.login(req, res));
 router.post('/logout', (req, res) => controller.logout(req, res));
+router.get('/me', (req, res) => controller.authMe(req, res));
 
 export default router;

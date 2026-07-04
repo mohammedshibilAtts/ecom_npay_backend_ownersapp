@@ -30,7 +30,7 @@ class WebAuthUsecase {
 
     // Generate JWT token
     const tokenPayload = {
-      id: customer._id,
+      _id: customer._id,
       mobile: customer.mobile,
       role: 'customer'
     };
@@ -56,7 +56,7 @@ class WebAuthUsecase {
 
     // Generate JWT token
     const tokenPayload = {
-      id: customer._id,
+      _id: customer._id,
       mobile: customer.mobile,
       role: 'customer'
     };
@@ -64,6 +64,25 @@ class WebAuthUsecase {
     const token = this.tokenService.generateToken(tokenPayload);
 
     return { customer, token };
+  }
+
+  async authMe(token) {
+    if (!token) {
+      throw new Error("Token is required");
+    }
+
+    try {
+      const decoded = await this.tokenService.verifyToken(token);
+      const customer = await Customer.findById(decoded._id || decoded.id).select("_id firstname mobile");
+      
+      if (!customer) {
+        throw new Error("Customer not found");
+      }
+
+      return customer;
+    } catch (error) {
+      throw new Error("Invalid or expired token");
+    }
   }
 }
 

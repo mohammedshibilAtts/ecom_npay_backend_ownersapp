@@ -1111,6 +1111,399 @@ class ProductRepository {
     }
   }
 
+  async listAllProducts(limit, filter, customerId = null, cursor = null) {
+    try {
+      const s3Url = await getS3DisplayUrl();
+      const match = {
+        is_deleted: false,
+        active: true,
+      };
+
+      if (filter.category) {
+        match.id_category = new mongoose.Types.ObjectId(filter.category);
+      }
+
+      if (filter.subcategory) {
+        const subCategoryIds = filter.subcategory.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
+        match.subcategoryId = { $in: subCategoryIds };
+      }
+
+      if (filter.collection) {
+        const collectionIds = filter.collection.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
+        match.collection = { $in: collectionIds };
+      }
+
+      if (filter.metal) {
+        const metalIds = filter.metal.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
+        match.id_metal = { $in: metalIds };
+      }
+
+      if (filter.bestseller === "true" || filter.bestseller === true) {
+        match.bestSeller = true;
+      }
+
+      if (filter.storepickup === "true" || filter.storepickup === true) {
+        match.onlineProduct = false;
+      }
+
+      if (filter.products && Array.isArray(filter.products) && filter.products.length > 0) {
+        match._id = { $in: filter.products.map(id => new mongoose.Types.ObjectId(id)) };
+      }
+
+      if (filter.search) {
+        const regex = new RegExp(filter.search.trim(), "i");
+        match.$or = [
+          { product_name: regex },
+          { sku: regex },
+          { description: regex }
+        ];
+      }
+
+      if (filter.from_date && filter.to_date) {
+        match.createdAt = {
+          $gte: new Date(filter.from_date),
+          $lte: new Date(filter.to_date),
+        };
+      }
+
+      let cursorFilter = {};
+      if (cursor) {
+        const decoded = decodeCursor(cursor);
+        if (filter.sort === "latest") {
+          cursorFilter = {
+            $or: [
+              { createdAt: { $lt: new Date(decoded.createdAt) } },
+              { createdAt: { $eq: new Date(decoded.createdAt) }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "price_lth") {
+          cursorFilter = {
+            $or: [
+              { staticSortPrice: { $gt: decoded.staticSortPrice } },
+              { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "price_htl") {
+          cursorFilter = {
+            $or: [
+              { staticSortPrice: { $lt: decoded.staticSortPrice } },
+              { staticSortPrice: { $eq: decoded.staticSortPrice }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "weight_lth") {
+          cursorFilter = {
+            $or: [
+              { staticSortWeight: { $gt: decoded.staticSortWeight } },
+              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $gt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else if (filter.sort === "weight_htl") {
+          cursorFilter = {
+            $or: [
+              { staticSortWeight: { $lt: decoded.staticSortWeight } },
+              { staticSortWeight: { $eq: decoded.staticSortWeight }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        } else {
+          cursorFilter = {
+            $or: [
+              { createdAt: { $lt: new Date(decoded.createdAt) } },
+              { createdAt: { $eq: new Date(decoded.createdAt) }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+            ]
+          };
+        }
+      }
+
+      const sortValue = {};
+      if (filter.sort === "latest") {
+        sortValue.createdAt = -1;
+        sortValue._id = -1;
+      } else if (filter.sort === "price_lth") {
+        sortValue.staticSortPrice = 1;
+        sortValue._id = 1;
+      } else if (filter.sort === "price_htl") {
+        sortValue.staticSortPrice = -1;
+        sortValue._id = -1;
+      } else if (filter.sort === "weight_lth") {
+        sortValue.staticSortWeight = 1;
+        sortValue._id = 1;
+      } else if (filter.sort === "weight_htl") {
+        sortValue.staticSortWeight = -1;
+        sortValue._id = -1;
+      } else {
+        sortValue.createdAt = -1;
+        sortValue._id = -1;
+      }
+
+      const pipeline = [
+        {
+          $match: { ...match, ...cursorFilter },
+        },
+        // OPTIMIZATION: Push item filtering into DB via $lookup instead of pre-fetching IDs into Node memory
+        ...((filter.purity || filter.ordernow === "true" || filter.ordernow === true) ? [
+          {
+            $lookup: {
+              from: "items",
+              let: { productId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ["$productId", "$$productId"] },
+                        { $ne: ["$is_deleted", true] },
+                        ...(filter.purity ? [{ $in: ["$id_purity", filter.purity.split(',').map(id => new mongoose.Types.ObjectId(id.trim()))] }] : []),
+                        ...(filter.ordernow === "true" || filter.ordernow === true ? [{ $eq: ["$status", 2] }] : [])
+                      ]
+                    }
+                  }
+                },
+                { $limit: 1 } // Stop searching immediately upon finding one match
+              ],
+              as: "matchedItems"
+            }
+          },
+          {
+            $match: {
+              "matchedItems.0": { $exists: true }
+            }
+          },
+          { $project: { matchedItems: 0 } } // Clean up to save memory
+        ] : []),
+        ...(filter.priceRange ? [{
+          $match: (() => {
+            const parts = filter.priceRange.split("-");
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              return { staticSortPrice: { $gte: parseFloat(parts[0]), $lte: parseFloat(parts[1]) } };
+            }
+            return {};
+          })()
+        }] : []),
+        ...(filter.weightRange ? [{
+          $match: (() => {
+            const parts = filter.weightRange.split("-");
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              return { staticSortWeight: { $gte: parseFloat(parts[0]), $lte: parseFloat(parts[1]) } };
+            }
+            return {};
+          })()
+        }] : []),
+        { $sort: sortValue },
+        { $limit: parseInt(limit) + 1 },
+
+        {
+          $lookup: {
+            from: "subcategories",
+            localField: "subcategoryId",
+            foreignField: "_id",
+            as: "subcategoryDetails"
+          }
+        },
+        { $unwind: { path: "$subcategoryDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $match: {
+            "subcategoryDetails.active": { $ne: false }
+          }
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $eq: ["$status", 1] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              { $count: "stockCount" },
+            ],
+            as: "stockData",
+          },
+        },
+        {
+          $lookup: {
+            from: "items",
+            let: { productId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$productId", "$$productId"] },
+                      { $eq: ["$active", true] },
+                      { $ne: ["$is_deleted", true] },
+                    ],
+                  },
+                },
+              },
+              { $sort: { createdAt: 1 } },
+              { $limit: 1 },
+              {
+                $lookup: {
+                  from: "stonedetails",
+                  localField: "stoneDetails",
+                  foreignField: "_id",
+                  as: "stoneDetails",
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: "stone_masters",
+                        localField: "itemId",
+                        foreignField: "_id",
+                        as: "itemId"
+                      }
+                    },
+                    { $unwind: { path: "$itemId", preserveNullAndEmptyArrays: true } }
+                  ]
+                }
+              },
+            ],
+            as: "firstItem",
+          },
+        },
+        { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
+        ...getPricingPipeline(),
+        {
+          $addFields: {
+            firstItem: {
+              $cond: {
+                if: { $eq: [{ $type: "$firstItem" }, "missing"] },
+                then: null,
+                else: {
+                  $mergeObjects: [
+                    "$firstItem",
+                    {
+                      price: "$price",
+                      totalprice: "$totalprice",
+                      huidCharges: "$huidCharges",
+                      stoneValue: "$stoneValue",
+                      gstValue: "$gstValue",
+                      metalValue: "$metalValue",
+                      makingValue: "$makingValue",
+                      wastageValue: "$wastageValue",
+                      productDiscoudPersentage: "$productDiscoudPersentage",
+                      stoneDiamondDetails: "$stoneDiamondDetails",
+                      totalDiamondWeight: "$totalDiamondWeight",
+                      totalDiamondCost: "$totalDiamondCost",
+                      totalDiamondPrice: "$totalDiamondPrice",
+                      totalDiamondCount: "$totalDiamondCount",
+                      totalStoneWeight: "$totalStoneWeight",
+                      totalStoneCost: "$totalStoneCost",
+                      totalStonePrice: "$totalStonePrice",
+                      totalStoneCount: "$totalStoneCount",
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        ...(customerId ? [
+          {
+            $lookup: {
+              from: "wishlists",
+              let: { productId: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ["$productId", "$$productId"] },
+                        { $eq: ["$customerId", new mongoose.Types.ObjectId(customerId)] },
+                        { $eq: ["$status", "active"] },
+                      ],
+                    },
+                  },
+                },
+                { $limit: 1 },
+              ],
+              as: "wishlistData",
+            },
+          }
+        ] : []),
+        {
+          $project: {
+            _id: 1,
+            id_category: 1,
+            id_branch: 1,
+            product_name: 1,
+            description: 1,
+            code: 1,
+            id_metal: 1,
+            gst: 1,
+            product_image: [{ $arrayElemAt: ["$product_image", 0] }],
+            showprice: 1,
+            subcategoryId: 1,
+            sku: 1,
+            active: 1,
+            onlineProduct: 1,
+            bestSeller: 1,
+            is_deleted: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            staticSortPrice: 1,
+            staticSortWeight: 1,
+            "subcategoryDetails.name": 1,
+            "firstItem.netWeight": 1,
+            "firstItem.grossWt": 1,
+            "firstItem.id_purity": 1,
+            "firstItem.price": { $ifNull: ["$subTotal", 0] },
+            "firstItem.totalprice": { $ifNull: ["$calculatedPrice", 0] },
+            "firstItem.productDiscoudPersentage": "$productDiscoudPersentage",
+            "firstItem.stoneDiamondDetails": "$stoneDiamondDetails",
+            "firstItem.totalDiamondWeight": "$totalDiamondWeight",
+            "firstItem.totalDiamondCost": "$totalDiamondCost",
+            "firstItem.totalDiamondPrice": "$totalDiamondPrice",
+            "firstItem.totalDiamondCount": "$totalDiamondCount",
+            "firstItem.totalStoneWeight": "$totalStoneWeight",
+            "firstItem.totalStoneCost": "$totalStoneCost",
+            "firstItem.totalStonePrice": "$totalStonePrice",
+            "firstItem.totalStoneCount": "$totalStoneCount",
+            isWishlist: customerId ? { $gt: [{ $size: "$wishlistData" }, 0] } : { $literal: false },
+            stockCount: {
+              $cond: { if: { $gt: [{ $size: "$stockData" }, 0] }, then: { $arrayElemAt: ["$stockData.stockCount", 0] }, else: 0 }
+            }
+          }
+        }
+      ];
+
+      const products = await ProductModel.aggregate(pipeline);
+      const hasNextPage = products.length > limit;
+      const paginatedProducts = hasNextPage ? products.slice(0, limit) : products;
+      let nextCursor = null;
+
+      if (hasNextPage) {
+        const lastProduct = paginatedProducts[paginatedProducts.length - 1];
+        nextCursor = encodeCursor({
+          _id: lastProduct._id,
+          createdAt: lastProduct.createdAt,
+          staticSortPrice: lastProduct.staticSortPrice,
+          staticSortWeight: lastProduct.staticSortWeight
+        });
+      }
+
+      // paginatedProducts.forEach(product => {
+      //   if (product.product_image && product.product_image[0] && typeof product.product_image[0] === 'object') {
+      //     if (product.product_image[0].thumbnail) product.product_image[0].thumbnail = `${s3Url}uploads/products/${product.product_image[0].thumbnail}`;
+      //     if (product.product_image[0].detail) product.product_image[0].detail = `${s3Url}uploads/products/${product.product_image[0].detail}`;
+      //     if (product.product_image[0].zoom) product.product_image[0].zoom = `${s3Url}uploads/products/${product.product_image[0].zoom}`;
+      //   }
+      // });
+
+      return { products: paginatedProducts, nextCursor, hasNextPage };
+    } catch (err) {
+      console.error(err);
+      throw new Error("Database error retrieving all products");
+    }
+  }
+
   async getProductBySubcategory(id, limit, filter, customerId = null, cursor = null) {
     try {
       const s3Url = await getS3DisplayUrl();
