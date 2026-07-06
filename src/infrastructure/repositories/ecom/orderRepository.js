@@ -947,7 +947,7 @@ class OrderRepository {
 
   async findOrderStatus() {
     try {
-      return await orderStatusModel.find({ isDeleted: { $ne: true } });
+      return await orderStatusModel.find({});
     } catch (error) {
       return null;
     }

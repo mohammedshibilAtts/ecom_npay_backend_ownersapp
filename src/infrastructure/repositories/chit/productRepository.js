@@ -1119,21 +1119,29 @@ class ProductRepository {
         active: true,
       };
 
-      if (filter.category) {
+      if (filter.category && Array.isArray(filter.category) && filter.category.length > 0) {
+        match.id_category = { $in: filter.category.map(id => new mongoose.Types.ObjectId(id)) };
+      } else if (filter.category && typeof filter.category === 'string') {
         match.id_category = new mongoose.Types.ObjectId(filter.category);
       }
 
-      if (filter.subcategory) {
+      if (filter.subcategory && Array.isArray(filter.subcategory) && filter.subcategory.length > 0) {
+        match.subcategoryId = { $in: filter.subcategory.map(id => new mongoose.Types.ObjectId(id)) };
+      } else if (filter.subcategory && typeof filter.subcategory === 'string') {
         const subCategoryIds = filter.subcategory.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
         match.subcategoryId = { $in: subCategoryIds };
       }
 
-      if (filter.collection) {
+      if (filter.collection && Array.isArray(filter.collection) && filter.collection.length > 0) {
+        match.collection = { $in: filter.collection.map(id => new mongoose.Types.ObjectId(id)) };
+      } else if (filter.collection && typeof filter.collection === 'string') {
         const collectionIds = filter.collection.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
         match.collection = { $in: collectionIds };
       }
 
-      if (filter.metal) {
+      if (filter.metal && Array.isArray(filter.metal) && filter.metal.length > 0) {
+        match.id_metal = { $in: filter.metal.map(id => new mongoose.Types.ObjectId(id)) };
+      } else if (filter.metal && typeof filter.metal === 'string') {
         const metalIds = filter.metal.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
         match.id_metal = { $in: metalIds };
       }
@@ -1240,7 +1248,7 @@ class ProductRepository {
           $match: { ...match, ...cursorFilter },
         },
         // OPTIMIZATION: Push item filtering into DB via $lookup instead of pre-fetching IDs into Node memory
-        ...((filter.purity || filter.ordernow === "true" || filter.ordernow === true) ? [
+        ...(((filter.purity && filter.purity.length > 0) || filter.ordernow === "true" || filter.ordernow === true) ? [
           {
             $lookup: {
               from: "items",
@@ -1252,7 +1260,7 @@ class ProductRepository {
                       $and: [
                         { $eq: ["$productId", "$$productId"] },
                         { $ne: ["$is_deleted", true] },
-                        ...(filter.purity ? [{ $in: ["$id_purity", filter.purity.split(',').map(id => new mongoose.Types.ObjectId(id.trim()))] }] : []),
+                        ...(filter.purity && Array.isArray(filter.purity) && filter.purity.length > 0 ? [{ $in: ["$id_purity", filter.purity.map(id => new mongoose.Types.ObjectId(id))] }] : filter.purity && typeof filter.purity === 'string' ? [{ $in: ["$id_purity", filter.purity.split(',').map(id => new mongoose.Types.ObjectId(id.trim()))] }] : []),
                         ...(filter.ordernow === "true" || filter.ordernow === true ? [{ $eq: ["$status", 2] }] : [])
                       ]
                     }
@@ -1270,7 +1278,13 @@ class ProductRepository {
           },
           { $project: { matchedItems: 0 } } // Clean up to save memory
         ] : []),
-        ...(filter.priceRange ? [{
+        ...((filter.priceRange && Array.isArray(filter.priceRange) && filter.priceRange.length > 0) ? [{
+          $match: {
+            $or: filter.priceRange.map(range => ({
+              staticSortPrice: { $gte: parseFloat(range.min), $lte: parseFloat(range.max) }
+            }))
+          }
+        }] : (filter.priceRange && typeof filter.priceRange === 'string') ? [{
           $match: (() => {
             const parts = filter.priceRange.split("-");
             if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
@@ -1279,7 +1293,13 @@ class ProductRepository {
             return {};
           })()
         }] : []),
-        ...(filter.weightRange ? [{
+        ...((filter.weightRange && Array.isArray(filter.weightRange) && filter.weightRange.length > 0) ? [{
+          $match: {
+            $or: filter.weightRange.map(range => ({
+              staticSortWeight: { $gte: parseFloat(range.min), $lte: parseFloat(range.max) }
+            }))
+          }
+        }] : (filter.weightRange && typeof filter.weightRange === 'string') ? [{
           $match: (() => {
             const parts = filter.weightRange.split("-");
             if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
@@ -1369,7 +1389,7 @@ class ProductRepository {
           },
         },
         { $unwind: { path: "$firstItem", preserveNullAndEmptyArrays: true } },
-        ...getPricingPipeline(),
+        ...getPricingPipeline("", "firstItem"),
         {
           $addFields: {
             firstItem: {
@@ -1450,6 +1470,8 @@ class ProductRepository {
             updatedAt: 1,
             staticSortPrice: 1,
             staticSortWeight: 1,
+            price: "$calculatedPrice",
+            totalprice: "$calculatedTotalPrice",
             "subcategoryDetails.name": 1,
             "firstItem.netWeight": 1,
             "firstItem.grossWt": 1,
@@ -1488,14 +1510,6 @@ class ProductRepository {
           staticSortWeight: lastProduct.staticSortWeight
         });
       }
-
-      // paginatedProducts.forEach(product => {
-      //   if (product.product_image && product.product_image[0] && typeof product.product_image[0] === 'object') {
-      //     if (product.product_image[0].thumbnail) product.product_image[0].thumbnail = `${s3Url}uploads/products/${product.product_image[0].thumbnail}`;
-      //     if (product.product_image[0].detail) product.product_image[0].detail = `${s3Url}uploads/products/${product.product_image[0].detail}`;
-      //     if (product.product_image[0].zoom) product.product_image[0].zoom = `${s3Url}uploads/products/${product.product_image[0].zoom}`;
-      //   }
-      // });
 
       return { products: paginatedProducts, nextCursor, hasNextPage };
     } catch (err) {
@@ -1779,6 +1793,7 @@ class ProductRepository {
 
   async getProductByCategory(id, limit, filter, customerId = null, cursor = null) {
     try {
+      console.log(customerId, "kd")
       const s3Url = await getS3DisplayUrl();
       const match = {
         id_category: new mongoose.Types.ObjectId(id),

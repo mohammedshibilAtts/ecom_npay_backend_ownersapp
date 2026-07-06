@@ -8,7 +8,7 @@ class WebAuthController {
       const { firstname, mobile } = req.body;
       const { customer, token } = await this.webAuthUsecase.signup({ firstname, mobile });
 
-      res.cookie('token', token, {
+      res.cookie('__Host_sid', token, {
         path: "/",
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -35,7 +35,7 @@ class WebAuthController {
       const { mobile } = req.body;
       const { customer, token } = await this.webAuthUsecase.login(mobile);
 
-      res.cookie('token', token, {
+      res.cookie('__Host_sid', token, {
         path: "/",
         httpOnly: true,
         // secure: process.env.NODE_ENV === 'production',
@@ -60,9 +60,10 @@ class WebAuthController {
 
   async logout(req, res) {
     try {
-      res.clearCookie('token', {
+      res.clearCookie('__Host_sid', {
+        path: "/",
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'none'
       });
 
@@ -83,8 +84,8 @@ class WebAuthController {
         token = req.headers.authorization.split(' ')[1];
       } else if (req.cookies && req.cookies.cookie) {
         token = req.cookies.cookie;
-      } else if (req.cookies && req.cookies.token) {
-        token = req.cookies.token;
+      } else if (req.cookies && req.cookies.__Host_sid) {
+        token = req.cookies.__Host_sid;
       }
 
       if (!token) {

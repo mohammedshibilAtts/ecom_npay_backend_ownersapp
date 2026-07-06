@@ -242,11 +242,11 @@ class CartUseCase {
 
   async syncCart(itemIds, userData) {
     try {
-      if (!userData.id) {
+      if (!userData._id) {
         throw new Error("User ID not found");
       }
 
-      const findUser = await this.customerRepository.findInfo(userData.id);
+      const findUser = await this.customerRepository.findInfo(userData._id);
       if (!findUser || findUser.active === false || findUser.is_deleted) {
         throw new Error("User account is inactive or deleted.");
       }
@@ -265,12 +265,12 @@ class CartUseCase {
       for (const itemId of itemIds) {
         const findCartCount = await this.cartRepository.findCartItemCount(cartId);
         if (findCartCount >= 30) {
-          break; // Cart limit reached, stop adding
+          break;
         }
 
         const existingCartItem = await this.cartRepository.findCartItemByItemId(cartId, itemId);
         if (existingCartItem) {
-          continue; // Item already exists, skip
+          continue;
         }
 
         const findItem = await this.itemRepository.findById(itemId);

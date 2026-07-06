@@ -2,7 +2,7 @@
 
 class ContentManagementController {
     constructor(ContentUseCase) {
-      
+
         this.ContentUseCase = ContentUseCase;
     }
 
@@ -48,54 +48,58 @@ class ContentManagementController {
         }
     }
 
-    
-    async getAllContent(req,res){
-        try{
-          const result = await this.ContentUseCase.getAllContent();
-    
-          if (result.success) {
-            return res
-              .status(200)
-              .json({  message: result.message,
-                data: result.data,
-                totalDocument: result.totalDocument,
-                totalPages: result.totalPages,
-                currentPage: result.currentPage,});
-          }
 
-          return res.status(400).json({message:result.message})
+    async getAllContent(req, res) {
+        try {
+            const result = await this.ContentUseCase.getAllContent();
 
-        }catch(error){
+            if (result.success) {
+                return res
+                    .status(200)
+                    .json({
+                        message: result.message,
+                        data: result.data,
+                        totalDocument: result.totalDocument,
+                        totalPages: result.totalPages,
+                        currentPage: result.currentPage,
+                    });
+            }
+
+            return res.status(400).json({ message: result.message })
+
+        } catch (error) {
             console.error("Error in getAllContent Controller:", error);
             return res.status(500).json({ success: false, message: "Internal server error" });
         }
-      }
+    }
 
 
-      async getContentTypes(req,res){
-        try{
+    async getContentTypes(req, res) {
+        try {
             const { id } = req.params;
             const mobile = req.query.mobile
-        
-          const result = await this.ContentUseCase.getContentTypes(id,mobile);
-    
-          if (result.success) {
-            return res
-              .status(200)
-              .json({  message: result.message,
-                data: result.data,
-                totalDocument: result.totalDocument,
-                totalPages: result.totalPages,
-                currentPage: result.currentPage,});
-          }
 
-          return res.status(400).json({message:result.message})
+            const result = await this.ContentUseCase.getContentTypes(id, mobile);
 
-        }catch(error){
+            if (result.success) {
+                return res
+                    .status(200)
+                    .json({
+                        message: result.message,
+                        data: result.data,
+                        totalDocument: result.totalDocument,
+                        totalPages: result.totalPages,
+                        currentPage: result.currentPage,
+                    });
+            }
+
+            return res.status(400).json({ message: result.message })
+
+        } catch (error) {
             console.error("Error in getAllContent Controller:", error);
             return res.status(500).json({ success: false, message: "Internal server error" });
         }
-      }
+    }
 
 
     async updateContent(req, res) {
@@ -136,6 +140,32 @@ class ContentManagementController {
         } catch (error) {
             console.error(error);
             return res.status(500).json({ message: "Internal server error", error: error.message });
+        }
+    }
+
+    async getContentsForWeb(req, res) {
+        try {
+            const { id } = req.params;
+
+            const result = await this.ContentUseCase.getContentsForWeb(id);
+
+            if (result.success) {
+                return res
+                    .status(200)
+                    .json({
+                        message: result.message,
+                        data: result.data,
+                        totalDocument: result.totalDocument,
+                        totalPages: result.totalPages,
+                        currentPage: result.currentPage,
+                    });
+            }
+
+            return res.status(400).json({ message: result.message })
+
+        } catch (error) {
+            console.error("Error in getContentsForWeb Controller:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
         }
     }
 }

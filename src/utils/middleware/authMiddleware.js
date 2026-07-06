@@ -13,8 +13,8 @@ class AuthMiddleware {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.cookies && req.cookies.cookie) {
       token = req.cookies.cookie;
-    } else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
+    } else if (req.cookies && req.cookies.__Host_sid) {
+      token = req.cookies.__Host_sid;
     }
     console.log(token)
     if (!token) {
@@ -39,8 +39,8 @@ class AuthMiddleware {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.cookies && req.cookies.cookie) {
       token = req.cookies.cookie;
-    } else if (req.cookies && req.cookies.token) {
-      token = req.cookies.token;
+    } else if (req.cookies && req.cookies.__Host_sid) {
+      token = req.cookies.__Host_sid;
     }
 
     if (!token) {

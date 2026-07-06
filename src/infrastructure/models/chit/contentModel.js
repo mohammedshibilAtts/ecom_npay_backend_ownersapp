@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
- 
- 
+
+
 const ContentManagementSchema = new mongoose.Schema(
   {
     title: {
@@ -11,7 +11,7 @@ const ContentManagementSchema = new mongoose.Schema(
     type: {
       type: Number,
       required: true,
-      enum: [1, 2, 3, 4, 5], // restricted to this scheme type, update if more fields needed
+      enum: [1, 2, 3, 4, 5],
     },
     content: {
       type: String,
@@ -24,20 +24,24 @@ const ContentManagementSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      ref:"StaffUser",
+      ref: "StaffUser",
     },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref:"StaffUser",
+      ref: "StaffUser",
       default: null,
     },
-    toAdmin:{ // show to admin only
-      type:Boolean,
-      default:false
+    toAdmin: { // show to admin only
+      type: Boolean,
+      default: false
     },
-    toCustomer:{  // show to customers only
-      type:Boolean,
-      default:true
+    toCustomer: {  // show to customers only
+      type: Boolean,
+      default: true
+    },
+    webVisible: {  // show in the ecom web
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

@@ -50,10 +50,18 @@ class OrderPaymentUsecase {
 
       const paymentReceipt = `RECEIPT-${Date.now()}`;
 
+      let idBranch = userData?.id_branch;
+      if (!idBranch) {
+        const mongoose = await import("mongoose");
+        const Branch = mongoose.models.Branch || mongoose.model("Branch");
+        const defaultBranch = await Branch.findOne({ active: true });
+        idBranch = defaultBranch ? defaultBranch._id : null;
+      }
+
       const transactionDetails = {
         transactionId: transactionId,
         idCustomer: token?._id,
-        idBranch: token.id_branch,
+        idBranch: idBranch,
         totalProducts: items.length,
         platform: extraData?.platform || 0,
         totalAmount: order.subtotal || 0,
@@ -81,7 +89,7 @@ class OrderPaymentUsecase {
         date_payment: new Date(),
         payment_status: 2,
         payment_type: 2,
-        id_branch: token.id_branch,
+        id_branch: idBranch,
         id_customer: token._id,
         payment_amount: order.subtotal || 0,
         discount: order.discount || 0,
@@ -102,7 +110,7 @@ class OrderPaymentUsecase {
           transdetailid: saveTransactionDetails._id,
           transactionid: transactionId,
           id_customer: token._id,
-          id_branch: token.id_branch,
+          id_branch: idBranch,
           payment_date: new Date(),
           id_product: item.productId,
           quantity: item.quantity,
@@ -114,6 +122,14 @@ class OrderPaymentUsecase {
         };
 
         await this.transactionRepository.addTransaction(subtransaction);
+      }
+
+      let requestedReturnUrl = extraData?.return_url || "";
+      const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
+
+      if (!requestedReturnUrl.startsWith(allowedOrigin)) {
+        // requestedReturnUrl = `${allowedOrigin}/order-success?order_id={order_id}`;
+        requestedReturnUrl = `${allowedOrigin}/product/NmE0N2RkYzAzOTBhNjE2OWM1ZDIxNmU5`;
       }
 
       const totalData = this.sanitizeAmount(order.subtotal);
@@ -129,7 +145,7 @@ class OrderPaymentUsecase {
           customer_phone: order.phone || token.mobile.toString(),
         },
         order_meta: {
-          return_url: extraData?.return_url || "https://example.com/return",
+          return_url: requestedReturnUrl,
         },
       };
 

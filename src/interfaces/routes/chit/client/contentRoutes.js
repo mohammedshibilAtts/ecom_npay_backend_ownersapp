@@ -28,8 +28,8 @@ const authMiddleware = new AuthMiddleware(tokenService);
  *     summary: Get content by type ID
  *     tags: [Content]
  */
-router.get('/all/type/:id', (req, res) => contentController.getContentTypes(req, res)); 
-router.use(authMiddleware.protect); 
+router.get('/all/type/:id', (req, res) => contentController.getContentTypes(req, res));
+router.use(authMiddleware.protect);
 
 /**
  * @swagger
@@ -40,7 +40,7 @@ router.use(authMiddleware.protect);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/add', (req, res) => contentController.createContent(req, res)); 
+router.post('/add', (req, res) => contentController.createContent(req, res));
 
 /**
  * @swagger
@@ -51,7 +51,7 @@ router.post('/add', (req, res) => contentController.createContent(req, res));
  *     security:
  *       - bearerAuth: []
  */
-router.get('/all', (req, res) => contentController.getAllContent(req, res)); 
+router.get('/all', (req, res) => contentController.getAllContent(req, res));
 
 /**
  * @swagger
@@ -67,7 +67,7 @@ router.get('/all', (req, res) => contentController.getAllContent(req, res));
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id', (req, res) => contentController.getContentById(req, res)); 
+router.get('/:id', (req, res) => contentController.getContentById(req, res));
 
 /**
  * @swagger
@@ -78,7 +78,11 @@ router.get('/:id', (req, res) => contentController.getContentById(req, res));
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/update/:id', (req, res) => contentController.updateContent(req, res)); 
-router.delete('/:id', (req, res) => contentController.deleteContent(req, res)); 
+router.patch('/update/:id', (req, res) => contentController.updateContent(req, res));
+router.delete('/:id', (req, res) => contentController.deleteContent(req, res));
+
+
+//ecom web routes
+router.get('/web/:id', (req, res) => contentController.getContentsForWeb(req, res));
 
 export default router;

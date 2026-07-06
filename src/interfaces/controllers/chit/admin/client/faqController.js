@@ -2,41 +2,41 @@
 
 class faqController {
     constructor(faqUseCase) {
-       
+
         this.faqUseCase = faqUseCase;
     }
 
     async createfaq(req, res) {
         try {
-            const value = req.body;
-            const token = req.user;
-    
+            const value = req?.body;
+            const token = req?.user;
+
             if (!value) {
                 return res.status(400).json({ message: "FAQ data is required" });
             }
-    
+
             // if (!token || token.id_role.id_role !== 1) {
             //     return res.status(403).json({ message: "Unauthorized" });
             // }
-    
-            req.body.createdBy = token.id_role._id;
-            const data = req.body;
-    
+
+            req.body.createdBy = token?.id_role?._id;
+            const data = req?.body;
+
             // const existingFaq = await this.faqUseCase.findFaqByOrder(data.order);
 
             // if (existingFaq) {
             //     return res.status(400).json({ message: "Order must be unique" });
             // }
-    
+
             const result = await this.faqUseCase.createfaq(data, token);
-    
+
             return res.status(result.success ? 201 : 400).json({ message: result.message });
         } catch (error) {
             console.error(error);
             res.status(500).json({ message: "Internal server error" });
         }
     }
-    
+
 
     async getfaqByUser(req, res) {
         try {
@@ -55,29 +55,31 @@ class faqController {
         }
     }
 
-    
-    async getAllfaq(req,res){
-        try{
 
-          const result = await this.faqUseCase.getAllfaq(req.body);
-    
-          if (result.success) {
-            return res
-              .status(200)
-              .json({  message: result.message,
-                data: result.data,
-                totalDocument: result.totalDocument,
-                totalPages: result.totalPages,
-                currentPage: result.currentPage,});
-          }
+    async getAllfaq(req, res) {
+        try {
 
-          return res.status(400).json({message:result.message})
+            const result = await this.faqUseCase.getAllfaq(req.body);
 
-        }catch(error){
+            if (result.success) {
+                return res
+                    .status(200)
+                    .json({
+                        message: result.message,
+                        data: result.data,
+                        totalDocument: result.totalDocument,
+                        totalPages: result.totalPages,
+                        currentPage: result.currentPage,
+                    });
+            }
+
+            return res.status(400).json({ message: result.message })
+
+        } catch (error) {
             console.error("Error in getAllfaq Controller:", error);
             return res.status(500).json({ success: false, message: "Internal server error" });
         }
-      }
+    }
 
     async updatefaq(req, res) {
         try {
