@@ -1,9 +1,40 @@
 import Customer from "../../infrastructure/models/chit/customerModel.js";
 import TokenService from "../../utils/jwtToken.js";
+import bcrypt from "bcrypt";
 
 class WebAuthUsecase {
-  constructor() {
+  constructor(customerRepository) {
     this.tokenService = new TokenService();
+    this.customerRepository = customerRepository;
+  }
+
+  async addProfile(data) {
+    const { firstname, mobile, password } = data;
+
+    if (!mobile || !firstname || !password) {
+      throw new Error("Firstname, mobile and password are required");
+    }
+
+    const existingUser = await this.customerRepository.existingUser(mobile);
+    if (existingUser) {
+      throw new Error("Customer with this mobile number already exists");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const customerData = {
+      firstname,
+      mobile,
+      password: hashedPassword
+    };
+
+    const newCustomerId = await this.customerRepository.addCustomer(customerData);
+
+    return {
+      _id: newCustomerId,
+      firstname,
+      mobile
+    };
   }
 
   async signup(data) {
@@ -19,11 +50,9 @@ class WebAuthUsecase {
       throw new Error("Customer with this mobile number already exists");
     }
 
-    // Create new customer with only the required web fields
     customer = new Customer({
       firstname,
       mobile,
-      // You can add default values for web signups here if needed
     });
 
     await customer.save();
@@ -40,9 +69,13 @@ class WebAuthUsecase {
     return { customer, token };
   }
 
-  async login(mobile) {
+  async login(mobile, password) {
     if (!mobile) {
       throw new Error("Mobile number is required");
+    }
+
+    if (!password) {
+      throw new Error("Password is required");
     }
 
     const customer = await Customer.findOne({ mobile });
@@ -52,6 +85,15 @@ class WebAuthUsecase {
 
     if (!customer.active) {
       throw new Error("Account is inactive");
+    }
+
+    if (!customer.password) {
+      throw new Error("Password not set. Please sign up again or reset your password.");
+    }
+
+    const isMatch = await bcrypt.compare(password, customer.password);
+    if (!isMatch) {
+      throw new Error("Invalid password");
     }
 
     // Generate JWT token
@@ -74,7 +116,7 @@ class WebAuthUsecase {
     try {
       const decoded = await this.tokenService.verifyToken(token);
       const customer = await Customer.findById(decoded._id || decoded.id).select("_id firstname lastname mobile whatsapp date_of_birth date_of_wed");
-      
+
       if (!customer) {
         throw new Error("Customer not found");
       }

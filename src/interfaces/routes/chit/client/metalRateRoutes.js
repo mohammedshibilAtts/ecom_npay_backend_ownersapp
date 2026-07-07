@@ -133,6 +133,20 @@ router.get("/current-previous/:branchId", (req, res) =>
  *       200:
  *         description: Rate deleted
  */
+/**
+ * @swagger
+ * /api/client/metalrate/optimized-rate:
+ *   get:
+ *     summary: Get optimized metal rates (metal name, purity, rate)
+ *     tags: [MetalRate]
+ *     responses:
+ *       200:
+ *         description: Optimized target rates
+ */
+router.get("/optimized-rate", (req, res) =>
+  metalrateContorller.getOptimizedRate(req, res),
+);
+
 router.get("/:id", (req, res) => metalrateContorller.getById(req, res));
 
 /**
@@ -154,7 +168,7 @@ router.get("/:id", (req, res) => metalrateContorller.getById(req, res));
  */
 router.get("/today-rate/:branchId/date/:date", (req, res) =>
   metalrateContorller.todaysMetalRate(req, res),
-); 
+);
 
 /**
  * @swagger
@@ -181,6 +195,8 @@ router.post("/table", (req, res) =>
  *         description: History data
  */
 router.post("/history", (req, res) => metalrateContorller.getHistory(req, res));
+
+
 router.use(authMiddleware.protect);
 
 /**
