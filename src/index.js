@@ -130,12 +130,16 @@ app.get("/health", (req, res) => {
 
 import ecomAppProducts from './interfaces/routes/ecom/app/appProdcutRoutes.js';
 import ecomAppWishlist from './interfaces/routes/ecom/app/appWishlistRoutes.js';
+import chatbotRoutes from './interfaces/routes/ecom/chatbotRoutes.js';
+import webAuthRoutes from './interfaces/routes/ecom/webAuthRoutes.js';
 
 //aupay ecom routes
 app.use('/api/shop', shopRoutes);
 app.use('/api/ecom/app/product', ecomAppProducts);
 app.use('/api/ecom/app/products', ecomAppProducts);
 app.use('/api/ecom/app/wishlist', ecomAppWishlist);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/ecom/web/auth', webAuthRoutes);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")));

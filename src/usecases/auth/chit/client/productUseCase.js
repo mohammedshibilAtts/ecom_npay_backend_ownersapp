@@ -627,6 +627,27 @@ class ProductUseCase {
     }
   }
 
+  async listAllProducts(limit, token, filter, cursor) {
+    try {
+      const customerId = token?._id || token?.id;
+      const result = await this.productRepository.listAllProducts(limit, filter, customerId, cursor);
+      const s3configs = await s3Helper();
+      const pathUrl = s3configs?.s3display_url
+        ? `${s3configs.s3display_url}${config.AWS_LOCAL_PATH || "uploads/"}products/`
+        : "";
+      result.pathUrl = pathUrl;
+
+      return {
+        success: true,
+        message: "Products fetched successfully",
+        data: result,
+        pathUrl
+      };
+    } catch (err) {
+      return { success: false, message: "Error fetching products", error: err.message };
+    }
+  }
+
   _mergeItemData(product, item) {
     const calculations = this._calculateItemPricing(item);
 

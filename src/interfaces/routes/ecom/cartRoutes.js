@@ -12,14 +12,14 @@ import ItemRepository from '../../../infrastructure/repositories/ecom/itemReposi
 const router = express.Router();
 
 // Initialize dependencies
-const tokenService=new TokenService()
+const tokenService = new TokenService()
 const cartRepository = new CartRepository();
 const customerRepository = new CustomerRepository()
 const productRepository = new ProductRepository()
 const itemRepository = new ItemRepository();
-const cartUseCase = new CartUseCase(cartRepository,customerRepository,productRepository,itemRepository);
+const cartUseCase = new CartUseCase(cartRepository, customerRepository, productRepository, itemRepository);
 const cartController = new CartController(cartUseCase);
-const authMiddleware=new AuthMiddleware(tokenService)
+const authMiddleware = new AuthMiddleware(tokenService)
 // Cart routes
 router.use(authMiddleware.protect);
 router.post('/carts', (req, res) => cartController.createCart(req, res));
@@ -27,5 +27,6 @@ router.get('/product/branch/:id', (req, res) => cartController.findProduct(req, 
 router.get('/carts', (req, res) => cartController.getCart(req, res));
 router.post('/carts/items', (req, res) => cartController.addItem(req, res));
 router.delete('/carts/items', (req, res) => cartController.removeItem(req, res));
+router.post('/sync', (req, res) => cartController.syncCart(req, res));
 
 export default router;

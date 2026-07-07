@@ -17,7 +17,7 @@ export default class DeliveryAddressRepositary {
             const customer= await deliveryaddressModel
                 .find({ id_customer: customerId, is_deleted: false })
                 .populate(["id_country","id_state","id_city"])
-                .sort({ createdAt: -1 })
+                .sort({ isPrimary: -1, createdAt: -1 })
 
             return customer;
         } catch (error) {

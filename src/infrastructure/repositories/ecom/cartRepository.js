@@ -776,6 +776,7 @@ class CartRepository {
 
   async findCartItemCount(cartId) {
     try {
+      console.log(cartId, "ll")
       return await CartItem.find({
         cartId,
         is_deleted: false,

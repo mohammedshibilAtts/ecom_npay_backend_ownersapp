@@ -180,6 +180,27 @@ class AppProductController {
       res.status(500).json({ message: "Internal server error" });
     }
   }
+  async getBestSeller(req, res) {
+    try {
+      const { limit = 10, cursor } = req.query;
+      const safeLimit = parseInt(limit, 10) || 10;
+
+      const result = await this.usecase.getBestSeller(
+        safeLimit,
+        req.user,
+        cursor
+      );
+
+      if (result.success) {
+        return res.status(200).json(result);
+      }
+
+      return res.status(400).json({ message: result.message });
+    } catch (err) {
+      console.error("Error in getBestSeller controller:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
 }
 
 export default AppProductController;

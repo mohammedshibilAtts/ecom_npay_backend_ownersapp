@@ -29,9 +29,9 @@ class S3Service {
       const uploadParams = {
         Bucket,
         Key: fileName,
-        Body: file.buffer, 
+        Body: file.buffer,
         ContentType: file.mimetype,
-        ACL: 'public-read',
+        // ACL: 'public-read',
       };
 
       await s3Client.send(new PutObjectCommand(uploadParams));

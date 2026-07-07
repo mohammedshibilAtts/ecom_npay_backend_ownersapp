@@ -13,7 +13,7 @@ class AppWishlistController {
         return res.status(400).json({ message: "Product ID is required" });
       }
 
-      if (!customerId || !id_branch) {
+      if (!customerId) {
         return res.status(401).json({ message: "User information missing in token" });
       }
 

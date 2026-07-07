@@ -9,6 +9,7 @@ import stateMaster from './stateMasterRoutes.js'
 import stonedetailsRoutes from './stonedetailsRoutes.js'
 import ecomSettings from './ecomSettingsRoutes.js'
 import itemRoutes from './itemRoutes.js'
+import bannerRoutes from './bannerRoutes.js';
 
 const router = express.Router()
 
@@ -22,5 +23,5 @@ router.use('/state-master',stateMaster)
 router.use('/stonedetails',stonedetailsRoutes)
 router.use('/settings',ecomSettings)
 router.use('/items',itemRoutes)
-
+router.use('/banners',bannerRoutes)
 export default router;

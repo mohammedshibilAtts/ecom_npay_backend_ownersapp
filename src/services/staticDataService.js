@@ -141,6 +141,7 @@ export const offersTypeData = () => {
     // { id: "0", name: "Offers" },
     { id: "1", name: "Banner" },
     { id: "2", name: "Popup" },
+    { id: "3", name: "Offers" },
     // { id: "3", name: "Marqueee" },
     // { id: "4", name: "Video" },
   ];

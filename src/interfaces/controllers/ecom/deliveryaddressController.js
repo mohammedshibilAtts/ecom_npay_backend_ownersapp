@@ -28,80 +28,80 @@ class DeliveryAddressController {
     }
   }
 
-//    async getAllAddresses(req, res) {
-//         try {
-//             const addresses = await this.deliveryAddressUsecase.getaddress();
-//             res.status(200).json({
-//                 success: true,
-//                 message: "Addresses fetched successfully",
-//                 data: addresses,
-//             });
-//         } catch (error) {
-//             res.status(500).json({ success: false, message: error.message });
-//         }
-//     }
+  //    async getAllAddresses(req, res) {
+  //         try {
+  //             const addresses = await this.deliveryAddressUsecase.getaddress();
+  //             res.status(200).json({
+  //                 success: true,
+  //                 message: "Addresses fetched successfully",
+  //                 data: addresses,
+  //             });
+  //         } catch (error) {
+  //             res.status(500).json({ success: false, message: error.message });
+  //         }
+  //     }
 
-    async getAddressesByCustomer(req, res) {
+  async getAddressesByCustomer(req, res) {
     try {
-        const { id } = req.params;
+      let id = req.params.id || req.body._id
 
-        if (!id) {
-            return res.status(400).json({ success: false, message: "Customer ID is required" });
-        }
+      if (!id) {
+        return res.status(400).json({ success: false, message: "Customer ID is required" });
+      }
 
-        const addresses = await this.deliveryAddressUsecase.getaddress(id);
+      const addresses = await this.deliveryAddressUsecase.getaddress(id);
 
-        res.status(200).json({
-            success: true,
-            message: "Addresses fetched successfully",
-            data: addresses,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Addresses fetched successfully",
+        data: addresses,
+      });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
     }
-}
+  }
 
-    async editAddress(req, res) {
-        try {
-            const { id } = req.params;
-            const data = req.body;
-
-            const updatedAddress = await this.deliveryAddressUsecase.editaddress(id, data);
-
-            if (!updatedAddress) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Delivery address not found",
-                });
-            }
-
-            res.status(200).json({
-                success: true,
-                message: "Delivery address updated successfully",
-                data: updatedAddress,
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                message: error.message,
-            });
-        }
-    }
-
-    async deleteAddress(req, res) {
+  async editAddress(req, res) {
     try {
-        const { id } = req.params;
+      const { id } = req.params;
+      const data = req.body;
 
-        const deletedAddress = await this.deliveryAddressUsecase.deleteaddress(id);
+      const updatedAddress = await this.deliveryAddressUsecase.editaddress(id, data);
 
-        res.status(200).json({
-            success: true,
-            message: "Delivery Address deleted successfully"
+      if (!updatedAddress) {
+        return res.status(404).json({
+          success: false,
+          message: "Delivery address not found",
         });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Delivery address updated successfully",
+        data: updatedAddress,
+      });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
     }
-}
+  }
+
+  async deleteAddress(req, res) {
+    try {
+      const { id } = req.params;
+
+      const deletedAddress = await this.deliveryAddressUsecase.deleteaddress(id);
+
+      res.status(200).json({
+        success: true,
+        message: "Delivery Address deleted successfully"
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
 
 }
 

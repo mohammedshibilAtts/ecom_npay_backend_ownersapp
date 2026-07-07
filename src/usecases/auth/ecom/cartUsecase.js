@@ -91,7 +91,7 @@ class CartUseCase {
         subCategoryId: findProduct?.subcategoryId || null,
         productName: product_name,
         sku: findItem?.tagNo || null,
-        image: product_image && product_image[0] 
+        image: product_image && product_image[0]
           ? (typeof product_image[0] === "string" ? product_image[0] : product_image[0].thumbnail || "")
           : "",
         id_metal: id_metal || itemMetal,
@@ -237,6 +237,89 @@ class CartUseCase {
       };
     } catch (error) {
       throw new Error(`Failed to remove item from cart: ${error.message}`);
+    }
+  }
+
+  async syncCart(itemIds, userData) {
+    try {
+      if (!userData._id) {
+        throw new Error("User ID not found");
+      }
+
+      const findUser = await this.customerRepository.findInfo(userData._id);
+      if (!findUser || findUser.active === false || findUser.is_deleted) {
+        throw new Error("User account is inactive or deleted.");
+      }
+
+      const findCart = await this.cartRepository.findByUserId(userData._id || userData.id);
+      let cartId = findCart && findCart._id ? findCart._id : null;
+
+      if (!findCart) {
+        const cart = { userId: userData._id || userData.id, status: "active" };
+        const createCart = await this.cartRepository.create(cart);
+        cartId = createCart._id;
+      }
+
+      let itemsAdded = 0;
+
+      for (const itemId of itemIds) {
+        const findCartCount = await this.cartRepository.findCartItemCount(cartId);
+        if (findCartCount >= 30) {
+          break;
+        }
+
+        const existingCartItem = await this.cartRepository.findCartItemByItemId(cartId, itemId);
+        if (existingCartItem) {
+          continue;
+        }
+
+        const findItem = await this.itemRepository.findById(itemId);
+        if (!findItem) continue;
+
+        const findProduct = await this.productRepository.findById(findItem.productId, userData._id);
+        if (!findProduct) continue;
+
+        const { id_category, id_metal, product_name, product_image } = findProduct;
+        const { id_purity, grossWt, size, id_metal: itemMetal } = findItem;
+
+        const cartItem = {
+          cartId: cartId,
+          itemId: itemId,
+          productId: findItem.productId,
+          collectionId: null,
+          categoryId: id_category,
+          subCategoryId: findProduct?.subcategoryId || null,
+          productName: product_name,
+          sku: findItem?.tagNo || null,
+          image: product_image && product_image[0]
+            ? (typeof product_image[0] === "string" ? product_image[0] : product_image[0].thumbnail || "")
+            : "",
+          id_metal: id_metal || itemMetal,
+          metalWeight: grossWt,
+          id_purity: id_purity,
+          sizeId: size || null,
+        };
+
+        const createItem = await this.cartRepository.addItemToCart(cartItem);
+        if (createItem) {
+          itemsAdded++;
+        }
+      }
+
+      if (itemsAdded > 0) {
+        await this.cartRepository.updateCartTotals(cartId);
+      }
+
+      const finalCartCount = await this.cartRepository.findCartItemCount(cartId);
+
+      return {
+        success: true,
+        message: "Cart synced successfully.",
+        cartCount: finalCartCount,
+      };
+    } catch (error) {
+      console.error("Failed to sync cart:", error);
+      throw new Error(`Failed to sync cart: ${error.message}`);
     }
   }
 }

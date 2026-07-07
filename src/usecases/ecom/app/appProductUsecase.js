@@ -592,6 +592,32 @@ class AppProductUsecase {
       };
     }
   }
+  async getBestSeller(limit = 10, user, cursor = null) {
+    try {
+      const customerId = user && user._id ? user._id : null;
+      
+      const { products, nextCursor, hasNextPage } = await this.productRepository.getBestSeller(
+        limit,
+        customerId,
+        cursor
+      );
+
+      return {
+        success: true,
+        message: "Best seller products retrieved successfully",
+        data: products,
+        nextCursor,
+        hasNextPage,
+      };
+    } catch (err) {
+      console.error("Error in getBestSeller usecase:", err);
+      return {
+        success: false,
+        message: "Error retrieving best seller products",
+        error: err.message,
+      };
+    }
+  }
 }
 
 export default AppProductUsecase;

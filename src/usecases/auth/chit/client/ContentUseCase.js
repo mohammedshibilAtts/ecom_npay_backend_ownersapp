@@ -150,7 +150,7 @@ class ContentUseCase {
     }
   }
 
-  async getContentTypes(type,mobile=false) {
+  async getContentTypes(type, mobile = false) {
     try {
       const pageNum = 1;
       const pageSize = 1;
@@ -160,12 +160,12 @@ class ContentUseCase {
         type: type,
       };
 
-      if(mobile){
-        query.toAdmin=false
-        query.toCustomer=true
-      }else{
-        query.toAdmin=true
-        query.toCustomer=false
+      if (mobile) {
+        query.toAdmin = false
+        query.toCustomer = true
+      } else {
+        query.toAdmin = true
+        query.toCustomer = false
       }
 
       const documentskip = (pageNum - 1) * pageSize;
@@ -226,6 +226,44 @@ class ContentUseCase {
     } catch (error) {
       console.error("Error in deleteContent:", error);
       return { success: false, message: "Error deleting content" };
+    }
+  }
+
+  async getContentsForWeb(type) {
+    try {
+      const pageNum = 1;
+      const pageSize = 1;
+
+      const query = {
+        active: true,
+        type: type,
+      };
+
+      query.toAdmin = false
+      query.toCustomer = true
+      query.webVisible = true
+
+      const documentskip = (pageNum - 1) * pageSize;
+      const documentlimit = pageSize;
+
+      const Data = await this.ContentRepo.getContentsForWeb({
+        query,
+        documentskip,
+        documentlimit,
+      });
+
+      if (!Data || Data.length === 0) {
+        return { success: false, message: "No data found" };
+      }
+
+      return {
+        success: true,
+        message: "Data fetched successfully",
+        data: Data.data
+      };
+    } catch (error) {
+      console.error("Error in Content UseCase:", error);
+      return { success: false, message: "Error fetching configurations" };
     }
   }
 }

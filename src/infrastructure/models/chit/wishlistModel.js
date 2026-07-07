@@ -9,22 +9,13 @@ const wishlistSchema = new mongoose.Schema({
     itemId: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref:"Product"
+        ref: "Product"
     },
     id_branch: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref:"Branch"
+        required: false,
+        ref: "Branch"
     },
-    // wishlistType: {
-    //     type: String,
-    //     enum: ['product', 'offer', 'newarrival'],
-    //     required: true
-    // },
-    // price: {
-    //     type: Number,
-    //     default: null
-    // },
     createDate: {
         type: Date,
         default: Date.now
