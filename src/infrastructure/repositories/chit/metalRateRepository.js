@@ -281,6 +281,69 @@ class MetalRateRepository {
     }
   }
 
+  async getOptimizedRate() {
+    try {
+      const pipeline = [
+        {
+          $match: {
+            active: true,
+            is_deleted: false,
+            purity_id: { $ne: null }
+          }
+        },
+        {
+          $sort: { purity_id: 1, createdAt: -1 }
+        },
+        {
+          $group: {
+            _id: "$purity_id",
+            rate: { $first: "$rate" },
+            material_type_id: { $first: "$material_type_id" }
+          }
+        },
+        {
+          $lookup: {
+            from: "purities",
+            localField: "_id",
+            foreignField: "_id",
+            as: "purity"
+          }
+        },
+        { $unwind: { path: "$purity", preserveNullAndEmptyArrays: false } },
+        {
+          $match: {
+            "purity.active": true,
+            "purity.is_deleted": false
+          }
+        },
+        {
+          $lookup: {
+            from: "metals",
+            localField: "material_type_id",
+            foreignField: "_id",
+            as: "metal"
+          }
+        },
+        { $unwind: { path: "$metal", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 0,
+            metal_name: { $ifNull: ["$metal.metal_name", "Unknown"] },
+            purity: "$purity.purity_name",
+            rate: 1
+          }
+        }
+      ];
+
+      const result = await metalRateModel.aggregate(pipeline);
+
+      return result.length ? result : null;
+    } catch (error) {
+      console.error("Database error:", error);
+      throw new Error("Database error while fetching optimized metal rate");
+    }
+  }
+
   async getIds(branchId, date = null, ids, metalId) {
     try {
       if (!ids || !Array.isArray(ids) || ids.length === 0) {

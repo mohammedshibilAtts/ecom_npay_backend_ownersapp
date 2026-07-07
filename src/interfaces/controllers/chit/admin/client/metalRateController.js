@@ -217,8 +217,20 @@ class metalRateController {
         .status(200)
         .json({ message: result.message, data: result.data });
     } catch (error) {
-      console.error("Error fetching metal rate:", error);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getOptimizedRate(req, res) {
+    try {
+      const result = await this.metalRateUseCase.getOptimizedRate();
+      if (!result.success) {
+        return res.status(404).json({ message: result.message });
+      }
+      return res.status(200).json({ message: result.message, data: result.data });
+    } catch (error) {
+       console.error("Error fetching optimized metal rate:", error);
+       return res.status(500).json({ message: "Internal server error" });
     }
   }
 

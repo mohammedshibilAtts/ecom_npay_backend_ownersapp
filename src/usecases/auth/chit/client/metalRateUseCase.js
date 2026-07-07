@@ -385,6 +385,19 @@ class metalRateUseCase {
     }
   }
 
+  async getOptimizedRate() {
+    try {
+      const metalRate = await this.metalRateRepository.getOptimizedRate();
+      if (!metalRate || metalRate.length === 0) {
+         return { success: false, message: "No metal rate found" };
+      }
+      return { success: true, message: "Metal rates fetched successfully", data: metalRate };
+    } catch (error) {
+      console.error("Error in getOptimizedRate Use Case:", error);
+      return { success: false, message: "An error occurred while fetching optimized metal rate" };
+    }
+  }
+
   async metalRateTable(page, limit, filter) {
     try {
       const pageNum = page ? parseInt(page) : 1;

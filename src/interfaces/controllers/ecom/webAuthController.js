@@ -32,8 +32,8 @@ class WebAuthController {
 
   async login(req, res) {
     try {
-      const { mobile } = req.body;
-      const { customer, token } = await this.webAuthUsecase.login(mobile);
+      const { mobile, password } = req.body;
+      const { customer, token } = await this.webAuthUsecase.login(mobile, password);
 
       res.cookie('__Host_sid', token, {
         path: "/",
@@ -109,6 +109,21 @@ class WebAuthController {
       });
     } catch (error) {
       return res.status(401).json({ message: "Invalid token, Please login again" });
+    }
+  }
+
+  async addProfile(req, res) {
+    try {
+      const { firstname, mobile, password } = req.body;
+      const data = await this.webAuthUsecase.addProfile({ firstname, mobile, password });
+
+      return res.status(201).json({
+        success: true,
+        message: "Profile added successfully",
+        data
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 
