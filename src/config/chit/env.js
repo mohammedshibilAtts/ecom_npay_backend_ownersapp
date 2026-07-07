@@ -15,6 +15,7 @@ const config = {
   AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
   AWS_LOCAL_PATH: process.env.AWS_LOCAL_PATH,
   FRONT_URL: process.env.FRONT_URL,
+  ECOM_WEB_FRONT_URL: process.env.ECOM_WEB_FRONT_URL,
   CASHFREE_SECRET: process.env.CASHFREE_SECRET,
   CASHFREE_CLIENT_ID: process.env.CASHFREE_CLIENT_ID,
   ORDER_URL: process.env.ORDER_URL,

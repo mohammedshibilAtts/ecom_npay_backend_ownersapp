@@ -67,7 +67,7 @@ app.use(
 if (config.NODE_ENV === "production") {
   app.use(
     cors({
-      origin: [config.FRONT_URL],
+      origin: [config.FRONT_URL, config.ECOM_WEB_FRONT_URL],
       credentials: true,
     })
   );
