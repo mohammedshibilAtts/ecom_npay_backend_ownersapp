@@ -52,7 +52,7 @@ class OrderPaymentUsecase {
 
       let idBranch = userData?.id_branch;
       if (!idBranch) {
-        const mongoose = await import("mongoose");
+        const mongoose = (await import("mongoose")).default || await import("mongoose");
         const Branch = mongoose.models.Branch || mongoose.model("Branch");
         const defaultBranch = await Branch.findOne({ active: true });
         idBranch = defaultBranch ? defaultBranch._id : null;

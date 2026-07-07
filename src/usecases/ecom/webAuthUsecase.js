@@ -73,7 +73,7 @@ class WebAuthUsecase {
 
     try {
       const decoded = await this.tokenService.verifyToken(token);
-      const customer = await Customer.findById(decoded._id || decoded.id).select("_id firstname mobile");
+      const customer = await Customer.findById(decoded._id || decoded.id).select("_id firstname lastname mobile whatsapp date_of_birth date_of_wed");
       
       if (!customer) {
         throw new Error("Customer not found");
@@ -83,6 +83,37 @@ class WebAuthUsecase {
     } catch (error) {
       throw new Error("Invalid or expired token");
     }
+  }
+
+  async updateProfile(customerId, data) {
+    if (!customerId) {
+      throw new Error("Customer ID is required");
+    }
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      throw new Error("Customer not found");
+    }
+
+    // Update allowed fields
+    if (data.firstname !== undefined) customer.firstname = data.firstname;
+    if (data.lastname !== undefined) customer.lastname = data.lastname;
+    if (data.mobile !== undefined) customer.mobile = data.mobile;
+    if (data.whatsapp !== undefined) customer.whatsapp = data.whatsapp;
+    if (data.date_of_birth !== undefined) customer.date_of_birth = data.date_of_birth;
+    if (data.date_of_wed !== undefined) customer.date_of_wed = data.date_of_wed;
+
+    await customer.save();
+
+    return {
+      _id: customer._id,
+      firstname: customer.firstname,
+      lastname: customer.lastname,
+      mobile: customer.mobile,
+      whatsapp: customer.whatsapp,
+      date_of_birth: customer.date_of_birth,
+      date_of_wed: customer.date_of_wed
+    };
   }
 }
 

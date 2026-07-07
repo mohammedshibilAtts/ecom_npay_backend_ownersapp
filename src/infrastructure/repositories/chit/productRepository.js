@@ -1113,6 +1113,7 @@ class ProductRepository {
 
   async listAllProducts(limit, filter, customerId = null, cursor = null) {
     try {
+
       const s3Url = await getS3DisplayUrl();
       const match = {
         is_deleted: false,
@@ -1160,11 +1161,28 @@ class ProductRepository {
 
       if (filter.search) {
         const regex = new RegExp(filter.search.trim(), "i");
+
+        const CategoryModel = mongoose.models.Category;
+        const SubCategoryModel = mongoose.models.SubCategory;
+
+        const matchingCategories = CategoryModel ? await CategoryModel.find({ category_name: regex }, { _id: 1 }).lean() : [];
+        const matchingSubcategories = SubCategoryModel ? await SubCategoryModel.find({ name: regex }, { _id: 1 }).lean() : [];
+
+        const categoryIds = matchingCategories.map(c => c._id);
+        const subcategoryIds = matchingSubcategories.map(c => c._id);
+
         match.$or = [
           { product_name: regex },
-          { sku: regex },
-          { description: regex }
+          // { sku: regex },
         ];
+
+        if (categoryIds.length > 0) {
+          match.$or.push({ id_category: { $in: categoryIds } });
+        }
+
+        if (subcategoryIds.length > 0) {
+          match.$or.push({ subcategoryId: { $in: subcategoryIds } });
+        }
       }
 
       if (filter.from_date && filter.to_date) {
@@ -1435,9 +1453,8 @@ class ProductRepository {
                   $match: {
                     $expr: {
                       $and: [
-                        { $eq: ["$productId", "$$productId"] },
-                        { $eq: ["$customerId", new mongoose.Types.ObjectId(customerId)] },
-                        { $eq: ["$status", "active"] },
+                        { $eq: ["$itemId", "$$productId"] },
+                        { $eq: ["$id_customer", new mongoose.Types.ObjectId(customerId)] },
                       ],
                     },
                   },

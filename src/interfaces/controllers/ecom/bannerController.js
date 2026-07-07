@@ -14,8 +14,17 @@ class BannerController {
 
   async getAllBanners(req, res) {
     try {
-      const banners = await this.bannerUsecase.getAllBanners();
-      return res.status(200).json({ success: true, data: banners });
+      const { page = 1, limit = 10, search = "", active = "" } = req.query;
+      const result = await this.bannerUsecase.getAllBanners({ page, limit, search, active });
+      return res.status(200).json({ 
+        success: true, 
+        data: result.data,
+        totalDocuments: result.total,
+        totalPages: Math.ceil(result.total / Number(limit)),
+        page: Number(page),
+        limit: Number(limit),
+        pathUrl: result.pathUrl 
+      });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }

@@ -100,11 +100,50 @@ class WebAuthController {
         data: {
           _id: customer._id,
           firstname: customer.firstname,
-          mobile: customer.mobile
+          lastname: customer.lastname,
+          mobile: customer.mobile,
+          whatsapp: customer.whatsapp,
+          date_of_birth: customer.date_of_birth,
+          date_of_wed: customer.date_of_wed
         }
       });
     } catch (error) {
       return res.status(401).json({ message: "Invalid token, Please login again" });
+    }
+  }
+
+  async updateProfile(req, res) {
+    try {
+      let token = null;
+
+      if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.split(' ')[1];
+      } else if (req.cookies && req.cookies.cookie) {
+        token = req.cookies.cookie;
+      } else if (req.cookies && req.cookies.__Host_sid) {
+        token = req.cookies.__Host_sid;
+      }
+
+      if (!token) {
+        return res.status(401).json({ message: "Invalid token, Please login again" });
+      }
+
+      const decoded = await this.webAuthUsecase.tokenService.verifyToken(token);
+      const customerId = decoded._id || decoded.id;
+
+      if (!customerId) {
+        return res.status(401).json({ message: "Invalid token payload" });
+      }
+
+      const updatedCustomer = await this.webAuthUsecase.updateProfile(customerId, req.body);
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: updatedCustomer
+      });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
     }
   }
 }

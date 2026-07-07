@@ -50,6 +50,8 @@ const controller = new ProductController(usecase, validator)
  *     summary: Get products table data
  *     tags: [Product]
  */
+
+
 router.post('/table', (req, res) => controller.allProducts(req, res))
 router.get('/all', (req, res) => controller.allProductsData(req, res))
 router.use(authMiddleware.bypassProtect);

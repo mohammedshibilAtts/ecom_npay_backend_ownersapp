@@ -25,7 +25,7 @@ class BannerUsecase {
 
     const fileName = await this.s3Service.uploadToS3(file, "banners", s3Configs);
 
-    return `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}banners/${fileName}`;
+    return fileName;
   }
 
   async deleteImageFromS3(imageUrl) {
@@ -47,8 +47,11 @@ class BannerUsecase {
     return await this.bannerRepository.createBanner(data);
   }
 
-  async getAllBanners() {
-    return await this.bannerRepository.getAllBanners();
+  async getAllBanners(query) {
+    const { data: banners, total } = await this.bannerRepository.getAllBanners(query);
+    const s3Configs = await s3Helper();
+    const pathUrl = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}banners/`;
+    return { data: banners, total, pathUrl };
   }
 
   async getActiveWebBanners() {
@@ -56,7 +59,6 @@ class BannerUsecase {
     const s3Configs = await s3Helper();
     const pathUrl = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}banners/`;
 
-    // Web API expects only the filename in imageUrl, plus the pathUrl
     const processedBanners = banners.map(b => {
       const filename = b.imageUrl.replace(pathUrl, "");
       return {
