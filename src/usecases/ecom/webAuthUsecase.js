@@ -93,7 +93,7 @@ class WebAuthUsecase {
 
     const isMatch = await bcrypt.compare(password, customer.password);
     if (!isMatch) {
-      throw new Error("Invalid password");
+      throw new Error("Invalid credentials");
     }
 
     // Generate JWT token
