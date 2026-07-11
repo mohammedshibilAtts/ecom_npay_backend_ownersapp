@@ -193,7 +193,7 @@ class OfferController {
       const allOffers = await this.offerUseCase.getAllActivePopups();
 
       if (!allOffers.success) {
-        return res.status(400).json({ message: allOffers.message });
+        return res.status(200).json({ message: allOffers.message });
       }
 
       res.status(200).json({
