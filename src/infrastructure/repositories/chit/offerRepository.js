@@ -21,7 +21,7 @@ class OfferRepository {
     try {
       const userData = await OffersModel.aggregate([
         {
-          $match: { _id: new mongoose.Types.ObjectId(id),is_deleted:false},
+          $match: { _id: new mongoose.Types.ObjectId(id), is_deleted: false },
         },
         {
           $lookup: {
@@ -41,27 +41,27 @@ class OfferRepository {
             offer_image: 1,
             type: 1,
             whatsapp_sent: 1,
-            id_branch:1,
+            id_branch: 1,
             "branchDetails._id": 1,
             "branchDetails.branch_name": 1,
             "branchDetails.active": 1,
             pathurl: {
               $concat: [
-                  "$s3Details.s3display_url",
-                  `${config.AWS_LOCAL_PATH}offers/`
+                "$s3Details.s3display_url",
+                `${config.AWS_LOCAL_PATH}offers/`
               ]
-          }
+            }
           },
         },
         {
           $limit: 1,
         },
       ]);
-  
+
       if (!userData || userData.length === 0) {
         return null;
       }
-  
+
       return userData[0];
     } catch (err) {
       console.error(err)
@@ -117,46 +117,46 @@ class OfferRepository {
     }
   }
 
-  async changeStatus(id){
-    try{
-        const findOffer=await this.findById(id)
-        const updateOffer = await OffersModel.updateOne(
-            {_id:id},
-            { $set: { active: !findOffer.active } },
-          );
-          
-      if(updateOffer.modifiedCount==1){
+  async changeStatus(id) {
+    try {
+      const findOffer = await this.findById(id)
+      const updateOffer = await OffersModel.updateOne(
+        { _id: id },
+        { $set: { active: !findOffer.active } },
+      );
+
+      if (updateOffer.modifiedCount == 1) {
         return updateOffer
-      }else{
+      } else {
         return null
       }
 
-    }catch(err){
-      throw new Error("Database error occured while changing offer status");  
+    } catch (err) {
+      throw new Error("Database error occured while changing offer status");
     }
   }
 
-  async findByBranchId(id_branch){
-    try{
-      
-      const offerByBranch=await OffersModel.find({id_branch:id_branch,active:true})
+  async findByBranchId(id_branch) {
+    try {
+
+      const offerByBranch = await OffersModel.find({ id_branch: id_branch, active: true })
       return offerByBranch
 
-    }catch(err){      
-      throw new Error("Database error occured while find offer by branch id");  
+    } catch (err) {
+      throw new Error("Database error occured while find offer by branch id");
     }
   }
 
   async getOffers(filter, skip, limit) {
-    try{
+    try {
       return await OffersModel.aggregate([
         { $match: filter },
-        {$sort:{createdAt:-1}},
+        { $sort: { createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
         {
           $lookup: {
-            from: 'branches', 
+            from: 'branches',
             localField: 'id_branch',
             foreignField: '_id',
             as: 'id_branch'
@@ -172,24 +172,26 @@ class OfferRepository {
           },
         },
         { $unwind: { path: '$s3Details', preserveNullAndEmptyArrays: true } },
-       
-        {$project:{
-          type:1,
-          offer_image:1,
-          createdAt:1,
-          active:1,
-          title:1,
-          description:1,
-          pathurl: {
-            $concat: [
+
+        {
+          $project: {
+            type: 1,
+            offer_image: 1,
+            createdAt: 1,
+            active: 1,
+            title: 1,
+            description: 1,
+            pathurl: {
+              $concat: [
                 "$s3Details.s3display_url",
                 `${config.AWS_LOCAL_PATH}offers/`
-            ]
+              ]
+            }
+          }
         }
-        }}
       ]);
-      
-    }catch(err){
+
+    } catch (err) {
       console.error(err)
       throw new Error("Database error occured while get offer");
     }
@@ -198,22 +200,205 @@ class OfferRepository {
   async countOffers(filter) {
     return await OffersModel.countDocuments(filter);
   }
- 
+
   //helper repo to add total whatsapp message sent count
-  async updateCount(id,count){
+  async updateCount(id, count) {
     try {
       const countUpdate = await OffersModel.updateOne(
-        {_id:id},
-        {$set:{whatsapp_sent:count}}
+        { _id: id },
+        { $set: { whatsapp_sent: count } }
       )
 
-      if(countUpdate.modifiedCount > 0){
+      if (countUpdate.modifiedCount > 0) {
         return countUpdate
       }
 
       return null
     } catch (error) {
       console.error(error)
+    }
+  }
+
+  async getAllActiveOffers() {
+    try {
+      const activeOffers = await OffersModel.aggregate([
+        {
+          $match: { is_deleted: false, active: true, type: "Offers" },
+        },
+        {
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $project: { s3display_url: 1, _id: 0 } }],
+            as: "s3Details",
+          },
+        },
+        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            title: { $ifNull: ["$title", ""] },
+            description: { $ifNull: ["$description", ""] },
+            offer_image: { $arrayElemAt: ["$offer_image", 0] },
+            categoryId: { $ifNull: ["$categoryId", []] },
+            subcategoryId: { $ifNull: ["$subcategoryId", []] },
+            productIds: { $ifNull: ["$productIds", []] },
+            categoryOffer: { $ifNull: ["$categoryOffer", false] },
+            subcategoryOffer: { $ifNull: ["$subcategoryOffer", false] },
+            productOffer: { $ifNull: ["$productOffer", false] },
+            pathurl: {
+              $concat: [
+                { $ifNull: ["$s3Details.s3display_url", ""] },
+                `${config.AWS_LOCAL_PATH}offers/`
+              ]
+            }
+          },
+        }
+      ]);
+
+      return activeOffers;
+    } catch (err) {
+      console.error(err)
+      throw new Error("Database error occured while finding active offers");
+    }
+  }
+
+  async getAllActivePopups() {
+    try {
+      const activePopups = await OffersModel.aggregate([
+        {
+          $match: { is_deleted: false, active: true, type: "Popup" },
+        },
+        {
+          $sort: { _id: -1 } // Get the newest one
+        },
+        {
+          $limit: 1 // Only return one
+        },
+        {
+          $lookup: {
+            from: "s3bucketsettings",
+            pipeline: [{ $project: { s3display_url: 1, _id: 0 } }],
+            as: "s3Details",
+          },
+        },
+        { $unwind: { path: "$s3Details", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            title: { $ifNull: ["$title", ""] },
+            description: { $ifNull: ["$description", ""] },
+            offer_image: { $arrayElemAt: ["$offer_image", 0] },
+            pathurl: {
+              $concat: [
+                { $ifNull: ["$s3Details.s3display_url", ""] },
+                `${config.AWS_LOCAL_PATH}offers/`
+              ]
+            }
+          },
+        }
+      ]);
+
+      return activePopups;
+    } catch (err) {
+      console.error(err)
+      throw new Error("Database error occured while finding active popup");
+    }
+  }
+
+  async getDropdownCategories() {
+    try {
+      const CategoryModel = mongoose.model("Category");
+      return await CategoryModel.find({ active: true, is_deleted: false })
+        .select("_id category_name")
+        .sort({ createdAt: -1 })
+        .lean();
+    } catch (error) {
+      console.error("Error in getDropdownCategories:", error);
+      throw error;
+    }
+  }
+
+  async getDropdownSubcategories(categoryId) {
+    try {
+      const SubCategoryModel = mongoose.model("SubCategory");
+      let categoryQuery = {};
+      if (typeof categoryId === 'string' && categoryId.includes(',')) {
+        const categoryIds = categoryId.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
+        categoryQuery = { $in: categoryIds };
+      } else if (Array.isArray(categoryId)) {
+        categoryQuery = { $in: categoryId.map(id => new mongoose.Types.ObjectId(id)) };
+      } else {
+        categoryQuery = new mongoose.Types.ObjectId(categoryId);
+      }
+
+      return await SubCategoryModel.find({
+        categoryId: categoryQuery,
+        active: true,
+        isDeleted: false,
+      })
+        .select("_id name")
+        .sort({ createdAt: -1 })
+        .lean();
+    } catch (error) {
+      console.error("Error in getDropdownSubcategories:", error);
+      throw error;
+    }
+  }
+
+  async getDropdownProducts(filters) {
+    try {
+      const ProductModel = mongoose.model("Product");
+      const ItemModel = mongoose.model("Item");
+      
+      const { search, category, subcategory, page = 1, limit = 10 } = filters;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      
+      const query = { active: true, is_deleted: false };
+      
+      if (category) {
+        if (Array.isArray(category) || category.includes(',')) {
+          const cats = Array.isArray(category) ? category : category.split(',');
+          query.id_category = { $in: cats.map(c => new mongoose.Types.ObjectId(c.trim())) };
+        } else {
+          query.id_category = new mongoose.Types.ObjectId(category);
+        }
+      }
+      
+      if (subcategory) {
+        if (Array.isArray(subcategory) || subcategory.includes(',')) {
+          const subcats = Array.isArray(subcategory) ? subcategory : subcategory.split(',');
+          query.subcategoryId = { $in: subcats.map(c => new mongoose.Types.ObjectId(c.trim())) };
+        } else {
+          query.subcategoryId = new mongoose.Types.ObjectId(subcategory);
+        }
+      }
+      
+      if (search) {
+        const productIds = await ItemModel.distinct("productId", {
+          tagNo: { $regex: search, $options: "i" }
+        });
+        
+        query.$or = [
+          { product_name: { $regex: search, $options: "i" } },
+          { sku: { $regex: search, $options: "i" } },
+          { _id: { $in: productIds } }
+        ];
+      }
+      
+      const products = await ProductModel.find(query)
+        .select("_id product_name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit) + 1)
+        .lean();
+        
+      const hasMore = products.length > parseInt(limit);
+      if (hasMore) products.pop();
+      
+      return { data: products, hasMore };
+    } catch (error) {
+      console.error("Error in getDropdownProducts:", error);
+      throw error;
     }
   }
 }

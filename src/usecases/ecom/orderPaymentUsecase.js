@@ -9,6 +9,7 @@ import EcomPaymentOrderRepository from "../../infrastructure/repositories/ecom/e
 import axios from "axios";
 import ProductRepository from "../../infrastructure/repositories/chit/productRepository.js";
 import OrderRepository from "../../infrastructure/repositories/ecom/orderRepository.js";
+import PaymentModeRepository from "../../infrastructure/repositories/chit/paymentModeRepository.js";
 
 class OrderPaymentUsecase {
   constructor() {
@@ -125,7 +126,7 @@ class OrderPaymentUsecase {
       }
 
       let requestedReturnUrl = extraData?.return_url || "";
-      const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
+      const allowedOrigin = process.env.ECOM_WEB_FRONT_URL || "http://localhost:3000";
 
       if (!requestedReturnUrl.startsWith(allowedOrigin)) {
         // requestedReturnUrl = `${allowedOrigin}/order-success?order_id={order_id}`;
@@ -140,9 +141,9 @@ class OrderPaymentUsecase {
         order_currency: "INR",
         customer_details: {
           customer_id: token._id,
-          customer_name: `${token.firstname} ${token.lastname}`,
-          customer_email: order.email || token.email || "customer@example.com",
-          customer_phone: order.phone || token.mobile.toString(),
+          customer_name: `${token?.firstname} ${token?.lastname}`,
+          customer_email: order?.email || token?.email || "customer@example.com",
+          customer_phone: order?.phone || token?.mobile.toString(),
         },
         order_meta: {
           return_url: requestedReturnUrl,
@@ -250,6 +251,8 @@ class OrderPaymentUsecase {
       }
       const paymentMode = this.formatPaymentGroup(data?.data?.payment?.payment_group);
 
+      const paymentModeData = await this.paymentMode.findOne({ id_mode: 11 })
+
       const paymentBulk = [];
       paymentBulk.push({
         updateOne: {
@@ -261,7 +264,7 @@ class OrderPaymentUsecase {
             $set: {
               payment_status: 1,
               updatedAt: new Date(),
-              payment_mode: "67682cf7666e32053d05e051",
+              payment_mode: paymentModeData?._id,
               paymentModeName: paymentMode.toUpperCase() ?? paymentMode
             },
           },

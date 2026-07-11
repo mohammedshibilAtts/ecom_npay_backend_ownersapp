@@ -432,7 +432,8 @@ class ProductController {
         bestseller,
         storepickup,
         ordernow,
-        products
+        products,
+        metalNumber,
       } = req.body;
 
       const filters = {
@@ -450,7 +451,8 @@ class ProductController {
         ordernow,
         products,
         from_date: req.body.from_date,
-        to_date: req.body.to_date
+        to_date: req.body.to_date,
+        metalNumber
       };
 
       const safeLimit = parseInt(limit, 10) || 10;

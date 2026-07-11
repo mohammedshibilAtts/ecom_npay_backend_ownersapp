@@ -140,7 +140,6 @@ class WebAuthUsecase {
     // Update allowed fields
     if (data.firstname !== undefined) customer.firstname = data.firstname;
     if (data.lastname !== undefined) customer.lastname = data.lastname;
-    if (data.mobile !== undefined) customer.mobile = data.mobile;
     if (data.whatsapp !== undefined) customer.whatsapp = data.whatsapp;
     if (data.date_of_birth !== undefined) customer.date_of_birth = data.date_of_birth;
     if (data.date_of_wed !== undefined) customer.date_of_wed = data.date_of_wed;

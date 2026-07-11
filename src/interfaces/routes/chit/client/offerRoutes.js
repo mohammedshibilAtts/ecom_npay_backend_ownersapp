@@ -10,14 +10,14 @@ import S3Service from "../../../../utils/s3Bucket.js";
 import S3BucketRepository from "../../../../infrastructure/repositories/chit/super/s3BucketSettingRepository.js";
 
 const offerRepository = new OfferRepository();
-const s3Service=new S3Service()
-const s3repo =new S3BucketRepository()
-const offerUseCase = new OfferUseCase(offerRepository,s3Service,s3repo);
-const tokenService= new TokenService();
-const authMiddleware= new AuthMiddleware(tokenService);
+const s3Service = new S3Service()
+const s3repo = new S3BucketRepository()
+const offerUseCase = new OfferUseCase(offerRepository, s3Service, s3repo);
+const tokenService = new TokenService();
+const authMiddleware = new AuthMiddleware(tokenService);
 const offerValidator = new OfferValidator()
 
-const offerController = new OfferController(offerUseCase,offerValidator);
+const offerController = new OfferController(offerUseCase, offerValidator);
 
 
 const router = express.Router();
@@ -37,7 +37,7 @@ const router = express.Router();
  *     summary: Get offers table data
  *     tags: [Offer]
  */
-router.post('/table',(req,res)=>offerController.getAllOffers(req,res));
+router.post('/table', (req, res) => offerController.getAllOffers(req, res));
 
 /**
  * @swagger
@@ -56,7 +56,16 @@ router.post('/table',(req,res)=>offerController.getAllOffers(req,res));
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:id',(req,res)=>offerController.getOfferById(req,res));
+router.get('/:id', (req, res) => offerController.getOfferById(req, res));
+//web ecom 
+router.get('/web/offers', (req, res) => offerController.getAllActiveOffers(req, res));
+router.get('/web/popup', (req, res) => offerController.getAllActivePopups(req, res));
+
+// Dropdown API endpoints
+router.get('/dropdown/categories', (req, res) => offerController.getDropdownCategories(req, res));
+router.get('/dropdown/subcategories/:categoryId', (req, res) => offerController.getDropdownSubcategories(req, res));
+router.post('/dropdown/products', (req, res) => offerController.getDropdownProducts(req, res));
+
 router.use(authMiddleware.protect);
 
 /**
@@ -68,7 +77,7 @@ router.use(authMiddleware.protect);
  *     security:
  *       - bearerAuth: []
  */
-router.get('/branch/:id',(req,res)=>offerController.getOfferByBranchId(req,res));
+router.get('/branch/:id', (req, res) => offerController.getOfferByBranchId(req, res));
 
 /**
  * @swagger
@@ -88,8 +97,8 @@ router.get('/branch/:id',(req,res)=>offerController.getOfferByBranchId(req,res))
  *                 type: string
  *                 format: binary
  */
-router.post("/",upload.handleUpload([{ name: 'offer_image', maxCount: 3 }]), (req, res) => offerController.addoffer(req, res));
-router.patch("/:id",upload.handleUpload([{ name: 'offer_image', maxCount: 3 }]), (req, res) => offerController.editOffer(req, res));
+router.post("/", upload.handleUpload([{ name: 'offer_image', maxCount: 3 }]), (req, res) => offerController.addoffer(req, res));
+router.patch("/:id", upload.handleUpload([{ name: 'offer_image', maxCount: 3 }]), (req, res) => offerController.editOffer(req, res));
 
 /**
  * @swagger
@@ -100,8 +109,6 @@ router.patch("/:id",upload.handleUpload([{ name: 'offer_image', maxCount: 3 }]),
  *     security:
  *       - bearerAuth: []
  */
-router.patch("/:id/active",(req,res)=>offerController.changeStatus(req,res))
-router.delete("/:id",(req, res) => offerController.deleteOffer(req, res));
-
-
+router.patch("/:id/active", (req, res) => offerController.changeStatus(req, res))
+router.delete("/:id", (req, res) => offerController.deleteOffer(req, res));
 export default router;
