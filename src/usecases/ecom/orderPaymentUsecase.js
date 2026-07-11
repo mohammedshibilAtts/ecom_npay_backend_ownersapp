@@ -130,7 +130,7 @@ class OrderPaymentUsecase {
 
       if (!requestedReturnUrl.startsWith(allowedOrigin)) {
         // requestedReturnUrl = `${allowedOrigin}/order-success?order_id={order_id}`;
-        requestedReturnUrl = `${allowedOrigin}/product/NmE0N2RkYzAzOTBhNjE2OWM1ZDIxNmU5`;
+        requestedReturnUrl = `${allowedOrigin}/order-success?order_id={order_id}&fb_order_id=${transactionId}`;
       }
 
       const totalData = this.sanitizeAmount(order.subtotal);
@@ -154,7 +154,7 @@ class OrderPaymentUsecase {
 
       const paymentOrderDetails = {
         orderId: transactionId,
-        payment_amount: order.totalAmount || totalData,
+        payment_amount: order.subtotal || totalData,
         total_products: items.length,
         created_by: token?.id_employee,
         date_add: new Date(),
@@ -176,6 +176,7 @@ class OrderPaymentUsecase {
           paymentId: savedPayment._id,
         },
       };
+
     } catch (error) {
       console.error("Error in e-commerce payment:", error);
       return {

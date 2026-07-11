@@ -346,6 +346,7 @@ class OrderRepository {
           .filter(Boolean)
           .join(", ");
       }
+      console.log(findOrder)
       const findOrderItem = await OrderItem.aggregate([
         {
           $match: {
@@ -838,6 +839,9 @@ class OrderRepository {
       const computedTotalStonePrice = findOrderItem.reduce((acc, item) => acc + (Number(item.totalStonePrice) || 0), 0);
       const computedTotalDiamondPrice = findOrderItem.reduce((acc, item) => acc + (Number(item.totalDiamondPrice) || 0), 0);
       const computedTotalGstAmount = findOrderItem.reduce((acc, item) => acc + (Number(item.gstamount) || 0), 0);
+      const computedTotalAmount = findOrderItem.reduce((acc, item) => acc + (Number(item.totalprice) || 0), 0);
+      const computedSubTotal = findOrderItem.reduce((acc, item) => acc + (Number(item.subtotal) || Number(item.price) || 0), 0);
+      const computedSavedAmount = findOrderItem.reduce((acc, item) => acc + (Number(item.discountAmount) || 0), 0);
 
       return {
         item: findOrderItem,
@@ -847,11 +851,12 @@ class OrderRepository {
           arrivedAt: findOrder?.statusData[findOrder.statusData.length - 1]?.date,
           orderId: findOrder.orderId,
           address,
-          subTotal: findOrder.subtotal,
-          totalAmount: findOrder.totalAmount,
+          subTotal: computedSubTotal || findOrder.subtotal,
+          totalAmount: computedTotalAmount || findOrder.totalAmount,
+          actualTotalAmount: findOrder.totalAmount,
           shippingCharge: findOrder.shippingFee,
           status: findOrder.status,
-          savedAmount: findOrder.savedAmount,
+          savedAmount: computedSavedAmount || findOrder.savedAmount,
           name: `${findOrder.userId.firstname} ${findOrder.userId.lastname ?? ""
             }`,
           mobile: findOrder.userId?.mobile,

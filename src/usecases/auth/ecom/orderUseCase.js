@@ -555,18 +555,12 @@ class OrderUseCase {
           0,
         totalDiscount: cartItems.overAllAmount?.totalDiscount || 0,
         shippingFee: shppingCharge,
-        totalAmount: cartItems.overAllAmount?.withoutGstPrice || 0,
+        totalAmount: cartItems.overAllAmount?.totalAmount || 0,
         totalGstAmount:
           cartItems.overAllAmount?.totalGstAmount ||
           cartItems.overAllAmount?.gstRate ||
           0,
-        savedAmount:
-          (cartItems.overAllAmount?.subTotal || 0) -
-            (cartItems.overAllAmount?.totalAmount || 0) >
-            0
-            ? (cartItems.overAllAmount?.subTotal || 0) -
-            (cartItems.overAllAmount?.totalAmount || 0)
-            : 0,
+        savedAmount: cartItems.overAllAmount?.totalDiscount || 0,
         status: "Payment Pending",
         deliveryAddress: addressId,
         estimatedDeliveryDays,
@@ -859,6 +853,8 @@ class OrderUseCase {
       const orderData = await this.ecomPaymentReopo.findOne({
         orderId: orderid,
       });
+
+      console.log(orderData, "id")
 
       if (!orderData) {
         return { success: false, message: "No order records found" };
