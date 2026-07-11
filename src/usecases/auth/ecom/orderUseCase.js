@@ -133,137 +133,6 @@ class OrderUseCase {
 
       return await this.orderNowItem(userData, addressId, productId);
 
-      // const findAddress =
-      //   await this.deliveryAddressRepository.findById(addressId);
-
-      // if (!findAddress) {
-      //   return {
-      //     success: false,
-      //     message: "Invalid Address Id",
-      //   };
-      // }
-
-      // const findProduct = await this.productRepository.findById(productId);
-
-      // if (!findProduct && findProduct.onlineProduct) {
-      //   return {
-      //     success: false,
-      //     message: "Product not found",
-      //   };
-      // }
-
-      // const findProductForOrderNow =
-      //   await this.orderRepository.findProductForOrderNow(
-      //     productId,
-      //     userData._id,
-      //   );
-      // if (findProductForOrderNow.alreadyOrdered) {
-      //   return {
-      //     success: false,
-      //     message:
-      //       "Order confirmation is pending. You can place a new order after it's confirmed.",
-      //   };
-      // }
-
-      // const cartData = {};
-      // const findCart = await this.cartRepository.findByUserId(userData._id);
-      // let cartId = findCart && findCart._id ? findCart._id : null;
-      // cartData.userId = userData._id;
-      // if (!findCart) {
-      //   const cart = {
-      //     ...cartData,
-      //     status: "active",
-      //   };
-      //   const createCart = await this.cartRepository.create(cart);
-      //   cartId = createCart._id;
-      // }
-
-      // const shppingCharge = 0;
-      // const raw = `${userData._id}${Date.now()}`;
-      // const transactionId = crypto
-      //   .createHash("sha256")
-      //   .update(raw)
-      //   .digest("hex")
-      //   .slice(0, 15);
-      // const processingStatus = await this.orderRepository.findStatusByNo(
-      //   ORDER_STATUS_NO.PROCESSING,
-      // );
-
-      // const orderData = {
-      //   orderId: `ORD-${transactionId}`,
-      //   userId: userData._id,
-      //   phone: userData?.mobile,
-      //   cartId: findCart?._id || null,
-      //   shipping_is_billing: true,
-      //   itemsCount: 1,
-      //   subtotal: findProduct.totalAmount || findProduct.price || 0,
-      //   totalDiscount: findProduct.discountedAmount || findProduct.price || 0,
-      //   shippingFee: shppingCharge,
-      //   totalAmount:
-      //     (findProduct.discountedAmount || findProduct.price || 0) +
-      //     shppingCharge,
-      //   savedAmount:
-      //     (findProduct.totalAmount || findProduct.price || 0) -
-      //     (findProduct.discountedAmount || findProduct.price || 0),
-      //   status: processingStatus?.name || "Processing",
-      //   deliveryAddress: addressId,
-      //   active: true,
-      //   orderStatus: ORDER_STATUS_NO.PROCESSING,
-      //   orderType: ORDER_TYPE.OFFLINE_ORDER,
-      // };
-      // const orderItems = {
-      //   productId: findProduct._id,
-      //   itemId: findProduct.firstItem?._id || findProduct.items?.[0]?._id,
-      //   productName: findProduct.product_name,
-      //   sku: findProduct.sku,
-      //   image: findProduct.product_image[0],
-      //   grossWeight: findProduct.grossWeight || findProduct.firstItem?.grossWt,
-      //   price: findProduct.discountedAmount || findProduct.price || 0,
-      //   totalPrice:
-      //     findProduct.totalprice ||
-      //     findProduct.totalAmount ||
-      //     findProduct.price ||
-      //     0,
-      //   quantity: 1,
-      //   discountAmount: findProduct.discountedAmount || findProduct.price || 0,
-      //   categoryId: findProduct.id_category,
-      //   subCategoryId: findProduct.subcategoryId,
-      //   collectionId: findProduct.collectionId,
-      //   status: "pending",
-      //   trackingNumber: null,
-      //   shippedAt: new Date(),
-      //   returnStatus: "none",
-      //   refundAmount: 0,
-      //   metalRate: findProduct?.latestMetalPrice,
-      //   netWt: findProduct?.netWeight || findProduct.firstItem?.netWeight,
-      //   id_purity: findProduct.id_purity || findProduct.firstItem?.id_purity,
-      //   purityName: findProduct.purityName,
-      //   id_metal: findProduct.id_metal,
-      //   makingCharges: findProduct.makingCharges ?? null,
-      //   wastageCharges: findProduct.wastageCharges ?? null,
-      //   gstAmount: findProduct.gstValue || findCart?.gst || 0,
-      // };
-      // const createOrder = await this.orderRepository.createOrder(orderData, [
-      //   orderItems,
-      // ]);
-
-      // if (!createOrder) {
-      //   return {
-      //     success: false,
-      //     message: "Failed to create order now",
-      //   };
-      // }
-
-      // // Reduce stock immediately for offline orders
-      // await this.orderRepository.reduceProductQuatityCount(
-      //   createOrder.order._id,
-      // );
-
-      // return {
-      //   success: true,
-      //   message: "Your order has been placed successfully",
-      //   data: createOrder?.data,
-      // };
     } catch (error) {
       console.error(error);
       throw new Error(`Failed to place order: ${error.message}`);
@@ -555,18 +424,12 @@ class OrderUseCase {
           0,
         totalDiscount: cartItems.overAllAmount?.totalDiscount || 0,
         shippingFee: shppingCharge,
-        totalAmount: cartItems.overAllAmount?.withoutGstPrice || 0,
+        totalAmount: cartItems.overAllAmount?.totalAmount || 0,
         totalGstAmount:
           cartItems.overAllAmount?.totalGstAmount ||
           cartItems.overAllAmount?.gstRate ||
           0,
-        savedAmount:
-          (cartItems.overAllAmount?.subTotal || 0) -
-            (cartItems.overAllAmount?.totalAmount || 0) >
-            0
-            ? (cartItems.overAllAmount?.subTotal || 0) -
-            (cartItems.overAllAmount?.totalAmount || 0)
-            : 0,
+        savedAmount: cartItems.overAllAmount?.totalDiscount || 0,
         status: "Payment Pending",
         deliveryAddress: addressId,
         estimatedDeliveryDays,
@@ -658,15 +521,15 @@ class OrderUseCase {
     }
   }
 
-  async getMyOrder(userData) {
+  async getMyOrder(userData, limit = null, cursor = null) {
     try {
       if (!userData._id) {
         throw new Error("User ID not found");
       }
 
-      const findOrders = await this.orderRepository.findOrders(userData._id);
+      const findOrdersResult = await this.orderRepository.findOrders(userData._id, limit, cursor);
 
-      if (!findOrders) {
+      if (!findOrdersResult) {
         return {
           success: false,
           message: "Failed to get orders",
@@ -676,7 +539,9 @@ class OrderUseCase {
       return {
         success: true,
         message: "order retrieved successfully.",
-        data: findOrders,
+        data: findOrdersResult.orders,
+        nextCursor: findOrdersResult.nextCursor,
+        hasNextPage: findOrdersResult.hasNextPage,
       };
     } catch (error) {
       console.error(error);
@@ -871,11 +736,14 @@ class OrderUseCase {
         status = true;
       }
 
+      const order = await this.orderRepository.orderInfo(orderData?.product_payment_ids);
+
       if (paymetStatus)
         return {
           success: true,
           message: "Payment data fetched successfully",
           data: status,
+          orderId: order?._id
         };
     } catch (error) {
       console.error(error);

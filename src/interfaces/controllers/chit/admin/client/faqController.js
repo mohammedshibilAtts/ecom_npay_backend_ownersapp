@@ -122,6 +122,28 @@ class faqController {
             return res.status(500).json({ message: "Internal server error", error: error.message });
         }
     }
+
+    async allFaqs(req, res) {
+        try {
+            const result = await this.faqUseCase.allFaqs();
+
+            if (result.success) {
+                return res
+                    .status(200)
+                    .json({
+                        success: true,
+                        message: result.message,
+                        data: result.data,
+                    });
+            }
+
+            return res.status(200).json({ success: false, message: result.message })
+
+        } catch (error) {
+            console.error("Error in allFaqs Controller:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
 }
 
 export default faqController;

@@ -21,6 +21,7 @@ class OrderPaymentUsecase {
     this.paymentOrderRepo = new EcomPaymentOrderRepository();
     this.productRepo = new ProductRepository();
     this.orderRepo = new OrderRepository();
+    this.paymentModeRepo = new PaymentModeRepository();
   }
 
   async orderPaymentCreation(orderData, token = null, extraData = null) {
@@ -130,7 +131,7 @@ class OrderPaymentUsecase {
 
       if (!requestedReturnUrl.startsWith(allowedOrigin)) {
         // requestedReturnUrl = `${allowedOrigin}/order-success?order_id={order_id}`;
-        requestedReturnUrl = `${allowedOrigin}/product/NmE0N2RkYzAzOTBhNjE2OWM1ZDIxNmU5`;
+        requestedReturnUrl = `${allowedOrigin}/order-success?order_id={order_id}&fb_order_id=${transactionId}`;
       }
 
       const totalData = this.sanitizeAmount(order.subtotal);
@@ -154,7 +155,7 @@ class OrderPaymentUsecase {
 
       const paymentOrderDetails = {
         orderId: transactionId,
-        payment_amount: order.totalAmount || totalData,
+        payment_amount: order.subtotal || totalData,
         total_products: items.length,
         created_by: token?.id_employee,
         date_add: new Date(),
@@ -176,6 +177,7 @@ class OrderPaymentUsecase {
           paymentId: savedPayment._id,
         },
       };
+
     } catch (error) {
       console.error("Error in e-commerce payment:", error);
       return {
@@ -251,7 +253,7 @@ class OrderPaymentUsecase {
       }
       const paymentMode = this.formatPaymentGroup(data?.data?.payment?.payment_group);
 
-      const paymentModeData = await this.PaymentModeRepository.findOne({ id_mode: 11 })
+      const paymentModeData = await this.paymentModeRepo.findOne({ id_mode: 11 })
 
       const paymentBulk = [];
       paymentBulk.push({
