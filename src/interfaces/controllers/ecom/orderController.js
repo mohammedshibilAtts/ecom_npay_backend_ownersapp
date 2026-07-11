@@ -209,7 +209,7 @@ class OrderController {
       return res.status(200).json({
         success: true,
         message: result.message,
-        data: { success: result.data },
+        data: { success: result.data, orderId: result.orderId },
       });
     } catch (error) {
       console.error(error);

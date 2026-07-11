@@ -21,8 +21,9 @@ const authMiddleware = new AuthMiddleware(tokenService);
  *   name: FAQ
  *   description: Frequently Asked Questions management
  */
-
-router.use(authMiddleware.protect); 
+//web ecom route
+router.get('/web/faqs', (req, res) => faqControllers.allFaqs(req, res));
+router.use(authMiddleware.protect);
 
 /**
  * @swagger
@@ -33,7 +34,7 @@ router.use(authMiddleware.protect);
  *     security:
  *       - bearerAuth: []
  */
-router.post('/add', (req, res) => faqControllers.createfaq(req, res)); 
+router.post('/add', (req, res) => faqControllers.createfaq(req, res));
 
 /**
  * @swagger
@@ -49,8 +50,8 @@ router.post('/add', (req, res) => faqControllers.createfaq(req, res));
  *     security:
  *       - bearerAuth: []
  */
-router.post('/all/', (req, res) => faqControllers.getAllfaq(req, res)); 
-router.get('/:id', (req, res) => faqControllers.getfaqByUser(req, res)); 
+router.post('/all/', (req, res) => faqControllers.getAllfaq(req, res));
+router.get('/:id', (req, res) => faqControllers.getfaqByUser(req, res));
 
 /**
  * @swagger
@@ -61,7 +62,7 @@ router.get('/:id', (req, res) => faqControllers.getfaqByUser(req, res));
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/update/:id', (req, res) => faqControllers.updatefaq(req, res)); 
-router.delete('/:id', (req, res) => faqControllers.deletefaq(req, res)); 
+router.patch('/update/:id', (req, res) => faqControllers.updatefaq(req, res));
+router.delete('/:id', (req, res) => faqControllers.deletefaq(req, res));
 
 export default router;

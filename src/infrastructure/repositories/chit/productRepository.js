@@ -1113,7 +1113,6 @@ class ProductRepository {
 
   async listAllProducts(limit, filter, customerId = null, cursor = null) {
     try {
-      console.log(filter)
       const s3Url = await getS3DisplayUrl();
       const match = {
         is_deleted: false,
@@ -1154,7 +1153,6 @@ class ProductRepository {
           const matchingMetalIds = matchingMetals.map(m => m._id);
           match.id_metal = match.id_metal ? { $in: [...new Set([...(match.id_metal.$in || []), ...matchingMetalIds])] } : { $in: matchingMetalIds };
         } else {
-          // If no metal matches, ensure query returns empty
           match.id_metal = new mongoose.Types.ObjectId("000000000000000000000000");
         }
       }
@@ -1176,16 +1174,19 @@ class ProductRepository {
 
         const CategoryModel = mongoose.models.Category;
         const SubCategoryModel = mongoose.models.SubCategory;
+        const MetalModel = mongoose.models.Metal;
 
         const matchingCategories = CategoryModel ? await CategoryModel.find({ category_name: regex }, { _id: 1 }).lean() : [];
         const matchingSubcategories = SubCategoryModel ? await SubCategoryModel.find({ name: regex }, { _id: 1 }).lean() : [];
+        const matchingMetals = MetalModel ? await MetalModel.find({ metal_name: regex }, { _id: 1 }).lean() : [];
 
         const categoryIds = matchingCategories.map(c => c._id);
         const subcategoryIds = matchingSubcategories.map(c => c._id);
+        const metalIds = matchingMetals.map(m => m._id);
 
         match.$or = [
           { product_name: regex },
-          // { sku: regex },
+          { code: regex },
         ];
 
         if (categoryIds.length > 0) {
@@ -1194,6 +1195,10 @@ class ProductRepository {
 
         if (subcategoryIds.length > 0) {
           match.$or.push({ subcategoryId: { $in: subcategoryIds } });
+        }
+
+        if (metalIds.length > 0) {
+          match.$or.push({ id_metal: { $in: metalIds } });
         }
       }
 

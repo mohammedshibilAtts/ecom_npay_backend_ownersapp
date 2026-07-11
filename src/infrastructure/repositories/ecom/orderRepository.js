@@ -5,8 +5,6 @@ import { OrderItem } from "../../models/ecom/orderItemModel.js";
 import { Order } from "../../models/ecom/orderModel.js";
 import productModel from "../../models/chit/productModel.js";
 import orderStatusModel from "../../models/ecom/orderStatusModel.js";
-import orderPaymentModel from "../../models/ecom/orderPaymentModel.js";
-import ecomPaymentOrderModel from "../../models/ecom/ecomPaymentOrderModel.js";
 import metalRateModel from "../../models/chit/metalRateModel.js";
 import itemModel from "../../models/ecom/itemModel.js";
 import {
@@ -15,7 +13,15 @@ import {
   ORDER_TYPE,
   ORDER_TYPE_NAME,
 } from "../../../config/chit/const.js";
-import orderTransactionModel from "../../models/ecom/orderTransactionModel.js";
+
+const encodeCursor = (payload) => Buffer.from(JSON.stringify(payload)).toString("base64");
+const decodeCursor = (cursor) => {
+  try {
+    return JSON.parse(Buffer.from(cursor, "base64").toString("utf-8"));
+  } catch (error) {
+    return null;
+  }
+};
 
 class OrderRepository {
   async createOrder(orderData, orderItems) {
@@ -50,9 +56,30 @@ class OrderRepository {
     }
   }
 
-  async findOrders(userId) {
+  async orderInfo(paymentId) {
     try {
-      const findOrder = await Order.find({ userId })
+      console.log(paymentId)
+      return Order.findOne({ paymentId: paymentId }).select("_id");
+    } catch (error) {
+      throw new Error(`Repository Error (findCartByuserId): ${error.message}`);
+    }
+  }
+
+  async findOrders(userId, limit = null, cursor = null) {
+    try {
+      const match = { userId };
+      
+      if (cursor) {
+        const decoded = decodeCursor(cursor);
+        if (decoded) {
+          match.$or = [
+            { createdAt: { $lt: new Date(decoded.createdAt) } },
+            { createdAt: { $eq: new Date(decoded.createdAt) }, _id: { $lt: new mongoose.Types.ObjectId(decoded._id) } }
+          ];
+        }
+      }
+
+      let query = Order.find(match)
         .populate({
           path: "deliveryAddress",
           populate: [
@@ -81,15 +108,33 @@ class OrderRepository {
               model: "Branch",
             },
           ],
-          strictPopulate: false, // Add this line
+          strictPopulate: false,
         })
         .populate({
           path: "paymentDetails",
           model: "Payment",
           strictPopulate: false,
         })
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .lean();
+
+      if (limit) {
+        query = query.limit(parseInt(limit) + 1);
+      }
+
+      let findOrder = await query;
+      let hasNextPage = false;
+      let nextCursor = null;
+
+      if (limit && findOrder.length > limit) {
+        hasNextPage = true;
+        findOrder = findOrder.slice(0, limit);
+      }
+
+      if (hasNextPage && findOrder.length > 0) {
+        const lastItem = findOrder[findOrder.length - 1];
+        nextCursor = encodeCursor({ _id: lastItem._id, createdAt: lastItem.createdAt });
+      }
 
       const ordersWithDetails = await Promise.all(
         findOrder.map(async (order) => {
@@ -311,7 +356,7 @@ class OrderRepository {
         }),
       );
 
-      return ordersWithDetails;
+      return { orders: ordersWithDetails, nextCursor, hasNextPage };
     } catch (error) {
       console.error("Error in findOrders:", error);
       return null;

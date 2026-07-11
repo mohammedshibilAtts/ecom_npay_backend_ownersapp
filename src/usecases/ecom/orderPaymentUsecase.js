@@ -21,6 +21,7 @@ class OrderPaymentUsecase {
     this.paymentOrderRepo = new EcomPaymentOrderRepository();
     this.productRepo = new ProductRepository();
     this.orderRepo = new OrderRepository();
+    this.paymentModeRepo = new PaymentModeRepository();
   }
 
   async orderPaymentCreation(orderData, token = null, extraData = null) {
@@ -252,7 +253,7 @@ class OrderPaymentUsecase {
       }
       const paymentMode = this.formatPaymentGroup(data?.data?.payment?.payment_group);
 
-      const paymentModeData = await this.PaymentModeRepository.findOne({ id_mode: 11 })
+      const paymentModeData = await this.paymentModeRepo.findOne({ id_mode: 11 })
 
       const paymentBulk = [];
       paymentBulk.push({

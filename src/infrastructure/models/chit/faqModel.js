@@ -23,6 +23,10 @@ const FaqSchema = new mongoose.Schema(
       type: Boolean,
       default: true, // true = visible, false = hidden
     },
+    webView: {
+      type: Boolean,
+      default: false, // true = app and web, false = app only (as per requirement)
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId, 
       required: true,
