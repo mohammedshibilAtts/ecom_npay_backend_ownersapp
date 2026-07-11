@@ -9,7 +9,7 @@ import EcomPaymentOrderRepository from "../../infrastructure/repositories/ecom/e
 import axios from "axios";
 import ProductRepository from "../../infrastructure/repositories/chit/productRepository.js";
 import OrderRepository from "../../infrastructure/repositories/ecom/orderRepository.js";
-import PaymentModeRepository from "../../infrastructure/repositories/chit/paymentModeRepository.js";
+import PaymentModeRepository from "../../infrastructure/repositories/chit/PaymentModeRepository.js";
 
 class OrderPaymentUsecase {
   constructor() {
@@ -251,7 +251,7 @@ class OrderPaymentUsecase {
       }
       const paymentMode = this.formatPaymentGroup(data?.data?.payment?.payment_group);
 
-      const paymentModeData = await this.paymentMode.findOne({ id_mode: 11 })
+      const paymentModeData = await this.PaymentModeRepository.findOne({ id_mode: 11 })
 
       const paymentBulk = [];
       paymentBulk.push({
