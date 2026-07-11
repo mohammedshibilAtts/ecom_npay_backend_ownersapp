@@ -40,7 +40,30 @@ const offerSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-  
+    categoryId: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    }],
+    subcategoryId: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCategory",
+    }],
+    productIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    }],
+    categoryOffer: {
+      type: Boolean,
+      default: false,
+    },
+    subcategoryOffer: {
+      type: Boolean,
+      default: false,
+    },
+    productOffer: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

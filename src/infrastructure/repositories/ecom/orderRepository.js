@@ -465,6 +465,8 @@ class OrderRepository {
             },
             sizeValue: "$ItemInfo.sizeValue",
             purityName: { $ifNull: ["$purityName", "$Purity.purity_name"] },
+            totalStoneWeight: { $cond: [{ $gt: ["$totalStoneWeight", 0] }, "$totalStoneWeight", "$ItemInfo.stonewt"] },
+            totalDiamondWeight: { $cond: [{ $gt: ["$totalDiamondWeight", 0] }, "$totalDiamondWeight", "$ItemInfo.diamondwt"] },
           },
         },
 
@@ -485,7 +487,7 @@ class OrderRepository {
             totalprice: "$totalPrice",
             subtotal: "$price",
             // totalWithGst: "$discountAmount",
-            discountAmount: { $round: [{ $subtract: ["$totalPrice", "$price"] }, 1] },
+            discountAmount: { $round: [{ $subtract: ["$totalPrice", "$price"] }, 0] },
             gstamount: { $ifNull: ["$gstAmount", 0] },
 
             priceBreakup: {
@@ -505,6 +507,53 @@ class OrderRepository {
         },
       ]);
 
+      for (let i = 0; i < findOrderItem.length; i++) {
+        const item = findOrderItem[i];
+        if (
+          !(Number(item.totalStoneWeight) || 0) &&
+          !(Number(item.totalDiamondWeight) || 0) &&
+          !(Number(item.totalStonePrice) || 0) &&
+          !(Number(item.totalDiamondPrice) || 0) &&
+          item.itemId
+        ) {
+          const itemDoc = await itemModel.findById(item.itemId).populate({
+            path: "stoneDetails",
+            populate: { path: "itemId" }
+          }).lean();
+
+          if (itemDoc && itemDoc.stoneDetails && itemDoc.stoneDetails.length > 0) {
+            let tsw = 0, tdw = 0, tsp = 0, tdp = 0;
+            itemDoc.stoneDetails.forEach((stone) => {
+              let price = Number(stone.price || 0);
+              if (price === 0 && stone.itemId && stone.itemId.percraterate) {
+                price = Number(stone.weight || 0) * Number(stone.itemId.percraterate || 0) + Number(stone.itemId.charge || 0);
+              }
+              if (stone.type && stone.type.toLowerCase() === "diamond") {
+                tdw += Number(stone.weight || 0);
+                tdp += price;
+              } else if (stone.type && stone.type.toLowerCase() === "stone") {
+                tsw += Number(stone.weight || 0);
+                tsp += price;
+              }
+            });
+
+            item.totalStoneWeight = tsw;
+            item.totalDiamondWeight = tdw;
+            item.totalStonePrice = tsp;
+            item.totalDiamondPrice = tdp;
+
+            if (item.priceBreakup) {
+              item.priceBreakup.stoneValue = Math.round((tsp + tdp) * 100) / 100;
+            }
+          }
+        }
+      }
+      const computedTotalStoneWeight = findOrderItem.reduce((acc, item) => acc + (Number(item.totalStoneWeight) || 0), 0);
+      const computedTotalDiamondWeight = findOrderItem.reduce((acc, item) => acc + (Number(item.totalDiamondWeight) || 0), 0);
+      const computedTotalStonePrice = findOrderItem.reduce((acc, item) => acc + (Number(item.totalStonePrice) || 0), 0);
+      const computedTotalDiamondPrice = findOrderItem.reduce((acc, item) => acc + (Number(item.totalDiamondPrice) || 0), 0);
+      const computedTotalGstAmount = findOrderItem.reduce((acc, item) => acc + (Number(item.gstamount) || 0), 0);
+
       return {
         item: findOrderItem,
         overAll: {
@@ -523,13 +572,13 @@ class OrderRepository {
           trackingNo: findOrder?.trackerId,
           parcelService: findOrder?.parcelService,
           orderTypeNo: findOrder?.orderType,
-          totalGstAmount: findOrder?.totalGstAmount,
           paymentMode: findOrder?.paymentId?.paymentModeName,
           cancelReason: findOrder?.cancelReason,
-          totalStoneWeight: findOrder?.totalStoneWeight ?? 0,
-          totalDiamondWeight: findOrder?.totalDiamondWeight ?? 0,
-          totalStonePrice: findOrder?.totalStonePrice ?? 0,
-          totalDiamondPrice: findOrder?.totalDiamondPrice ?? 0,
+          totalGstAmount: findOrder?.totalGstAmount || computedTotalGstAmount,
+          totalStoneWeight: findOrder?.totalStoneWeight || computedTotalStoneWeight,
+          totalDiamondWeight: findOrder?.totalDiamondWeight || computedTotalDiamondWeight,
+          totalStonePrice: findOrder?.totalStonePrice || computedTotalStonePrice,
+          totalDiamondPrice: findOrder?.totalDiamondPrice || computedTotalDiamondPrice,
         },
         pathUrl: `${config.DISPLAY_IMG_URL}products/`,
       };
@@ -661,6 +710,20 @@ class OrderRepository {
           },
         },
         {
+          $lookup: {
+            from: "items",
+            localField: "itemId",
+            foreignField: "_id",
+            as: "itemDoc",
+          },
+        },
+        {
+          $unwind: {
+            path: "$itemDoc",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
           $addFields: {
             matchedSize: {
               $arrayElemAt: [
@@ -694,22 +757,94 @@ class OrderRepository {
             price: { $ifNull: ["$price", "$discountAmount"] },
             grossWt: "$grossWeight",
             netWt: "$netWt",
-            totalStoneWeight: "$totalStoneWeight",
-            totalDiamondWeight: "$totalDiamondWeight",
+            totalStoneWeight: { $cond: [{ $gt: ["$totalStoneWeight", 0] }, "$totalStoneWeight", "$itemDoc.stonewt"] },
+            totalDiamondWeight: { $cond: [{ $gt: ["$totalDiamondWeight", 0] }, "$totalDiamondWeight", "$itemDoc.diamondwt"] },
             totalStonePrice: "$totalStonePrice",
             totalDiamondPrice: "$totalDiamondPrice",
             metalRate: "$metalRate",
             huidNo: "$huidNo",
             huidCharges: "$huidCharges",
             diaCertificateNo: "$diaCertificateNo",
+            tagNo: { $ifNull: ["$tagNo", "$itemDoc.tagNo"] },
+            totalprice: "$totalPrice",
+            subtotal: "$price",
+            discountAmount: { $round: [{ $subtract: ["$totalPrice", "$price"] }, 1] },
+            gstamount: { $ifNull: ["$gstAmount", 0] },
+            onlineProduct: "$product.onlineProduct",
+            soldOutStatus: "$itemDoc.status",
+            priceBreakup: {
+              metalValue: { $round: ["$calculations.baseMetalValue", 2] },
+              makingValue: { $round: ["$makingCharges.discountedValue", 2] },
+              wastageValue: { $round: ["$wastageCharges.discountedValue", 2] },
+              stoneValue: {
+                $round: [
+                  { $add: ["$totalStonePrice", "$totalDiamondPrice"] },
+                  2,
+                ],
+              },
+              gstValue: { $round: ["$gstAmount", 4] },
+              huidCharges: { $ifNull: ["$huidCharges", 0] },
+            },
+            makingValue: { $round: ["$makingCharges.discountedValue", 2] },
+            wastageValue: { $round: ["$wastageCharges.discountedValue", 2] }
           },
         },
       ]);
+
+      for (let i = 0; i < findOrderItem.length; i++) {
+        const item = findOrderItem[i];
+        if (
+          !(Number(item.totalStoneWeight) || 0) &&
+          !(Number(item.totalDiamondWeight) || 0) &&
+          !(Number(item.totalStonePrice) || 0) &&
+          !(Number(item.totalDiamondPrice) || 0) &&
+          item.itemId
+        ) {
+          const itemDoc = await itemModel.findById(item.itemId).populate({
+            path: "stoneDetails",
+            populate: { path: "itemId" }
+          }).lean();
+
+          if (itemDoc && itemDoc.stoneDetails && itemDoc.stoneDetails.length > 0) {
+            let tsw = 0, tdw = 0, tsp = 0, tdp = 0;
+            itemDoc.stoneDetails.forEach((stone) => {
+              let price = Number(stone.price || 0);
+              if (price === 0 && stone.itemId && stone.itemId.percraterate) {
+                price = Number(stone.weight || 0) * Number(stone.itemId.percraterate || 0) + Number(stone.itemId.charge || 0);
+              }
+              if (stone.type && stone.type.toLowerCase() === "diamond") {
+                tdw += Number(stone.weight || 0);
+                tdp += price;
+              } else if (stone.type && stone.type.toLowerCase() === "stone") {
+                tsw += Number(stone.weight || 0);
+                tsp += price;
+              }
+            });
+
+            item.totalStoneWeight = tsw;
+            item.totalDiamondWeight = tdw;
+            item.totalStonePrice = tsp;
+            item.totalDiamondPrice = tdp;
+
+            if (item.priceBreakup) {
+              item.priceBreakup.stoneValue = Math.round((tsp + tdp) * 100) / 100;
+            }
+          }
+        }
+      }
+
+      const computedTotalStoneWeight = findOrderItem.reduce((acc, item) => acc + (Number(item.totalStoneWeight) || 0), 0);
+      const computedTotalDiamondWeight = findOrderItem.reduce((acc, item) => acc + (Number(item.totalDiamondWeight) || 0), 0);
+      const computedTotalStonePrice = findOrderItem.reduce((acc, item) => acc + (Number(item.totalStonePrice) || 0), 0);
+      const computedTotalDiamondPrice = findOrderItem.reduce((acc, item) => acc + (Number(item.totalDiamondPrice) || 0), 0);
+      const computedTotalGstAmount = findOrderItem.reduce((acc, item) => acc + (Number(item.gstamount) || 0), 0);
+
       return {
         item: findOrderItem,
         overAll: {
           placedAt: findOrder.createdAt,
-          arrivedAt: findOrder.estimatedDeliveryDate,
+          estimatedDeliveryDate: findOrder.estimatedDeliveryDate,
+          arrivedAt: findOrder?.statusData[findOrder.statusData.length - 1]?.date,
           orderId: findOrder.orderId,
           address,
           subTotal: findOrder.subtotal,
@@ -724,19 +859,23 @@ class OrderRepository {
           cus_img: findOrder.userId?.cus_img,
           createdAt: findOrder.createdAt,
           orderStatus: findOrder.orderStatus,
+          statusType: findOrder.orderStatus,
           orderstatusData: findOrder.statusData,
           orderType: findOrder.orderType,
+          orderTypeNo: findOrder?.orderType,
           orderTypeName: ORDER_TYPE_NAME[findOrder.orderType],
           trackerId: findOrder.trackerId,
+          trackingNo: findOrder?.trackerId,
+          cancelReason: findOrder?.cancelReason,
           parcelService: findOrder.parcelService,
           deliveryRecipientName: findOrder?.deliveryAddress?.name,
           deliveryRecipientPhone: findOrder?.deliveryAddress?.mobileNo,
-          totalGstAmount: findOrder?.totalGstAmount,
+          totalGstAmount: findOrder?.totalGstAmount || computedTotalGstAmount,
           paymentMode: findOrder?.paymentId?.paymentModeName,
-          totalStoneWeight: findOrder?.totalStoneWeight ?? 0,
-          totalDiamondWeight: findOrder?.totalDiamondWeight ?? 0,
-          totalStonePrice: findOrder?.totalStonePrice ?? 0,
-          totalDiamondPrice: findOrder?.totalDiamondPrice ?? 0,
+          totalStoneWeight: findOrder?.totalStoneWeight || computedTotalStoneWeight,
+          totalDiamondWeight: findOrder?.totalDiamondWeight || computedTotalDiamondWeight,
+          totalStonePrice: findOrder?.totalStonePrice || computedTotalStonePrice,
+          totalDiamondPrice: findOrder?.totalDiamondPrice || computedTotalDiamondPrice,
         },
         productPathUrl: `${config.DISPLAY_IMG_URL}products/`,
         customerPathUrl: `${config.DISPLAY_IMG_URL}customer/`,
@@ -1642,6 +1781,7 @@ class OrderRepository {
 
   async reduceProductQuatityCount(orderId) {
     try {
+      console.log(orderId)
       const orderItems = await OrderItem.find({ orderId }).lean();
 
       if (!orderItems.length) {

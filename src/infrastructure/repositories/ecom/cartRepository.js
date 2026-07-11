@@ -560,7 +560,7 @@ class CartRepository {
             id_branch: "$Product.id_branch",
             gst: "$Product.gst",
             discountAmount: {
-              $round: [
+              $trunc: [
                 {
                   $multiply: [
                     {
@@ -572,7 +572,7 @@ class CartRepository {
                     { $ifNull: ["$quantity", 1] },
                   ],
                 },
-                2,
+                0,
               ],
             },
             gstRate: "$gstRate",

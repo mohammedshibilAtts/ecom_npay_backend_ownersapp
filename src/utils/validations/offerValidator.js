@@ -3,7 +3,7 @@ import Joi from 'joi';
 class OfferValidator {
   offerValidations = Joi.object({
     type: Joi.string()
-      .valid("Offers","Banner","Marqueee","Video","Popup")
+      .valid("Offers", "Banner", "Marqueee", "Video", "Popup")
       .required()
       .messages({
         "any.required": "Type is required",
@@ -19,27 +19,27 @@ class OfferValidator {
         "string.base": "id_branch ID must be a string",
       }),
 
-      title: Joi.string()
-      .trim()
-      .when("type", {
-        is: "Offers",
-        then: Joi.required().messages({
-          "any.required": "Title is required",
-        }),
-      }),
+    // title: Joi.string()
+    // .trim()
+    // .when("type", {
+    //   is: "Offers",
+    //   then: Joi.required().messages({
+    //     "any.required": "Title is required",
+    //   }),
+    // }),
 
-  
 
-      description: Joi.string()
-      .trim()
-      .when("type", {
-        is: Joi.valid("Offers", "Marqueee"),
-        then: Joi.required().messages({
-          "any.required": "Description is required",
-        }),
-      }),
 
-      videoId: Joi.string()
+    // description: Joi.string()
+    //   .trim()
+    //   .when("type", {
+    //     is: Joi.valid("Offers", "Marqueee"),
+    //     then: Joi.required().messages({
+    //       "any.required": "Description is required",
+    //     }),
+    //   }),
+
+    videoId: Joi.string()
       .trim()
       .when("type", {
         is: "Video",
@@ -48,7 +48,7 @@ class OfferValidator {
         }),
       }),
 
-  });
+  }).unknown(true);
 
 
 }

@@ -1113,7 +1113,7 @@ class ProductRepository {
 
   async listAllProducts(limit, filter, customerId = null, cursor = null) {
     try {
-
+      console.log(filter)
       const s3Url = await getS3DisplayUrl();
       const match = {
         is_deleted: false,
@@ -1145,6 +1145,18 @@ class ProductRepository {
       } else if (filter.metal && typeof filter.metal === 'string') {
         const metalIds = filter.metal.split(',').map(id => new mongoose.Types.ObjectId(id.trim()));
         match.id_metal = { $in: metalIds };
+      }
+
+      if (filter.metalNumber) {
+        const MetalModel = mongoose.models.Metal;
+        const matchingMetals = MetalModel ? await MetalModel.find({ id_metal: Number(filter.metalNumber) }, { _id: 1 }).lean() : [];
+        if (matchingMetals.length > 0) {
+          const matchingMetalIds = matchingMetals.map(m => m._id);
+          match.id_metal = match.id_metal ? { $in: [...new Set([...(match.id_metal.$in || []), ...matchingMetalIds])] } : { $in: matchingMetalIds };
+        } else {
+          // If no metal matches, ensure query returns empty
+          match.id_metal = new mongoose.Types.ObjectId("000000000000000000000000");
+        }
       }
 
       if (filter.bestseller === "true" || filter.bestseller === true) {
@@ -1485,6 +1497,7 @@ class ProductRepository {
             is_deleted: 1,
             createdAt: 1,
             updatedAt: 1,
+            status: "$firstItem.status",
             staticSortPrice: 1,
             staticSortWeight: 1,
             price: "$calculatedPrice",

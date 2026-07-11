@@ -8,15 +8,15 @@ class OfferController {
     try {
       const offerData = req.body;
       const createdBy = req.user.id_employee;
-      // offerData.offer_image = req.files.offer_image;
       const { error } = await this.offerValidator.offerValidations.validate(
-        offerData
+        offerData,
+        { abortEarly: false }
       );
 
       if (error) {
         return res.status(400).json(error.details[0].message);
       }
-      req.body.created_by=createdBy
+      req.body.created_by = createdBy
       const createOffer = await this.offerUseCase.addOffer(
         req.body,
         req.files
@@ -29,7 +29,7 @@ class OfferController {
       }
     } catch (err) {
       console.error(err);
-      
+
       res.status(500).json({ message: "Internal server error" });
     }
   }
@@ -39,7 +39,7 @@ class OfferController {
       const offerData = req.body;
       const offerId = req.params.id;
       const createdBy = req.user.id_employee;
-     
+
       /// empty array using for avoid the validation error while type 0 1 2 but no image changes
       const { error } = await this.offerValidator.offerValidations.validate(
         offerData
@@ -48,7 +48,7 @@ class OfferController {
       if (error) {
         return res.status(400).json(error.details[0].message);
       }
-      req.body.created_by=createdBy
+      req.body.created_by = createdBy
       const editOffer = await this.offerUseCase.editOffer(
         req.body,
         offerId,
@@ -151,16 +151,90 @@ class OfferController {
   async getAllOffers(req, res) {
     try {
       const allOffers = await this.offerUseCase.getAllOffers(req.body);
-      
+
       if (!allOffers.success) {
         return res.status(400).json({ message: allOffers.message });
       }
 
-      res.status(200).json({ message: allOffers.message, data: allOffers.data ,
-        totalDocuments:allOffers.totalOffers,
-        totalPages:allOffers.totalPages,
-        currentPage:allOffers.currentPage
+      res.status(200).json({
+        message: allOffers.message, data: allOffers.data,
+        totalDocuments: allOffers.totalOffers,
+        totalPages: allOffers.totalPages,
+        currentPage: allOffers.currentPage
       });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getAllActiveOffers(req, res) {
+    try {
+      const allOffers = await this.offerUseCase.getAllActiveOffers();
+
+      if (!allOffers.success) {
+        return res.status(400).json({ message: allOffers.message });
+      }
+
+      res.status(200).json({
+        message: allOffers.message, data: allOffers.data,
+        totalDocuments: allOffers.totalOffers,
+        totalPages: allOffers.totalPages,
+        currentPage: allOffers.currentPage
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getAllActivePopups(req, res) {
+    try {
+      const allOffers = await this.offerUseCase.getAllActivePopups();
+
+      if (!allOffers.success) {
+        return res.status(400).json({ message: allOffers.message });
+      }
+
+      res.status(200).json({
+        message: allOffers.message, data: allOffers.data,
+        totalDocuments: allOffers.totalOffers,
+        totalPages: allOffers.totalPages,
+        currentPage: allOffers.currentPage
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+  async getDropdownCategories(req, res) {
+    try {
+      const result = await this.offerUseCase.getDropdownCategories();
+      if (result.success) return res.status(200).json(result);
+      return res.status(400).json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getDropdownSubcategories(req, res) {
+    try {
+      const { categoryId } = req.params;
+      const result = await this.offerUseCase.getDropdownSubcategories(categoryId);
+      if (result.success) return res.status(200).json(result);
+      return res.status(400).json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getDropdownProducts(req, res) {
+    try {
+      const result = await this.offerUseCase.getDropdownProducts(req.body);
+      if (result.success) return res.status(200).json(result);
+      return res.status(400).json(result);
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Internal server error" });

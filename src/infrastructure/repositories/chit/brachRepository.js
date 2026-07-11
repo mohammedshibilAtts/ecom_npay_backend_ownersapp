@@ -4,7 +4,9 @@ class BranchRepository {
   async find() {
    try {
     const data = await Branch.find({active:true})
-    .select('_id branch_name active mobile')
+    .select('_id branch_name active mobile address pincode branch_landline whatsapp_no email id_state id_city')
+    .populate('id_state', 'state_name')
+    .populate('id_city', 'city_name')
 
     if (data.length === 0 ) return null;
 

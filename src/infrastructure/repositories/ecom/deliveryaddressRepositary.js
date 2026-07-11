@@ -58,7 +58,11 @@ export default class DeliveryAddressRepositary {
     
     async deleteaddress(id) {
         try {
-            const deletedAddress = await deliveryaddressModel.findByIdAndDelete(id);
+            const deletedAddress = await deliveryaddressModel.findByIdAndUpdate(
+                id,
+                { is_deleted: true, active: false },
+                { new: true }
+            );
     
             if (!deletedAddress) {
                 throw new Error("Address not found");

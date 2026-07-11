@@ -704,7 +704,7 @@ class OrderUseCase {
       const findOrderItems = await this.orderRepository.findOrderItems(
         findOrder._id,
       );
-      console.log(findOrderItems, "item")
+
       if (!findOrderItems) {
         return {
           success: false,

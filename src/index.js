@@ -1,6 +1,7 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
+import compression from 'compression';
 import config from './config/chit/env.js';
 import logger from './utils/logger.js';
 import connectDB from './config/chit/database.js';
@@ -48,6 +49,7 @@ app.set("trust proxy", 1);
 
 
 // Middleware setup
+app.use(compression());
 app.use(
   bodyParser.json({
     verify: (req, res, buf) => {
