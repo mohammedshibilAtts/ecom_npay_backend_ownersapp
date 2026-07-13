@@ -161,7 +161,7 @@ class ContentManagementController {
                     });
             }
 
-            return res.status(400).json({ message: result.message })
+            return res.status(200).json({ message: result.message })
 
         } catch (error) {
             console.error("Error in getContentsForWeb Controller:", error);
