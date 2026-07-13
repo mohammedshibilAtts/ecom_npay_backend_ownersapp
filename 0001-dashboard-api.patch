@@ -1,0 +1,307 @@
+From a6db45d427ca69681f2d6ff710ca486ca3881e0a Mon Sep 17 00:00:00 2001
+From: NeeharpremAtts <neeharprem@atts.in>
+Date: Wed, 27 May 2026 22:49:47 +0530
+Subject: [PATCH] dashboard api
+
+---
+ src/index.js                                  |  15 ++-
+ .../repositories/ownersapp/dashboardRepo.js   | 116 ++++++++++++++++++
+ .../ownersapp/dashboardController.js          |  19 +++
+ .../routes/ownersapp/dashboardRoutes.js       |  14 +++
+ src/interfaces/routes/ownersapp/indexRoute.js |  11 ++
+ src/usecases/ownersapp/dashboardUseCase.js    |  11 ++
+ .../middleware/ownersAppAuthMiddleware.js     |  29 +++++
+ 7 files changed, 207 insertions(+), 8 deletions(-)
+ create mode 100644 src/infrastructure/repositories/ownersapp/dashboardRepo.js
+ create mode 100644 src/interfaces/controllers/ownersapp/dashboardController.js
+ create mode 100644 src/interfaces/routes/ownersapp/dashboardRoutes.js
+ create mode 100644 src/interfaces/routes/ownersapp/indexRoute.js
+ create mode 100644 src/usecases/ownersapp/dashboardUseCase.js
+ create mode 100644 src/utils/middleware/ownersAppAuthMiddleware.js
+
+diff --git a/src/index.js b/src/index.js
+index a4af42f..33d1af8 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -20,6 +20,7 @@ import './cron/digigoldAutoCron.js'
+ import './cron/overdueAutoCron.js'
+ import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
+ import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
++import ownersappRoute from './interfaces/routes/ownersapp/indexRoute.js'
+ 
+ (function setupGlobalErrorLogger() {
+   if (typeof process !== 'undefined' && process.on) {
+@@ -52,7 +53,7 @@ const app = express();
+ app.use(
+   bodyParser.json({
+     verify: (req, res, buf) => {
+-      req.rawBody = buf.toString(); 
++      req.rawBody = buf.toString();
+     },
+   })
+ );
+@@ -85,20 +86,18 @@ app.get('/e-product/:id', (req, res) => {
+ app.use('/api/auth', authRoutes);
+ app.use('/api/admin', adminRoutes);
+ app.use('/api/client', clientRoutes);
+-app.use('/api/otp',otpRoutes)
+-app.use('/api/webhook',paymentHook);
++app.use('/api/otp', otpRoutes)
++app.use('/api/webhook', paymentHook);
+ app.use('/api/push', notificationRoutes);
+ //api to import excel data
+-app.use('/api/import',exportRoutes)
++app.use('/api/import', exportRoutes)
+ 
+ //aupay ecom routes
+-app.use('/api/shop',shopRoutes)
++app.use('/api/shop', shopRoutes)
+ 
+-//aupay-ausale support api
+-// app.use('/api/sales',ausaleRoutes)
++app.use('/api/owner', ownersappRoute)
+ 
+ // Serve static files
+-
+ app.use(express.static(path.join(__dirname, 'public')));
+ app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")));
+ 
+diff --git a/src/infrastructure/repositories/ownersapp/dashboardRepo.js b/src/infrastructure/repositories/ownersapp/dashboardRepo.js
+new file mode 100644
+index 0000000..2212ceb
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/dashboardRepo.js
+@@ -0,0 +1,116 @@
++import paymentModel from "../../models/chit/paymentModel.js";
++import customerModel from "../../models/chit/customerModel.js";
++
++class DashboardRepo {
++    async getDashboardStats(fromDate, toDate) {
++        const now = new Date();
++        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
++        const endOfDay = new Date(now.setHours(23, 59, 59, 999));
++
++        let queryFromDate = startOfDay;
++        if (fromDate && !isNaN(new Date(fromDate).getTime())) {
++            queryFromDate = new Date(fromDate);
++        }
++
++        let queryToDate = endOfDay;
++        if (toDate && !isNaN(new Date(toDate).getTime())) {
++            queryToDate = new Date(toDate);
++        }
++
++        const [paymentStatsResult, customerStatsResult] = await Promise.all([
++            paymentModel.aggregate([
++                {
++                    $match: {
++                        date_payment: { $gte: queryFromDate, $lte: queryToDate },
++                        payment_status: 1,
++                        active: true,
++                        is_deleted: false
++                    }
++                },
++                {
++                    $lookup: {
++                        from: "schemes",
++                        localField: "id_scheme",
++                        foreignField: "_id",
++                        as: "schemeInfo"
++                    }
++                },
++                { $unwind: { path: "$schemeInfo", preserveNullAndEmptyArrays: true } },
++                {
++                    $lookup: {
++                        from: "metals",
++                        localField: "schemeInfo.id_metal",
++                        foreignField: "_id",
++                        as: "metalInfo"
++                    }
++                },
++                { $unwind: { path: "$metalInfo", preserveNullAndEmptyArrays: true } },
++                {
++                    $group: {
++                        _id: null,
++                        totalAmount: { $sum: "$payment_amount" },
++                        goldSavings: {
++                            $sum: {
++                                $cond: [
++                                    { $gte: [{ $indexOfBytes: [{ $ifNull: [{ $toLower: "$metalInfo.metal_name" }, ""] }, "gold"] }, 0] },
++                                    { $ifNull: ["$metal_weight", 0] },
++                                    0
++                                ]
++                            }
++                        },
++                        silverSavings: {
++                            $sum: {
++                                $cond: [
++                                    { $gte: [{ $indexOfBytes: [{ $ifNull: [{ $toLower: "$metalInfo.metal_name" }, ""] }, "silver"] }, 0] },
++                                    { $ifNull: ["$metal_weight", 0] },
++                                    0
++                                ]
++                            }
++                        }
++                    }
++                }
++            ]),
++            customerModel.aggregate([
++                {
++                    $match: {
++                        createdAt: { $lte: queryToDate },
++                        active: true,
++                        is_deleted: false
++                    }
++                },
++                {
++                    $group: {
++                        _id: null,
++                        totalCustomers: { $sum: 1 },
++                        newJoiners: {
++                            $sum: {
++                                $cond: [
++                                    { $gte: ["$createdAt", queryFromDate] },
++                                    1,
++                                    0
++                                ]
++                            }
++                        }
++                    }
++                }
++            ])
++        ]);
++
++        const paymentStats = paymentStatsResult[0] || { totalAmount: 0, goldSavings: 0, silverSavings: 0 };
++        const customerStats = customerStatsResult[0] || { totalCustomers: 0, newJoiners: 0 };
++
++        return {
++            dateRange: {
++                fromDate: queryFromDate,
++                toDate: queryToDate
++            },
++            totalPayments: paymentStats.totalAmount,
++            totalCustomers: customerStats.totalCustomers,
++            newJoiners: customerStats.newJoiners,
++            goldSavings: paymentStats.goldSavings,
++            silverSavings: paymentStats.silverSavings
++        };
++    }
++}
++
++export default DashboardRepo;
+diff --git a/src/interfaces/controllers/ownersapp/dashboardController.js b/src/interfaces/controllers/ownersapp/dashboardController.js
+new file mode 100644
+index 0000000..d81180b
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/dashboardController.js
+@@ -0,0 +1,19 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++
++class DashboardController {
++    constructor(dashboardUseCase) {
++        this.dashboardUseCase = dashboardUseCase;
++    }
++
++    getDashboard = asyncHandler(async (req, res) => {
++        const { fromDate, toDate } = req.query;
++        const data = await this.dashboardUseCase.executeGetDashboard(fromDate, toDate);
++
++        res.status(200).json({
++            success: true,
++            data
++        });
++    });
++}
++
++export default DashboardController;
+diff --git a/src/interfaces/routes/ownersapp/dashboardRoutes.js b/src/interfaces/routes/ownersapp/dashboardRoutes.js
+new file mode 100644
+index 0000000..7978929
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/dashboardRoutes.js
+@@ -0,0 +1,14 @@
++import express from 'express';
++import DashboardController from '../../controllers/ownersapp/dashboardController.js';
++import DashboardRepo from '../../../infrastructure/repositories/ownersapp/dashboardRepo.js';
++import DashboardUseCase from '../../../usecases/ownersapp/dashboardUseCase.js';
++
++const router = express.Router();
++
++const dashboardRepo = new DashboardRepo();
++const dashboardUseCase = new DashboardUseCase(dashboardRepo);
++const dashboardController = new DashboardController(dashboardUseCase);
++
++router.get('/dashboard', (req, res) => dashboardController.getDashboard(req, res));
++
++export default router;
+diff --git a/src/interfaces/routes/ownersapp/indexRoute.js b/src/interfaces/routes/ownersapp/indexRoute.js
+new file mode 100644
+index 0000000..e47654f
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/indexRoute.js
+@@ -0,0 +1,11 @@
++import express from 'express';
++import dashboardRoutes from './dashboardRoutes.js';
++import ownersAppAuthMiddleware from '../../../utils/middleware/ownersAppAuthMiddleware.js';
++
++const router = express.Router();
++
++router.use(ownersAppAuthMiddleware.protect);
++
++router.use('/', dashboardRoutes);
++
++export default router;
+diff --git a/src/usecases/ownersapp/dashboardUseCase.js b/src/usecases/ownersapp/dashboardUseCase.js
+new file mode 100644
+index 0000000..da591da
+--- /dev/null
++++ b/src/usecases/ownersapp/dashboardUseCase.js
+@@ -0,0 +1,11 @@
++class DashboardUseCase {
++    constructor(dashboardRepo) {
++        this.dashboardRepo = dashboardRepo;
++    }
++
++    async executeGetDashboard(fromDate, toDate) {
++        return await this.dashboardRepo.getDashboardStats(fromDate, toDate);
++    }
++}
++
++export default DashboardUseCase;
+diff --git a/src/utils/middleware/ownersAppAuthMiddleware.js b/src/utils/middleware/ownersAppAuthMiddleware.js
+new file mode 100644
+index 0000000..09c06df
+--- /dev/null
++++ b/src/utils/middleware/ownersAppAuthMiddleware.js
+@@ -0,0 +1,29 @@
++import jwt from 'jsonwebtoken';
++import AppError from '../errors/AppError.js';
++import asyncHandler from '../errors/asyncHandler.js';
++
++class OwnersAppAuthMiddleware {
++  protect = asyncHandler(async (req, res, next) => {
++    const authHeader = req.headers.authorization;
++    const token = authHeader && authHeader.startsWith('Bearer ')
++      ? authHeader.split(' ')[1]
++      : null;
++
++    if (!token) {
++      throw new AppError('Missing or invalid authorization token from ownersapp', 401);
++    }
++
++    try {
++      const ownersKey = process.env['OWNERS-KEY'] || 'default_npay_key';
++      const decoded = jwt.verify(token, ownersKey);
++      req.ownersAppClient = decoded;
++
++      next();
++    } catch (error) {
++      console.error('OwnersApp Token Verification Error:', error.message);
++      return res.status(401).json({ success: false, message: "Invalid or expired token from ownersapp" });
++    }
++  });
++}
++
++export default new OwnersAppAuthMiddleware();
+-- 
+2.52.0.windows.1
+

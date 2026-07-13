@@ -21,6 +21,7 @@ import './cron/overdueAutoCron.js'
 import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
 import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
 import chitRedeemRoutes from './interfaces/routes/chitRedeem/chitRedeemRoutes.js';
+import ownersappRoute from './interfaces/routes/ownersapp/indexRoute.js';
 import './cron/promotionCronSetup.js'
 import { setupSwagger } from './config/swaggerConfig.js';
 import "./config/chit/cronSetup.js"
@@ -142,6 +143,8 @@ app.use('/api/ecom/app/products', ecomAppProducts);
 app.use('/api/ecom/app/wishlist', ecomAppWishlist);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/ecom/web/auth', webAuthRoutes);
+
+app.use('/api/owner', ownersappRoute);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")));

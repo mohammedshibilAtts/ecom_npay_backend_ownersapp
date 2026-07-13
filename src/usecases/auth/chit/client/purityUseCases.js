@@ -2,17 +2,17 @@ import { isValidObjectId } from "mongoose";
 import mongoose from "mongoose";
 import MetalRepository from "../../../../infrastructure/repositories/chit/MetalRepository.js";
 
-class PurityUseCase { 
-  constructor(purityRepository,metalRateRepo) {
+class PurityUseCase {
+  constructor(purityRepository, metalRateRepo) {
     this.purityRepository = purityRepository;
     this.metalRateRepo = metalRateRepo;
     this.metalRepo = new MetalRepository();
   }
 
-  async addPurity(data,token) {
+  async addPurity(data, token) {
     try {
       const exists = await this.purityRepository.findOne({
-        purity_name: { $regex: new RegExp(`^${data.purity_name}$`, "i") },is_deleted:false
+        purity_name: { $regex: new RegExp(`^${data.purity_name}$`, "i") }, is_deleted: false
       });
 
       if (exists) {
@@ -28,16 +28,6 @@ class PurityUseCase {
         return { success: false, message: "Failed to add purity" };
       }
 
-      // const metalRate = {
-      //   id_branch: token.id_branch,
-      //   purity_id: savedData._id,
-      //   material_type_id: data.id_metal,
-      //   rate: 0,
-      //   created_by: token.id_employee,
-      //   modified_by:  token.id_employee
-      // };      
-
-      // await this.metalRateRepo.addInitialRate(metalRate)
       return { success: true, message: "Purity added successfully" };
     } catch (error) {
       console.error(error);
@@ -85,7 +75,7 @@ class PurityUseCase {
         };
       }
 
-      const savedData = await this.purityRepository.updatePurity(id,updates);
+      const savedData = await this.purityRepository.updatePurity(id, updates);
 
       if (!savedData) {
         return { success: false, message: "Failed to update purity" };
@@ -93,7 +83,7 @@ class PurityUseCase {
 
       const metaRate = await this.metalRateRepo.getByPurityId(id)
 
-      await this.metalRateRepo.updateMetalId(metaRate._id,data.id_metal)
+      await this.metalRateRepo.updateMetalId(metaRate._id, data.id_metal)
       return { success: true, message: "Purity updated successfully" };
     } catch (error) {
       console.error(error);
@@ -130,137 +120,137 @@ class PurityUseCase {
     }
   }
 
-  async activatePurity(id){
+  async activatePurity(id) {
     try {
-        if(!isValidObjectId(id)){
-            return {success:false, message:'Provide a valid object id'}
-        }
+      if (!isValidObjectId(id)) {
+        return { success: false, message: 'Provide a valid object id' }
+      }
 
-        const existingData = await this.purityRepository.findById(id);
+      const existingData = await this.purityRepository.findById(id);
 
-        if(!existingData){
-            return {success:false,message:'No documents found'}
-        }
+      if (!existingData) {
+        return { success: false, message: 'No documents found' }
+      }
 
-        if(existingData.is_deleted){
-            return {success:false,message:"Deleted document action not permited"}
-        }
+      if (existingData.is_deleted) {
+        return { success: false, message: "Deleted document action not permited" }
+      }
 
-        
-        const newData= await this.purityRepository.activatePurity(id,existingData.active)
 
-        if(!newData){
-            return {success:false,message:'Failed change active state'}
-        }
+      const newData = await this.purityRepository.activatePurity(id, existingData.active)
 
-        let message = existingData.active ?
+      if (!newData) {
+        return { success: false, message: 'Failed change active state' }
+      }
+
+      let message = existingData.active ?
         "Purity deactivated successfullly" :
         "Purity activated successfully"
 
-        return {success:true,message:message}
+      return { success: true, message: message }
     } catch (error) {
-        console.error(error);
-        return {success:false,message:'Error while changing active state'}
+      console.error(error);
+      return { success: false, message: 'Error while changing active state' }
     }
   }
 
-  async purityDisplaySettings(id){
+  async purityDisplaySettings(id) {
     try {
-        if(!isValidObjectId(id)){
-            return {success:false, message:'Provide a valid object id'}
-        }
+      if (!isValidObjectId(id)) {
+        return { success: false, message: 'Provide a valid object id' }
+      }
 
-        const existingData = await this.purityRepository.findById(id);
+      const existingData = await this.purityRepository.findById(id);
 
-        if(!existingData){
-            return {success:false,message:'No documents found'}
-        }
+      if (!existingData) {
+        return { success: false, message: 'No documents found' }
+      }
 
-        if(existingData.is_deleted){
-            return {success:false,message:"Deleted document action not permited"}
-        }
+      if (existingData.is_deleted) {
+        return { success: false, message: "Deleted document action not permited" }
+      }
 
-        if(!existingData.active){
-            return {success:false,message:'Purity not active action not permit'}
-        }
+      if (!existingData.active) {
+        return { success: false, message: 'Purity not active action not permit' }
+      }
 
-        const newData= await this.purityRepository.purityDisplaySettings(id,existingData.display_app)
+      const newData = await this.purityRepository.purityDisplaySettings(id, existingData.display_app)
 
-        if(!newData){
-            return {success:false,message:'Failed change active state'}
-        }
+      if (!newData) {
+        return { success: false, message: 'Failed change active state' }
+      }
 
-        let message = existingData.display_app ?
+      let message = existingData.display_app ?
         "App display deactivated successfully" :
         "App display activated successfully"
 
-        return {success:true,message:message}
+      return { success: true, message: message }
     } catch (error) {
-        console.error(error);
-        return {success:false,message:'Error while changing display state'}
+      console.error(error);
+      return { success: false, message: 'Error while changing display state' }
     }
   }
 
-  async getPurityById(id){
+  async getPurityById(id) {
     try {
-        if(!isValidObjectId(id)){
-            return {success:false,message:'Provide a valid object id'}
-        }
+      if (!isValidObjectId(id)) {
+        return { success: false, message: 'Provide a valid object id' }
+      }
 
-        const existingData = await this.purityRepository.findById(id);
+      const existingData = await this.purityRepository.findById(id);
 
-        if(!existingData){
-            return {success:false,message:'No documents found'}
-        }
+      if (!existingData) {
+        return { success: false, message: 'No documents found' }
+      }
 
-        if(existingData.is_deleted){
-            return {success:false,message:'Deleted document'}
-        }
+      if (existingData.is_deleted) {
+        return { success: false, message: 'Deleted document' }
+      }
 
 
-        return {success:true,message:'Purity data fetched successfully',data:existingData}
+      return { success: true, message: 'Purity data fetched successfully', data: existingData }
     } catch (error) {
-        console.error(error);
-        return {success:false,message:'Error while fetching purity data'}
+      console.error(error);
+      return { success: false, message: 'Error while fetching purity data' }
     }
   }
 
-  async getPurityByMetalId(id){
+  async getPurityByMetalId(id) {
     try {
       let existingData
-      if(isValidObjectId(id)){
-        existingData = await this.purityRepository.find({id_metal:id,active:true,is_deleted:false});
-       }else{
+      if (isValidObjectId(id)) {
+        existingData = await this.purityRepository.find({ id_metal: id, active: true, is_deleted: false });
+      } else {
         existingData = await this.purityRepository.findByNum(id)
-       }
+      }
 
-        if(!existingData){
-            return {success:false,message:'No documents found'}
-        }
+      if (!existingData) {
+        return { success: false, message: 'No documents found' }
+      }
 
-        return {success:true,message:'Purity data fetched successfully',data:existingData}
+      return { success: true, message: 'Purity data fetched successfully', data: existingData }
     } catch (error) {
-        console.error(error);
-        return {success:false,message:'Error while fetching purity data'}
+      console.error(error);
+      return { success: false, message: 'Error while fetching purity data' }
     }
   }
 
-  async getAllPurity(){
+  async getAllPurity() {
     try {
-        const Data = await this.purityRepository.find({active:true,is_deleted:false});
+      const Data = await this.purityRepository.find({ active: true, is_deleted: false });
 
-        if(!Data){
-            return {success:false,message:'No purity data found'}
-        }
+      if (!Data) {
+        return { success: false, message: 'No purity data found' }
+      }
 
-        return {success:true,message:'Purity data fetched successfully',data:Data}
+      return { success: true, message: 'Purity data fetched successfully', data: Data }
     } catch (error) {
-        console.error(error);
-        return {success:false,message:'Error while fetching purity data'}
+      console.error(error);
+      return { success: false, message: 'Error while fetching purity data' }
     }
   }
 
-  async puityTable(page=1, limit=10, search) {
+  async puityTable(page = 1, limit = 10, search) {
     try {
       const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
@@ -269,14 +259,14 @@ class PurityUseCase {
 
       const searchCriteria = searchTerm
         ? {
-            $or: [
-              { purity_name: { $regex: searchTerm, $options: "i" } }
-            ],
-          }
+          $or: [
+            { purity_name: { $regex: searchTerm, $options: "i" } }
+          ],
+        }
         : {};
 
       const query = {
-       is_deleted:false,
+        is_deleted: false,
         ...searchCriteria,
       };
 

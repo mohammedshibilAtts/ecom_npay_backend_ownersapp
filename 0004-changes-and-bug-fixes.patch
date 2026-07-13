@@ -1,0 +1,495 @@
+From 98221a4fe1385511b97abcd8dfbcafa186eba58c Mon Sep 17 00:00:00 2001
+From: NeeharpremAtts <neeharprem@atts.in>
+Date: Mon, 13 Jul 2026 16:05:16 +0530
+Subject: [PATCH] changes and bug fixes
+
+---
+ .../repositories/ownersapp/commonRepo.js      | 21 +++++++++
+ .../repositories/ownersapp/locationRepo.js    | 37 ++++++++++++++++
+ .../repositories/ownersapp/metalrateRepo.js   |  4 +-
+ .../repositories/ownersapp/paymentRepo.js     | 15 +++++--
+ .../repositories/ownersapp/schemeRepo.js      | 12 ++---
+ .../controllers/ownersapp/commonController.js | 28 ++++++++++++
+ .../ownersapp/locationController.js           | 44 +++++++++++++++++++
+ .../routes/ownersapp/commonRoutes.js          | 15 +++++++
+ .../routes/ownersapp/customerRoutes.js        |  1 -
+ src/interfaces/routes/ownersapp/indexRoute.js |  5 ++-
+ .../routes/ownersapp/locationRoutes.js        | 16 +++++++
+ .../auth/chit/client/paymentUseCase.js        | 40 ++++++++---------
+ src/usecases/ownersapp/commonUseCase.js       | 24 ++++++++++
+ src/usecases/ownersapp/locationUseCase.js     | 34 ++++++++++++++
+ 14 files changed, 263 insertions(+), 33 deletions(-)
+ create mode 100644 src/infrastructure/repositories/ownersapp/commonRepo.js
+ create mode 100644 src/infrastructure/repositories/ownersapp/locationRepo.js
+ create mode 100644 src/interfaces/controllers/ownersapp/commonController.js
+ create mode 100644 src/interfaces/controllers/ownersapp/locationController.js
+ create mode 100644 src/interfaces/routes/ownersapp/commonRoutes.js
+ create mode 100644 src/interfaces/routes/ownersapp/locationRoutes.js
+ create mode 100644 src/usecases/ownersapp/commonUseCase.js
+ create mode 100644 src/usecases/ownersapp/locationUseCase.js
+
+diff --git a/src/infrastructure/repositories/ownersapp/commonRepo.js b/src/infrastructure/repositories/ownersapp/commonRepo.js
+new file mode 100644
+index 0000000..72d7038
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/commonRepo.js
+@@ -0,0 +1,21 @@
++import branchModel from "../../models/chit/branchModel.js";
++
++class CommonRepo {
++    async getGender() {
++        return [
++            { id: 1, name: "Male" },
++            { id: 2, name: "Female" },
++            { id: 3, name: "Other" }
++        ];
++    }
++    async getBranch() {
++        try {
++            return await branchModel.find({ active: true, is_deleted: false }).select('branch_name _id');
++        } catch (error) {
++            console.error("Error in getBranch repo:", error);
++            throw error;
++        }
++    }
++}
++
++export default CommonRepo;
+diff --git a/src/infrastructure/repositories/ownersapp/locationRepo.js b/src/infrastructure/repositories/ownersapp/locationRepo.js
+new file mode 100644
+index 0000000..087fb10
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/locationRepo.js
+@@ -0,0 +1,37 @@
++import countryModel from "../../models/chit/countryModel.js";
++import stateModel from "../../models/chit/stateModel.js";
++import cityModel from "../../models/chit/cityModel.js";
++
++class LocationRepo {
++    async getCountry() {
++        try {
++            return await countryModel.find({}).sort({ country_name: 1 });
++        } catch (error) {
++            console.error("Error in getCountry:", error);
++            throw error;
++        }
++    }
++
++    async getState(countryId) {
++        try {
++            console.log(countryId)
++            const query = countryId ? { id_country: countryId } : {};
++            return await stateModel.find(query).sort({ state_name: 1 });
++        } catch (error) {
++            console.error("Error in getState:", error);
++            throw error;
++        }
++    }
++
++    async getCity(stateId) {
++        try {
++            if (!stateId) throw new Error("State ID is required");
++            return await cityModel.find({ id_state: stateId }).sort({ city_name: 1 });
++        } catch (error) {
++            console.error("Error in getCity:", error);
++            throw error;
++        }
++    }
++}
++
++export default LocationRepo;
+diff --git a/src/infrastructure/repositories/ownersapp/metalrateRepo.js b/src/infrastructure/repositories/ownersapp/metalrateRepo.js
+index 8a09aa7..e3d4ad5 100644
+--- a/src/infrastructure/repositories/ownersapp/metalrateRepo.js
++++ b/src/infrastructure/repositories/ownersapp/metalrateRepo.js
+@@ -62,7 +62,9 @@ class MetalRateRepo {
+                         rate: "$rate",
+                         id_branch: "$id_branch",
+                         metal_name: "$metal_info.metal_name",
+-                        purity_name: "$purity_info.purity_name"
++                        purity_name: "$purity_info.purity_name",
++                        active: "$metal_info.active",
++                        createdAt: "$createdAt"
+                     }
+                 }
+             ];
+diff --git a/src/infrastructure/repositories/ownersapp/paymentRepo.js b/src/infrastructure/repositories/ownersapp/paymentRepo.js
+index b9d492e..b884cf3 100644
+--- a/src/infrastructure/repositories/ownersapp/paymentRepo.js
++++ b/src/infrastructure/repositories/ownersapp/paymentRepo.js
+@@ -3,17 +3,24 @@ import paymentModel from "../../models/chit/paymentModel.js";
+ class PaymentRepo {
+     async getPayments(fromDate, toDate, page = 1, limit = 10) {
+         const now = new Date();
+-        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+-        const endOfDay = new Date(now.setHours(0, 0, 0, 0));
++        const startOfDay = new Date(now);
++        startOfDay.setUTCHours(0, 0, 0, 0);
++        
++        const endOfDay = new Date(now);
++        endOfDay.setUTCHours(23, 59, 59, 999);
+ 
+         let queryFromDate = startOfDay;
+         if (fromDate && !isNaN(new Date(fromDate).getTime())) {
+-            queryFromDate = new Date(fromDate);
++            const parsedFromDate = new Date(fromDate);
++            parsedFromDate.setUTCHours(0, 0, 0, 0);
++            queryFromDate = parsedFromDate;
+         }
+ 
+         let queryToDate = endOfDay;
+         if (toDate && !isNaN(new Date(toDate).getTime())) {
+-            queryToDate = new Date(toDate);
++            const parsedToDate = new Date(toDate);
++            parsedToDate.setUTCHours(23, 59, 59, 999);
++            queryToDate = parsedToDate;
+         }
+ 
+         const pageNum = parseInt(page, 10) || 1;
+diff --git a/src/infrastructure/repositories/ownersapp/schemeRepo.js b/src/infrastructure/repositories/ownersapp/schemeRepo.js
+index 88d9a87..647d263 100644
+--- a/src/infrastructure/repositories/ownersapp/schemeRepo.js
++++ b/src/infrastructure/repositories/ownersapp/schemeRepo.js
+@@ -155,19 +155,19 @@ class SchemeRepo {
+ 
+             return {
+                 totalActiveSchemes: activeSchemesCount,
+-                
++
+                 newAccounts: schemesResult.newAccounts,
+                 newAccountsChange: calculatePercentageChange(schemesResult.newAccounts, schemesResult.prevNewAccounts),
+-                
++
+                 completedAccounts: schemesResult.completedAccounts,
+                 completedAccountsChange: calculatePercentageChange(schemesResult.completedAccounts, schemesResult.prevCompletedAccounts),
+-                
++
+                 receivedAmount: paymentsResult.receivedAmount,
+                 receivedAmountChange: calculatePercentageChange(paymentsResult.receivedAmount, paymentsResult.prevReceivedAmount),
+-                
++
+                 goldSavings: paymentsResult.goldSavings,
+                 goldSavingsChange: calculatePercentageChange(paymentsResult.goldSavings, paymentsResult.prevGoldSavings),
+-                
++
+                 silverSavings: paymentsResult.silverSavings,
+                 silverSavingsChange: calculatePercentageChange(paymentsResult.silverSavings, paymentsResult.prevSilverSavings)
+             };
+@@ -200,7 +200,7 @@ class SchemeRepo {
+ 
+             const schemeMatch = {
+                 ...filter,
+-                // active: true,
++                active: true,
+                 is_deleted: false
+             };
+ 
+diff --git a/src/interfaces/controllers/ownersapp/commonController.js b/src/interfaces/controllers/ownersapp/commonController.js
+new file mode 100644
+index 0000000..7a8aac9
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/commonController.js
+@@ -0,0 +1,28 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++
++class CommonController {
++    constructor(commonUseCase) {
++        this.commonUseCase = commonUseCase;
++    }
++
++    getGender = asyncHandler(async (req, res) => {
++        try {
++            const data = await this.commonUseCase.getGender();
++            res.status(200).json({ success: true, data });
++        } catch (error) {
++            console.error("Error in getGender controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++    getBranch = asyncHandler(async (req, res) => {
++        try {
++            const data = await this.commonUseCase.getBranch();
++            res.status(200).json({ success: true, data });
++        } catch (error) {
++            console.error("Error in getBranch controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++}
++
++export default CommonController;
+diff --git a/src/interfaces/controllers/ownersapp/locationController.js b/src/interfaces/controllers/ownersapp/locationController.js
+new file mode 100644
+index 0000000..cd8204b
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/locationController.js
+@@ -0,0 +1,44 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++
++class LocationController {
++    constructor(locationUseCase) {
++        this.locationUseCase = locationUseCase;
++    }
++
++    getCountry = asyncHandler(async (req, res) => {
++        try {
++            const data = await this.locationUseCase.getCountry();
++            res.status(200).json({ success: true, data });
++        } catch (error) {
++            console.error("Error in getCountry controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++
++    getState = asyncHandler(async (req, res) => {
++        try {
++            const { id } = req.query;
++            const data = await this.locationUseCase.getState(id);
++            res.status(200).json({ success: true, data });
++        } catch (error) {
++            console.error("Error in getState controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++
++    getCity = asyncHandler(async (req, res) => {
++        try {
++            const { id } = req.query;
++            if (!id) {
++                return res.status(400).json({ success: false, message: "State ID is required" });
++            }
++            const data = await this.locationUseCase.getCity(id);
++            res.status(200).json({ success: true, data });
++        } catch (error) {
++            console.error("Error in getCity controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++}
++
++export default LocationController;
+diff --git a/src/interfaces/routes/ownersapp/commonRoutes.js b/src/interfaces/routes/ownersapp/commonRoutes.js
+new file mode 100644
+index 0000000..1394325
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/commonRoutes.js
+@@ -0,0 +1,15 @@
++import express from 'express';
++import CommonRepo from '../../../infrastructure/repositories/ownersapp/commonRepo.js';
++import CommonUseCase from '../../../usecases/ownersapp/commonUseCase.js';
++import CommonController from '../../controllers/ownersapp/commonController.js';
++
++const commonRepo = new CommonRepo();
++const commonUseCase = new CommonUseCase(commonRepo);
++const commonController = new CommonController(commonUseCase);
++
++const router = express.Router();
++
++router.get('/gender', commonController.getGender);
++router.get('/branch', commonController.getBranch);
++
++export default router;
+diff --git a/src/interfaces/routes/ownersapp/customerRoutes.js b/src/interfaces/routes/ownersapp/customerRoutes.js
+index b3e894b..13b20b4 100644
+--- a/src/interfaces/routes/ownersapp/customerRoutes.js
++++ b/src/interfaces/routes/ownersapp/customerRoutes.js
+@@ -12,5 +12,4 @@ const router = express.Router();
+ router.get('/customers', customerController.getCustomers);
+ router.post('/customers', customerController.setCustomers);
+ router.get('/customers/find', customerController.findCustomer);
+-
+ export default router;
+diff --git a/src/interfaces/routes/ownersapp/indexRoute.js b/src/interfaces/routes/ownersapp/indexRoute.js
+index 4a913bc..8666f49 100644
+--- a/src/interfaces/routes/ownersapp/indexRoute.js
++++ b/src/interfaces/routes/ownersapp/indexRoute.js
+@@ -6,6 +6,8 @@ import paymentRoutes from './paymentRoutes.js';
+ import metalRateRoutes from './metalrateRoutes.js';
+ import customerRoutes from './customerRoutes.js';
+ import schemeRoutes from './schemeRoutes.js';
++import locationRoutes from './locationRoutes.js';
++import commonRoutes from './commonRoutes.js';
+ 
+ const router = express.Router();
+ 
+@@ -17,6 +19,7 @@ router.use("/", paymentRoutes);
+ router.use("/", metalRateRoutes);
+ router.use("/", customerRoutes);
+ router.use("/", schemeRoutes);
++router.use("/", locationRoutes);
++router.use("/", commonRoutes);
+ 
+ export default router;
+-
+diff --git a/src/interfaces/routes/ownersapp/locationRoutes.js b/src/interfaces/routes/ownersapp/locationRoutes.js
+new file mode 100644
+index 0000000..37228e5
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/locationRoutes.js
+@@ -0,0 +1,16 @@
++import express from 'express';
++import LocationRepo from '../../../infrastructure/repositories/ownersapp/locationRepo.js';
++import LocationUseCase from '../../../usecases/ownersapp/locationUseCase.js';
++import LocationController from '../../controllers/ownersapp/locationController.js';
++
++const locationRepo = new LocationRepo();
++const locationUseCase = new LocationUseCase(locationRepo);
++const locationController = new LocationController(locationUseCase);
++
++const router = express.Router();
++
++router.get('/country', locationController.getCountry);
++router.get('/state', locationController.getState);
++router.get('/city', locationController.getCity);
++
++export default router;
+diff --git a/src/usecases/auth/chit/client/paymentUseCase.js b/src/usecases/auth/chit/client/paymentUseCase.js
+index 6444cc2..1a95a3a 100644
+--- a/src/usecases/auth/chit/client/paymentUseCase.js
++++ b/src/usecases/auth/chit/client/paymentUseCase.js
+@@ -392,21 +392,21 @@ class PaymentUseCase {
+ 
+         const hasPreviousPayment = !!schemeAccData?.last_paid_date;
+ 
+-        if (hasPreviousPayment) {
+-          const monthlyPayments =
+-            await this.paymentRepository.getMonthlyPayments({
+-              id: data.id_scheme_account,
+-              date: paymentDateObj,
+-            });
+-
+-          // if (
+-          //   schemeData?.limit_installment &&
+-          //   Number(monthlyPayments) + Number(data.installments) >
+-          //     Number(schemeData.limit_installment)
+-          // ) {
+-          //   return { status: false, message: "Monthly payment limit reached" };
+-          // }
+-        }
++        // if (hasPreviousPayment) {
++        //   const monthlyPayments =
++        //     await this.paymentRepository.getMonthlyPayments({
++        //       id: data.id_scheme_account,
++        //       date: paymentDateObj,
++        //     });
++
++        //   if (
++        //     schemeData?.limit_installment &&
++        //     Number(monthlyPayments) + Number(data.installments) >
++        //     Number(schemeData.limit_installment)
++        //   ) {
++        //     return { status: false, message: "Monthly payment limit reached" };
++        //   }
++        // }
+ 
+         const paymentMode = await this.paymenModeRepo.findById(
+           data.payment_mode
+@@ -1001,7 +1001,7 @@ class PaymentUseCase {
+         };
+       }
+ 
+-      return { success: true, message: "Payment added successfully",savedPayment};
++      return { success: true, message: "Payment added successfully", savedPayment };
+     } catch (error) {
+       console.error(error);
+       return { success: false, message: "Failed to add payment" };
+@@ -1276,7 +1276,7 @@ class PaymentUseCase {
+ 
+         if (
+           Number(totalInstallments) + Number(data.installments) >
+-            Number(schemeData.total_installments) &&
++          Number(schemeData.total_installments) &&
+           notDigiGold
+         ) {
+           return {
+@@ -1286,14 +1286,14 @@ class PaymentUseCase {
+         }
+         const hasPreviousPayment = !!schemeAccData?.last_paid_date
+ 
+-        if(hasPreviousPayment){
++        if (hasPreviousPayment) {
+           const monthlyPayments = await this.paymentRepository.getMonthlyPayments(
+             { id: data.id_scheme_account, date: todayDate }
+           );
+-  
++
+           const overLimit =
+             Number(monthlyPayments) + 1 > Number(schemeData.limit_installment);
+-  
++
+           if (overLimit && notDigiGold) {
+             return { success: false, message: "Monthly payment limit reached" };
+           }
+diff --git a/src/usecases/ownersapp/commonUseCase.js b/src/usecases/ownersapp/commonUseCase.js
+new file mode 100644
+index 0000000..22a3abc
+--- /dev/null
++++ b/src/usecases/ownersapp/commonUseCase.js
+@@ -0,0 +1,24 @@
++class CommonUseCase {
++    constructor(commonRepo) {
++        this.commonRepo = commonRepo;
++    }
++
++    async getGender() {
++        try {
++            return await this.commonRepo.getGender();
++        } catch (error) {
++            console.error("Error in getGender usecase:", error);
++            throw error;
++        }
++    }
++    async getBranch() {
++        try {
++            return await this.commonRepo.getBranch();
++        } catch (error) {
++            console.error("Error in getBranch usecase:", error);
++            throw error;
++        }
++    }
++}
++
++export default CommonUseCase;
+diff --git a/src/usecases/ownersapp/locationUseCase.js b/src/usecases/ownersapp/locationUseCase.js
+new file mode 100644
+index 0000000..03e282c
+--- /dev/null
++++ b/src/usecases/ownersapp/locationUseCase.js
+@@ -0,0 +1,34 @@
++class LocationUseCase {
++    constructor(locationRepo) {
++        this.locationRepo = locationRepo;
++    }
++
++    async getCountry() {
++        try {
++            return await this.locationRepo.getCountry();
++        } catch (error) {
++            console.error("Error in getCountry usecase:", error);
++            throw error;
++        }
++    }
++
++    async getState(countryId) {
++        try {
++            return await this.locationRepo.getState(countryId);
++        } catch (error) {
++            console.error("Error in getState usecase:", error);
++            throw error;
++        }
++    }
++
++    async getCity(stateId) {
++        try {
++            return await this.locationRepo.getCity(stateId);
++        } catch (error) {
++            console.error("Error in getCity usecase:", error);
++            throw error;
++        }
++    }
++}
++
++export default LocationUseCase;
+-- 
+2.52.0.windows.1
+
