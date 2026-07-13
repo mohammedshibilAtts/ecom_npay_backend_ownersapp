@@ -14,6 +14,8 @@ const contentController = new ContentManagementController(contentUseCase);
 const tokenService = new TokenService();
 const authMiddleware = new AuthMiddleware(tokenService);
 
+//ecom web routes
+router.get('/web/:id', (req, res) => contentController.getContentsForWeb(req, res));
 /**
  * @swagger
  * tags:
@@ -29,8 +31,6 @@ const authMiddleware = new AuthMiddleware(tokenService);
  *     tags: [Content]
  */
 router.get('/all/type/:id', (req, res) => contentController.getContentTypes(req, res));
-//ecom web routes
-router.get('/web/:id', (req, res) => contentController.getContentsForWeb(req, res));
 router.use(authMiddleware.protect);
 
 /**
