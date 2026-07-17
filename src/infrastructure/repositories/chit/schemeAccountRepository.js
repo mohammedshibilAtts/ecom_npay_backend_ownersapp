@@ -700,6 +700,296 @@ class SchemeAccountRepository {
     }
   }
 
+  // async getAllSchemeAccountsForMobile(customerId, weight) {
+  //   try {
+  //     const matchStages = [
+  //       {
+  //         $match: {
+  //           id_customer: new mongoose.Types.ObjectId(customerId),
+  //           active: true,
+  //           is_deleted: false
+  //         },
+  //       }
+  //     ];
+
+  //     const pipeline = [
+  //       ...matchStages,
+  //       {
+  //         $lookup: {
+  //           from: "schemestatuses",
+  //           localField: "status",
+  //           foreignField: "id_status",
+  //           as: "schemestatusnames",
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$schemestatusnames",
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: "schemes",
+  //           localField: "id_scheme",
+  //           foreignField: "_id",
+  //           as: "schemes",
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$schemes",
+  //           preserveNullAndEmptyArrays: false,
+  //         },
+  //       },
+  //       ...(weight
+  //         ? [
+  //           {
+  //             $match: {
+  //               "schemes.scheme_type": { $in: [12, 3, 4, 6, 2, 5] },
+  //             },
+  //           },
+  //         ]
+  //         : []),
+
+  //       {
+  //         $addFields: {
+  //           currentDate: new Date(),
+  //           startDateObj: "$start_date",
+  //           schemeInstallmentType: "$scheme.installment_type"
+  //         }
+  //       },
+  //       {
+  //         $addFields: {
+  //           expectedDueDates: {
+  //             $let: {
+  //               vars: {
+  //                 startDate: "$startDateObj",
+  //                 totalInstallments: "$total_installments",
+  //                 installmentType: "$schemeInstallmentType"
+  //               },
+  //               in: {
+  //                 $map: {
+  //                   input: { $range: [0, "$$totalInstallments"] },
+  //                   as: "i",
+  //                   in: {
+  //                     $dateAdd: {
+  //                       startDate: "$$startDate",
+  //                       unit: {
+  //                         $switch: {
+  //                           branches: [
+  //                             { case: { $eq: ["$$installmentType", 1] }, then: "month" },
+  //                             { case: { $eq: ["$$installmentType", 2] }, then: "week" },
+  //                             { case: { $eq: ["$$installmentType", 3] }, then: "day" },
+  //                             { case: { $eq: ["$$installmentType", 4] }, then: "year" }
+  //                           ],
+  //                           default: "month"
+  //                         }
+  //                       },
+  //                       amount: "$$i"
+  //                     }
+  //                   }
+  //                 }
+  //               }
+  //             }
+  //           }
+  //         }
+  //       },
+  //       {
+  //         $addFields: {
+  //           expectedInstallmentCount: {
+  //             $size: {
+  //               $filter: {
+  //                 input: "$expectedDueDates",
+  //                 as: "dueDate",
+  //                 cond: { $lte: ["$$dueDate", "$currentDate"] }
+  //               }
+  //             }
+  //           }
+  //         }
+  //       },
+  //       {
+  //         $addFields: {
+  //           overdueInstallments: {
+  //             $cond: {
+  //               if: { $gt: ["$expectedInstallmentCount", "$paid_installments"] },
+  //               then: { $subtract: ["$expectedInstallmentCount", "$paid_installments"] },
+  //               else: 0
+  //             }
+  //           }
+  //         }
+  //       },
+  //       {
+  //         $addFields: {
+  //           nextDueDate: {
+  //             $let: {
+  //               vars: {
+  //                 futureDates: {
+  //                   $filter: {
+  //                     input: "$expectedDueDates",
+  //                     as: "date",
+  //                     cond: { $gt: ["$$date", "$currentDate"] }
+  //                   }
+  //                 }
+  //               },
+  //               in: {
+  //                 $cond: {
+  //                   if: { $gt: [{ $size: "$$futureDates" }, 0] },
+  //                   then: { $min: "$$futureDates" }, // the earliest future date
+  //                   else: null // if no future date left (fully paid)
+  //                 }
+  //               }
+  //             }
+  //           }
+  //         }
+  //       },
+
+  //       {
+  //         $lookup: {
+  //           from: "payments",
+  //           let: { schemeAccountId: "$_id" },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $and: [
+  //                     { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+  //                     { $eq: ["$active", true] },
+  //                     { $eq: ["$payment_status", 1] },
+  //                   ],
+  //                 },
+  //               },
+  //             },
+  //             { $sort: { createdAt: -1 } },
+  //             {
+  //               $addFields: {
+  //                 total_digi_bonus: { $divide: ["$digiBonus", "$metal_rate"] }
+  //               }
+  //             },
+  //             {
+  //               $group: {
+  //                 _id: null,
+  //                 related_payments: { $push: "$$ROOT" },
+  //                 total_paid_installments: { $sum: "$paid_installments" },
+  //                 total_paid_amount: { $sum: "$payment_amount" },
+  //                 total_paid_weight: { $sum: "$metal_weight" },
+  //                 last_payment: { $first: "$$ROOT" },
+  //                 total_digi_bonus: { $sum: "$total_digi_bonus" },
+  //                 weighted_metal_rate_sum: {
+  //                   $sum: { $multiply: ["$metal_rate", "$paid_installments"] }
+  //                 },
+  //               },
+  //             },
+  //             {
+  //               $project: {
+  //                 related_payments: 1,
+  //                 paid_installments: 1,
+  //                 total_paid_amount: 1,
+  //                 total_paid_weight: 1,
+  //                 digi_bonus: "$total_digi_bonus",
+  //                 last_total_amt: "$last_payment.total_amt",
+  //                 avg_metal_rate: {
+  //                   $cond: {
+  //                     if: { $gt: ["$total_paid_installments", 0] },
+  //                     then: { $divide: ["$weighted_metal_rate_sum", "$total_paid_installments"] },
+  //                     else: 0
+  //                   }
+  //                 },
+  //                 last_total_amt: "$last_payment.total_amt",
+
+  //               },
+  //             },
+  //           ],
+  //           as: "payment_info",
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: "$payment_info",
+  //           preserveNullAndEmptyArrays: false,
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           total_digi_bonus: { $sum: "$payment_info.digi_bonus" }
+  //         }
+  //       },
+  //       {
+  //         $addFields: {
+  //           related_payments: { $ifNull: ["$payment_info.related_payments", []] },
+  //           total_paid_installments: { $ifNull: ["$payment_info.paid_installments", 0] },
+  //           total_paid_amount: { $ifNull: ["$payment_info.total_paid_amount", 0] },
+  //           total_paid_weight: { $ifNull: ["$payment_info.total_paid_weight", 0] },
+  //           last_total_amt: { $ifNull: ["$payment_info.last_total_amt", 0] },
+  //           schemestatusName: "$schemestatusnames.status_name",
+  //           schemeName: "$schemes.scheme_name",
+  //           schemeType: "$schemes.scheme_type"
+  //         }
+  //       },
+
+  //       {
+  //         $facet: {
+  //           schemeAccounts: [
+  //             {
+  //               $project: {
+  //                 scheme_acc_number: 1,
+  //                 account_name: 1,
+  //                 id_branch: 1,
+  //                 total_installments: 1,
+  //                 paymentcount: 1,
+  //                 active: 1,
+  //                 last_total_amt: 1,
+  //                 total_paid_amount: 1,
+  //                 total_paid_weight: 1,
+  //                 total_paid_installments: "$paid_installments",
+  //                 schemestatusName: 1,
+  //                 status: "$status",
+  //                 schemeName: 1,
+  //                 maturity_date: 1,
+  //                 schemeType: 1,
+  //                 minAmount: "$schemes.min_amount",
+  //                 maxAmount: "$schemes.max_amount",
+  //                 minWeight: "$schemes.min_weight",
+  //                 maxWeight: "$schemes.max_weight",
+  //                 monthlyPayable: "$flexFixed",
+  //                 startDate: "$start_date",
+  //                 flexFixed: "$flexFixed",
+  //                 overdueInstallments: "$overdueInstallments",
+  //                 nextDueDate: 1,
+  //                 schemeBenefit: "$total_digi_bonus",
+  //                 avgMetalRate: "$payment_info.avg_metal_rate",
+  //               },
+  //             },
+  //           ],
+  //           summary: [
+  //             {
+  //               $group: {
+  //                 _id: null,
+  //                 total_paid_installments: { $sum: "$paid_installments" },
+  //                 total_paid_amount: { $sum: "$total_paid_amount" },
+  //                 total_paid_weight: { $sum: "$total_paid_weight" },
+  //               },
+  //             },
+  //             {
+  //               $project: {
+  //                 _id: 0,
+  //                 total_paid_installments: 1,
+  //                 total_paid_amount: 1,
+  //                 total_paid_weight: 1,
+  //               },
+  //             },
+  //           ],
+  //         },
+  //       },
+  //     ];
+
+  //     const result = await schemeAccountModel.aggregate(pipeline);
+  //     return result[0];
+  //   } catch (error) {
+  //     console.error("Error in getAllSchemeAccountsForMobile:", error);
+  //     throw error;
+  //   }
+  // }
   async getAllSchemeAccountsForMobile(customerId, weight) {
     try {
       const matchStages = [
@@ -740,6 +1030,16 @@ class SchemeAccountRepository {
           $unwind: {
             path: "$schemes",
             preserveNullAndEmptyArrays: false,
+          },
+        },
+        {
+          $match: {
+            $nor: [
+              {
+                "schemes.scheme_type": { $in: [10, 14] },
+                status: { $in: [1, 3] },
+              },
+            ],
           },
         },
         ...(weight

@@ -5,7 +5,6 @@ class AppProductController {
 
   async ProductById(req, res) {
     try {
-      console.log("kdd")
       const rawId = req.params.id;
       const id = rawId ? rawId.replace(/[^a-fA-F0-9]/g, "") : "";
 
