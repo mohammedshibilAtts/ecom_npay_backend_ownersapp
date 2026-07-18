@@ -599,8 +599,51 @@ class DashboardRepository {
           },
           { $unwind: "$schemeAccount" },
           {
+            $lookup: {
+              from: "closedbills",
+              let: {
+                schemeAccountId: "$schemeAccount._id",
+                schemeStatus: "$schemeAccount.status",
+              },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                        { $in: ["$$schemeStatus", [3, 4]] },
+                      ],
+                    },
+                  },
+                },
+              ],
+              as: "closedBill",
+            },
+          },
+          {
             $match: {
-              "schemeAccount.status": { $nin: [3, 4] },
+              $expr: {
+                $or: [
+                  { $not: [{ $in: ["$schemeAccount.status", [3, 4]] }] },
+                  { $eq: [{ $size: "$closedBill" }, 0] },
+                ],
+              },
+            },
+          },
+          {
+            $lookup: {
+              from: "schemes",
+              localField: "schemeAccount.id_scheme",
+              foreignField: "_id",
+              as: "scheme",
+            },
+          },
+          { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false } },
+          {
+            $match: {
+              "schemeAccount.active": true,
+              "schemeAccount.is_deleted": false,
+              "scheme.is_deleted": false,
             },
           },
           {
@@ -654,7 +697,6 @@ class DashboardRepository {
           graphData,
         };
       } else {
-        // Monthly Logic (Current Year)
         const targetYear = new Date().getFullYear();
         const startOfCurrentYear = new Date(targetYear, 0, 1);
         const endOfCurrentYear = new Date(targetYear, 11, 31, 23, 59, 59, 999);
@@ -669,6 +711,7 @@ class DashboardRepository {
           59,
           999,
         );
+        console.log(startOfCurrentYear, endOfCurrentYear)
 
         const [currentYearData, previousYearData] = await Promise.all([
           paymentModel.aggregate([
@@ -692,8 +735,53 @@ class DashboardRepository {
             },
             { $unwind: "$schemeAccount" },
             {
+              $lookup: {
+                from: "closedbills",
+                let: {
+                  schemeAccountId: "$schemeAccount._id",
+                  schemeStatus: "$schemeAccount.status",
+                },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                          { $in: ["$$schemeStatus", [3, 4]] },
+                          { $gte: ["$createdAt", startOfCurrentYear] },
+                          { $lte: ["$createdAt", endOfCurrentYear] },
+                        ],
+                      },
+                    },
+                  },
+                ],
+                as: "closedBill",
+              },
+            },
+            {
               $match: {
-                "schemeAccount.status": { $nin: [3, 4] },
+                $expr: {
+                  $or: [
+                    { $not: [{ $in: ["$schemeAccount.status", [3, 4]] }] },
+                    { $eq: [{ $size: "$closedBill" }, 0] },
+                  ],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: "schemes",
+                localField: "schemeAccount.id_scheme",
+                foreignField: "_id",
+                as: "scheme",
+              },
+            },
+            { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false } },
+            {
+              $match: {
+                "schemeAccount.active": true,
+                "schemeAccount.is_deleted": false,
+                "scheme.is_deleted": false,
               },
             },
             {
@@ -724,8 +812,53 @@ class DashboardRepository {
             },
             { $unwind: "$schemeAccount" },
             {
+              $lookup: {
+                from: "closedbills",
+                let: {
+                  schemeAccountId: "$schemeAccount._id",
+                  schemeStatus: "$schemeAccount.status",
+                },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ["$id_scheme_account", "$$schemeAccountId"] },
+                          { $in: ["$$schemeStatus", [3, 4]] },
+                          { $gte: ["$createdAt", startOfPreviousYear] },
+                          { $lte: ["$createdAt", endOfPreviousYear] },
+                        ],
+                      },
+                    },
+                  },
+                ],
+                as: "closedBill",
+              },
+            },
+            {
               $match: {
-                "schemeAccount.status": { $nin: [3, 4] },
+                $expr: {
+                  $or: [
+                    { $not: [{ $in: ["$schemeAccount.status", [3, 4]] }] },
+                    { $eq: [{ $size: "$closedBill" }, 0] },
+                  ],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: "schemes",
+                localField: "schemeAccount.id_scheme",
+                foreignField: "_id",
+                as: "scheme",
+              },
+            },
+            { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: false } },
+            {
+              $match: {
+                "schemeAccount.active": true,
+                "schemeAccount.is_deleted": false,
+                "scheme.is_deleted": false,
               },
             },
             {

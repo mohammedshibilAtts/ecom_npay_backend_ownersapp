@@ -852,9 +852,62 @@ class ReportUseCase {
     }
   }
 
+  // async getPaymentLedger(query) {
+  //   try {
+  //     const { page, limit, from_date, to_date, id_payment } = query;
+
+  //     const pageNum = Math.max(1, parseInt(page) || 1);
+  //     const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 10));
+  //     const skip = (pageNum - 1) * pageSize;
+
+  //     const filter = { is_deleted: false, payment_status: 1 };
+
+  //     let startDate, endDate;
+
+  //     if (from_date && to_date) {
+  //       startDate = new Date(from_date);
+  //       endDate = new Date(to_date);
+
+  //       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+  //         throw new Error("Invalid date format. Use ISO format (YYYY-MM-DD)");
+  //       }
+  //     } else {
+  //       startDate = new Date();
+  //       startDate.setHours(0, 0, 0, 0);
+
+  //       endDate = new Date();
+  //       endDate.setHours(23, 59, 59, 999);
+  //     }
+
+  //     filter.createdAt = {
+  //       $gte: startDate,
+  //       $lte: endDate,
+  //     };
+
+  //     const sanitizedFilter = Object.keys(filter).reduce((acc, key) => {
+  //       if (filter[key] !== undefined && filter[key] !== null) {
+  //         acc[key] = filter[key];
+  //       }
+  //       return acc;
+  //     }, {});
+
+  //     if (id_payment) {
+  //       sanitizedFilter.payment_mode = new mongoose.Types.ObjectId(id_payment);
+  //     }
+
+  //     return await this.reportRepo.getPaymentLedger(
+  //       sanitizedFilter,
+  //       skip,
+  //       pageSize,
+  //     );
+  //   } catch (error) {
+  //     console.error("Payment report error:", error);
+  //     throw new Error(error.message || "Failed to generate payment report");
+  //   }
+  // }
   async getPaymentLedger(query) {
     try {
-      const { page, limit, from_date, to_date, id_payment } = query;
+      const { page, limit, from_date, to_date, id_payment, id_branch, id_employee, id_city, area } = query;
 
       const pageNum = Math.max(1, parseInt(page) || 1);
       const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 10));
@@ -865,24 +918,43 @@ class ReportUseCase {
       let startDate, endDate;
 
       if (from_date && to_date) {
-        startDate = new Date(from_date);
-        endDate = new Date(to_date);
-
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          throw new Error("Invalid date format. Use ISO format (YYYY-MM-DD)");
+        if (new Date(to_date) < new Date(from_date)) {
+          throw new Error("End date cannot be before start date");
         }
+        startDate = moment.tz(from_date, "Asia/Kolkata").startOf("day").toDate();
+        endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
       } else {
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-
-        endDate = new Date();
-        endDate.setHours(23, 59, 59, 999);
+        startDate = moment.tz("Asia/Kolkata").startOf("day").toDate();
+        endDate = moment.tz("Asia/Kolkata").endOf("day").toDate();
       }
 
-      filter.createdAt = {
+      filter.date_payment = {
         $gte: startDate,
         $lte: endDate,
       };
+
+      if (id_branch && isValidObjectId(id_branch)) {
+        filter.id_branch = new mongoose.Types.ObjectId(id_branch);
+      }
+
+      if (id_employee && isValidObjectId(id_employee)) {
+        filter.id_employee = new mongoose.Types.ObjectId(id_employee);
+      }
+
+      if (id_city || area) {
+        const customerFilter = { is_deleted: false };
+        if (id_city && isValidObjectId(id_city)) {
+          customerFilter.id_city = new mongoose.Types.ObjectId(id_city);
+        }
+        if (area && isValidObjectId(area)) {
+          customerFilter.area = new mongoose.Types.ObjectId(area);
+        }
+        const customerIds = await mongoose
+          .model("Customer")
+          .find(customerFilter)
+          .distinct("_id");
+        filter.id_customer = { $in: customerIds };
+      }
 
       const sanitizedFilter = Object.keys(filter).reduce((acc, key) => {
         if (filter[key] !== undefined && filter[key] !== null) {
@@ -919,14 +991,14 @@ class ReportUseCase {
       };
 
       if (from_date && to_date) {
-        query.createdAt = {
-          $gte: new Date(from_date),
-          $lte: new Date(to_date),
-        };
-      } else if (from_date) {
-        query.createdAt = { $gte: new Date(from_date) };
-      } else if (to_date) {
-        query.createdAt = { $lte: new Date(to_date) };
+        if (new Date(to_date) < new Date(from_date)) {
+          throw new Error("End date cannot be before start date");
+        }
+        startDate = moment.tz(from_date, "Asia/Kolkata").startOf("day").toDate();
+        endDate = moment.tz(to_date, "Asia/Kolkata").endOf("day").toDate();
+      } else {
+        startDate = moment.tz("Asia/Kolkata").startOf("day").toDate();
+        endDate = moment.tz("Asia/Kolkata").endOf("day").toDate();
       }
 
       const documentSkip = (pageNum - 1) * pageSize;

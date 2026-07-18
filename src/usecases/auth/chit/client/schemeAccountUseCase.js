@@ -1500,6 +1500,7 @@ class SchemeAccountUseCase {
           status_name: "$status.status_name",
           total_weight: "$weight",
           start_date: "$start_date",
+          createdAt: "$createdAt",
           maturity_date: "$maturity_date",
           last_paid_date: "$last_paid_date",
           scheme_acc_number: "$scheme_acc_number",
