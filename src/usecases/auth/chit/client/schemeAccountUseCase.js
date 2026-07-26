@@ -1993,7 +1993,7 @@ class SchemeAccountUseCase {
     }
   }
 
-  async getAllSchemeAccountsForMobile(customerId, weight = false) {
+  async getAllSchemeAccountsForMobile(customerId, weight = false, type,token) {
     try {
       const customer = await this.customerRepo.findOne({
         _id: customerId,
@@ -2005,10 +2005,22 @@ class SchemeAccountUseCase {
         return { status: false, message: "No customer found" };
       }
 
+      if (token._id != customer._id) {
+        return { status: false, message: "Unauthorized" }
+      }
+
+      let typeToPass
+      if (type != "10" && type != "14") {
+        typeToPass = null
+      } else {
+        typeToPass = Number(type)
+      }
+
       const result =
         await this.schemeAccountRepository.getAllSchemeAccountsForMobile(
           customerId,
           weight,
+          typeToPass
         );
 
       if (result) {

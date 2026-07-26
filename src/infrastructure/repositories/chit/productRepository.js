@@ -352,6 +352,18 @@ class ProductRepository {
           actualTotalPrice: "$calculatedTotalPrice",
           totalAmount: "$calculatedPrice", // Alias for OrderUseCase
           discountedAmount: "$calculatedPrice", // Alias for OrderUseCase
+          reduceWeight: {
+            $cond: {
+              if: { $and: ["$firstItem.grossWt", "$firstItem.netWeight"] },
+              then: {
+                $subtract: [
+                  { $convert: { input: "$firstItem.grossWt", to: "double", onError: 0, onNull: 0 } },
+                  { $convert: { input: "$firstItem.netWeight", to: "double", onError: 0, onNull: 0 } }
+                ]
+              },
+              else: 0
+            }
+          },
           id_purity: "$firstItem.id_purity",
           id_color: "$firstItem.colorName",
           id_certificate: "$firstItem.certificateName",
