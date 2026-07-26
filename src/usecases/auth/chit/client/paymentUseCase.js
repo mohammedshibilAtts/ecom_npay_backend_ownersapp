@@ -360,12 +360,12 @@ class PaymentUseCase {
             this.toDateOnlyString(todayDate) ===
             this.toDateOnlyString(lastPaid);
 
-          // if (todatPaidorNot) {
-          //   return {
-          //     status: false,
-          //     message: "Already completed today's payment",
-          //   };
-          // }
+          if (todatPaidorNot) {
+            return {
+              status: false,
+              message: "Already completed today's payment",
+            };
+          }
         }
 
         const totalInstallments =
@@ -387,13 +387,13 @@ class PaymentUseCase {
           },
         );
 
-        // if (
-        //   schemeData?.limit_installment &&
-        //   Number(monthlyPaiments) + Number(data.installments) >
-        //   Number(schemeData?.limit_installment)
-        // ) {
-        //   return { status: false, message: "Monthly payment limit reached" };
-        // }
+        if (
+          schemeData?.limit_installment &&
+          Number(monthlyPaiments) + Number(data.installments) >
+          Number(schemeData?.limit_installment)
+        ) {
+          return { status: false, message: "Monthly payment limit reached" };
+        }
 
         const schemeAccData = await this.schemeAccountRepository.findById(
           data.id_scheme_account,
@@ -476,7 +476,7 @@ class PaymentUseCase {
           itr_utr: data.itr_utr || null,
           total_amt: totalAmount,
           paymentModeName: paymentMode.mode_name,
-          // metal_rate:finalMetalRate,
+          metal_rate:finalMetalRate,
           installment:
             Number(schemeAccData.paid_installments) + Number(data.installments),
           metal_weight: rejectWeightField.includes(schemeData?.scheme_type)
