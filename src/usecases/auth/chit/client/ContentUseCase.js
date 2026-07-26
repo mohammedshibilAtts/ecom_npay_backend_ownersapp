@@ -168,6 +168,7 @@ class ContentUseCase {
         query.toCustomer = false
       }
 
+      query.webVisible = false
       const documentskip = (pageNum - 1) * pageSize;
       const documentlimit = pageSize;
 

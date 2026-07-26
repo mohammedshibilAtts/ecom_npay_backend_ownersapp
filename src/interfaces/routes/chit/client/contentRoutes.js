@@ -14,6 +14,8 @@ const contentController = new ContentManagementController(contentUseCase);
 const tokenService = new TokenService();
 const authMiddleware = new AuthMiddleware(tokenService);
 
+//ecom web routes
+router.get('/web/:id', (req, res) => contentController.getContentsForWeb(req, res));
 /**
  * @swagger
  * tags:
@@ -80,9 +82,5 @@ router.get('/:id', (req, res) => contentController.getContentById(req, res));
  */
 router.patch('/update/:id', (req, res) => contentController.updateContent(req, res));
 router.delete('/:id', (req, res) => contentController.deleteContent(req, res));
-
-
-//ecom web routes
-router.get('/web/:id', (req, res) => contentController.getContentsForWeb(req, res));
 
 export default router;

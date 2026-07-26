@@ -1,4 +1,5 @@
 import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
+import getBranchHelper from "../../../utils/branchHelper.js";
 import Scheme from "../../models/chit/schemeModel.js";
 import SchemePayment from "../../models/chit/paymentModel.js";
 import giftItemModel from "../../models/chit/giftItemModel.js";
@@ -1757,6 +1758,7 @@ class ReportRepository {
                   },
                   closedDate: "$closed_date",
                   schemeType: "$Scheme.scheme_type",
+                  id_branch: 1,
                 },
               },
             ],
@@ -1768,7 +1770,17 @@ class ReportRepository {
       const totalPages = Math.ceil(totalDocuments / limit);
       const data = preCloseData[0]?.data || [];
 
-      return { totalDocuments, totalPages, data };
+      const mappedData = await Promise.all(
+        data.map(async (item) => {
+          const branchData = await getBranchHelper(item.id_branch);
+          return {
+            ...item,
+            branchData: branchData || null,
+          };
+        })
+      );
+
+      return { totalDocuments, totalPages, data: mappedData };
     } catch (err) {
       console.error(err);
       throw err;

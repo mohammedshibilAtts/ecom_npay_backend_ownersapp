@@ -18,7 +18,6 @@ import bodyParser from 'body-parser';
 import './config/chit/cronSetup.js'
 import './cron/digigoldAutoCron.js'
 import './cron/overdueAutoCron.js'
-import exportRoutes from "./interfaces/controllers/chit/admin/client/exportController.js"
 import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
 import chitRedeemRoutes from './interfaces/routes/chitRedeem/chitRedeemRoutes.js';
 import ownersappRoute from './interfaces/routes/ownersapp/indexRoute.js';
