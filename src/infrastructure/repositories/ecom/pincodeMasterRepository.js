@@ -133,26 +133,12 @@ class pincodeMasterRepository {
 
   getPincodebylatandlan = async (filters) => {
     try {
-      return await PincodeMaster.findOne(filters);
+      return await PincodeMaster.findOne({...filters,active:true});
     } catch (error) {
       throw error;
     }
   };
 
-  // async getpincodetable(filter, skip, limit) {
-  //   try {
-  //     return await PincodeMaster.find(filter)
-  //       .skip(skip)
-  //       .limit(limit)
-  //       .populate("id_country")
-  //       .populate("id_state")
-  //       .populate("id_city")
-  //       .sort({ _id: -1 })
-  //       .exec();
-  //   } catch (err) {
-  //     throw new Error("Database error occurred while getting subcategories");
-  //   }
-  // }
   async getpincodetable(filter, skip, limit) {
     try {
       const pincodeData = await PincodeMaster.aggregate([

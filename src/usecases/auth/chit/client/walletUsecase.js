@@ -570,29 +570,6 @@ class WalletUsecase {
         active: true,
         mobile:mobile
       };
-
-      // const searchterm = mobile || "";
-      
-      // const custData = await this.customerRepo.findCustomerData(searchterm);
-
-      // if (custData) {
-      //   query.wallet_id = custData._id
-      // }
-
-      
-      // const employee = await this.employeeRepository.findOne({mobile:searchterm});
- 
-      // if (employee) {
-      //   query.wallet_id = employee._id
-      // }
-
-      // if (!custData && !employee) {
-      //   return { success: false, message: "No Data found" };
-      // }
-
-      const walletData = await this.walletRepo.findData({mobile:mobile})
-
-      query.wallet
      
       const documentskip = (pageNum - 1) * pageSize;
       const documentlimit = pageSize;

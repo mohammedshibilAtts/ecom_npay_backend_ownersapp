@@ -1452,6 +1452,15 @@ class SchemeAccountUseCase {
         { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
+            from: "schemetypes",
+            localField: "scheme.scheme_type",
+            foreignField: "scheme_type",
+            as: "schemeType",
+          },
+        },
+        { $unwind: { path: "$schemeType", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
             from: "schemeclassifications",
             localField: "id_classification",
             foreignField: "_id",
@@ -1493,7 +1502,7 @@ class SchemeAccountUseCase {
           max_amount: "$scheme.max_amount",
           min_weight: "$scheme.min_weight",
           max_weight: "$scheme.max_weight",
-          scheme_type: "$scheme.scheme_type",
+          scheme_typename: "$schemeType.scheme_typename",
           total_installments: "$scheme.total_installments",
           paid_installments: "$paid_installments",
           gift_type: "$scheme.gift_type",
@@ -1993,7 +2002,7 @@ class SchemeAccountUseCase {
     }
   }
 
-  async getAllSchemeAccountsForMobile(customerId, weight = false, type,token) {
+  async getAllSchemeAccountsForMobile(customerId, weight = false, type,token,digi) {
     try {
       const customer = await this.customerRepo.findOne({
         _id: customerId,
@@ -2016,11 +2025,17 @@ class SchemeAccountUseCase {
         typeToPass = Number(type)
       }
 
+      let digiToPass = false
+      if(digi){
+        digiToPass = true
+      }
+
       const result =
         await this.schemeAccountRepository.getAllSchemeAccountsForMobile(
           customerId,
           weight,
-          typeToPass
+          typeToPass,
+          digiToPass
         );
 
       if (result) {

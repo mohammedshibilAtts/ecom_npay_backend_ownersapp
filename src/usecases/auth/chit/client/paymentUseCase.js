@@ -1172,17 +1172,27 @@ class PaymentUseCase {
     limit = 10,
     from_date,
     to_date,
+    all
   }) {
     try {
       if (!isValidObjectId(id)) {
         return { success: false, message: "Provide a valid object id" };
       }
 
-      const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
+      let documentskip;
+      let pageNum = 1;
 
-      const documentskip = (pageNum - 1) * pageSize;
+      if (isMobile && typeof page === 'string' && page.length === 24 && isValidObjectId(page)) {
+        documentskip = page;
+      } else {
+        pageNum = page ? parseInt(page) : 1;
+        documentskip = (pageNum - 1) * pageSize;
+      }
+
       const documentlimit = pageSize;
+
+      const allToPass = all === "true" || all === true;
 
       const query = { id_scheme_account: id, active: true, payment_status: 1 };
 
@@ -1191,6 +1201,7 @@ class PaymentUseCase {
         documentskip,
         documentlimit,
         isMobile,
+        allToPass
       );
 
       if (!paymentData) {
@@ -1204,6 +1215,7 @@ class PaymentUseCase {
         totalCount: paymentData.totalCount,
         totalPages: Math.ceil(paymentData.totalCount / pageSize),
         currentPage: pageNum,
+        nextCursor: paymentData.nextCursor || null,
       };
     } catch (error) {
       console.error(error);
@@ -2190,6 +2202,7 @@ class PaymentUseCase {
           }
         }
       }
+      cacheService.invalidatePattern("dashboard:");
     } catch (error) {
       console.error("❌ Error in completePayment:", error);
       throw error;

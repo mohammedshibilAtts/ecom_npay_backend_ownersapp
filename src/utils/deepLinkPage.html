@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-
+ 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,47 +13,45 @@
     }
   </style>
 </head>
-
+ 
 <body>
   <h2>Redirecting...</h2>
   <p>If you are not redirected automatically, <a id="manualLink" href="#">click here</a>.</p>
-
+ 
   <script>
+ 
+  const productId = window.location.pathname.split('/').pop();
+ 
+ 
     document.addEventListener("DOMContentLoaded", async function () {
       const ua = navigator.userAgent.toLowerCase();
       let uaDataPlatform = "";
-
+ 
       // For better detection on Chrome/Android tablets
       if (navigator.userAgentData) {
         const data = await navigator.userAgentData.getHighEntropyValues(["platform"]);
         uaDataPlatform = (data.platform || "").toLowerCase();
       }
-
+ 
       // --- ANDROID PHONE + TABLET DETECTION ---
       const isAndroid =
         ua.includes("android") ||
         uaDataPlatform === "android" ||
         (navigator.platform && navigator.platform.toLowerCase().includes("linux") &&
           navigator.maxTouchPoints > 0);
-
+ 
       // --- IOS + IPADOS DETECTION ---
       const isIOS =
         /iphone|ipod/.test(ua) ||
         ua.includes("ipad") ||
         (ua.includes("macintosh") && navigator.maxTouchPoints > 1);
-
+ 
       // --- REDIRECT URL ---
-      let redirectUrl = "https://kavithajewellers.com/";  // fallback URL Website
-
-      if (isIOS) {
-        redirectUrl = "https://apps.apple.com/in/app/kavitha-jewellers-chennai/id6753579504";
-      } else if (isAndroid) {
-        redirectUrl = "https://play.google.com/store/apps/details?id=com.atts.kavithajewellers&pli=1";
-      }
-
+      let redirectUrl = `{{FRONT_URL}}/product/${productId}`;  // fallback URL Website
+ 
       // Manual link update
       document.getElementById("manualLink").href = redirectUrl;
-
+ 
       // Auto Redirect
       setTimeout(() => {
         window.location.href = redirectUrl;
@@ -61,5 +59,5 @@
     });
   </script>
 </body>
-
+ 
 </html>

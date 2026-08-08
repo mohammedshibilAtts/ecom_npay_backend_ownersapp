@@ -266,6 +266,26 @@ class ChitRedeemUsecase {
       };
     }
   }
+
+  async addWalletPoints(data, token) {
+    if (!data.wallet_id) {
+      return { success: false, message: "Wallet ID is required" };
+    }
+    if (!data.balance_amt) {
+      return { success: false, message: "Balance amount is required" };
+    }
+    return await this.walletUsecase.addBalanceToWallet(data.wallet_id, data, token);
+  }
+
+  async redeemWalletPoints(data, token) {
+    if (!data.wallet_id) {
+      return { success: false, message: "Wallet ID is required" };
+    }
+    if (!data.redeem_amt) {
+      return { success: false, message: "Redeem amount is required" };
+    }
+    return await this.walletUsecase.redeemFromWallet(data, token);
+  }
 }
 
 export default ChitRedeemUsecase;

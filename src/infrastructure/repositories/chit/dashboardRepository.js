@@ -648,7 +648,16 @@ class DashboardRepository {
           },
           {
             $group: {
-              _id: { $year: "$createdAt" },
+              _id: { 
+                $year: { 
+                  $convert: { 
+                    input: "$createdAt", 
+                    to: "date", 
+                    onError: new Date("1970-01-01T00:00:00Z"), 
+                    onNull: new Date("1970-01-01T00:00:00Z") 
+                  } 
+                } 
+              },
               totalAmount: { $sum: "$payment_amount" },
             },
           },
@@ -711,7 +720,6 @@ class DashboardRepository {
           59,
           999,
         );
-        console.log(startOfCurrentYear, endOfCurrentYear)
 
         const [currentYearData, previousYearData] = await Promise.all([
           paymentModel.aggregate([
@@ -786,7 +794,16 @@ class DashboardRepository {
             },
             {
               $group: {
-                _id: { $month: "$createdAt" },
+                _id: { 
+                  $month: { 
+                    $convert: { 
+                      input: "$createdAt", 
+                      to: "date", 
+                      onError: new Date("1970-01-01T00:00:00Z"), 
+                      onNull: new Date("1970-01-01T00:00:00Z") 
+                    } 
+                  } 
+                },
                 totalAmount: { $sum: "$payment_amount" },
               },
             },
@@ -863,7 +880,16 @@ class DashboardRepository {
             },
             {
               $group: {
-                _id: { $month: "$createdAt" },
+                _id: { 
+                  $month: { 
+                    $convert: { 
+                      input: "$createdAt", 
+                      to: "date", 
+                      onError: new Date("1970-01-01T00:00:00Z"), 
+                      onNull: new Date("1970-01-01T00:00:00Z") 
+                    } 
+                  } 
+                },
                 totalAmount: { $sum: "$payment_amount" },
               },
             },

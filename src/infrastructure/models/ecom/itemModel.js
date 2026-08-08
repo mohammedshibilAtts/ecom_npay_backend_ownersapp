@@ -42,11 +42,11 @@ const itemSchema = new mongoose.Schema(
 
     grossWt: {
       type: Number,
-      required: true,
+      default: 0,
     },
     netWeight: {
       type: Number,
-      required: true,
+      default: 0,
     },
 
     stonewt: Number,

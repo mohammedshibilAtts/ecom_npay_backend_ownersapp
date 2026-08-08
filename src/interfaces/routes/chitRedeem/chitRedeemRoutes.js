@@ -118,5 +118,7 @@ const chitRedeemController = new ChitRedeemController(chitRedeemUsecase);
 router.get('/find-account', verifyJwt, (req, res) => chitRedeemController.findSchemeAccount(req, res));
 router.post('/', verifyJwt, (req, res) => chitRedeemController.closeAccount(req, res));
 router.get('/daybook-report', verifyJwt, (req, res) => chitRedeemController.dayBookReport(req, res));
+router.patch('/wallet/add', verifyJwt, (req, res) => chitRedeemController.addWalletPoints(req, res));
+router.post('/wallet/redeem', verifyJwt, (req, res) => chitRedeemController.redeemWalletPoints(req, res));
 
 export default router;

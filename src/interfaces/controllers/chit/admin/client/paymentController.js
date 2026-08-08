@@ -111,7 +111,7 @@ class PaymentController {
     try {
       const { id } = req.params;
       const isMobile = req.query.ismobile;
-      const { from_date, to_date } = req.query;
+      const { from_date, to_date, page, limit,all} = req.query;
 
       if (!id) {
         return res
@@ -124,6 +124,9 @@ class PaymentController {
         isMobile,
         from_date,
         to_date,
+        page,
+        limit,
+        all
       });
 
       if (!result.success) {
@@ -132,7 +135,14 @@ class PaymentController {
 
       return res
         .status(201)
-        .json({ message: result.message, data: result.data });
+        .json({ 
+          message: result.message, 
+          data: result.data,
+          totalCount: result.totalCount,
+          totalPages: result.totalPages,
+          currentPage: result.currentPage,
+          nextCursor: result.nextCursor
+        });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
@@ -194,6 +204,7 @@ class PaymentController {
         totalDocument: result.totalCount,
         totalPages: result.totalPages,
         currentPage: result.currentPage,
+        nextCursor: result.nextCursor
       });
     } catch (error) {
       console.error(error);

@@ -46,6 +46,33 @@ class ChatbotUsecase {
       throw error;
     }
   }
+
+  async getAllNodes() {
+    try {
+      return await this.chatbotRepository.findAllItems();
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateNode(id, data) {
+    try {
+      if (data.type && ![1, 2].includes(data.type)) {
+        throw new Error("Invalid type. Must be 1 (Question) or 2 (Answer).");
+      }
+      return await this.chatbotRepository.updateItem(id, data);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async deleteNode(id) {
+    try {
+      return await this.chatbotRepository.deleteItem(id);
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export default ChatbotUsecase;

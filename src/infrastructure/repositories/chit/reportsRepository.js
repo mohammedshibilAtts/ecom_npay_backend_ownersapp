@@ -409,9 +409,6 @@ class ReportRepository {
         },
         {
           $addFields: {
-            referenceDate: {
-              $ifNull: ["$lastPaymentCreatedAt", "$start_date"],
-            },
             daysSinceLastPayment: {
               $dateDiff: {
                 startDate: {
@@ -421,62 +418,61 @@ class ReportRepository {
                 unit: "day",
               },
             },
+            expectedDueDates: {
+              $let: {
+                vars: {
+                  startDate: "$start_date",
+                  totalInstallments: "$total_installments",
+                  installmentType: "$Scheme.installment_type",
+                },
+                in: {
+                  $map: {
+                    input: { $range: [0, "$$totalInstallments"] },
+                    as: "i",
+                    in: {
+                      $dateAdd: {
+                        startDate: "$$startDate",
+                        unit: {
+                          $switch: {
+                            branches: [
+                              {
+                                case: { $eq: ["$$installmentType", 1] },
+                                then: "month",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 2] },
+                                then: "week",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 3] },
+                                then: "day",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 4] },
+                                then: "year",
+                              },
+                            ],
+                            default: "month",
+                          },
+                        },
+                        amount: "$$i",
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         {
           $addFields: {
-            expectedInstallmentsSinceLastPayment: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 1] }, // Monthly
-                    then: {
-                      $dateDiff: {
-                        startDate: "$referenceDate",
-                        endDate: currentDate,
-                        unit: "month",
-                      },
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 2] }, // Weekly
-                    then: {
-                      $floor: {
-                        $divide: [
-                          {
-                            $dateDiff: {
-                              startDate: "$referenceDate",
-                              endDate: currentDate,
-                              unit: "day",
-                            },
-                          },
-                          7,
-                        ],
-                      },
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 3] }, // Daily
-                    then: {
-                      $dateDiff: {
-                        startDate: "$referenceDate",
-                        endDate: currentDate,
-                        unit: "day",
-                      },
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 4] }, // Yearly
-                    then: {
-                      $dateDiff: {
-                        startDate: "$referenceDate",
-                        endDate: currentDate,
-                        unit: "year",
-                      },
-                    },
-                  },
-                ],
-                default: 0,
+            expectedInstallmentCount: {
+              $size: {
+                $filter: {
+                  input: "$expectedDueDates",
+                  as: "dueDate",
+                  cond: { $lte: ["$$dueDate", currentDate] },
+                },
               },
             },
           },
@@ -484,18 +480,34 @@ class ReportRepository {
         {
           $addFields: {
             installmentDue: {
-              $add: [
-                "$expectedInstallmentsSinceLastPayment",
-                { $cond: ["$hasPayments", 0, 1] }
-              ]
+              $cond: {
+                if: {
+                  $gt: ["$expectedInstallmentCount", "$paid_installments"],
+                },
+                then: {
+                  $subtract: [
+                    "$expectedInstallmentCount",
+                    "$paid_installments",
+                  ],
+                },
+                else: 0,
+              },
             },
             isOverdue: {
               $gt: [
                 {
-                  $add: [
-                    "$expectedInstallmentsSinceLastPayment",
-                    { $cond: ["$hasPayments", 0, 1] }
-                  ]
+                  $cond: {
+                    if: {
+                      $gt: ["$expectedInstallmentCount", "$paid_installments"],
+                    },
+                    then: {
+                      $subtract: [
+                        "$expectedInstallmentCount",
+                        "$paid_installments",
+                      ],
+                    },
+                    else: 0,
+                  },
                 },
                 0,
               ],

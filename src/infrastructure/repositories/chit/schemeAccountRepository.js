@@ -700,8 +700,8 @@ class SchemeAccountRepository {
     }
   }
 
-  async getAllSchemeAccountsForMobile(customerId, weight,type) {
-    try {
+  async getAllSchemeAccountsForMobile(customerId, weight,type,digi=false) {
+    try { 
       const matchStages = [
         {
           $match: {
@@ -747,18 +747,26 @@ class SchemeAccountRepository {
             {
               $match: {
                 "schemes.scheme_type": type,
-                status: 0,
+                status: { $nin: [1, 3] },
               },
             },
           ]
-          : [
-            {
-              $match: {
-                "schemes.scheme_type": { $nin: [10, 14] },
-                status: 0
+          : digi
+            ? [
+              {
+                $match: {
+                  status: { $nin: [1, 3] },
+                },
               },
-            },
-          ]),
+            ]
+            : [
+              {
+                $match: {
+                  "schemes.scheme_type": { $nin: [10, 14] },
+                  status: { $nin: [1, 3] },
+                },
+              },
+            ]),
         ...(weight
           ? [
             {
@@ -1802,7 +1810,7 @@ class SchemeAccountRepository {
   }
 
   async customMobileSearchAggregation(query) {
-    try { console.log(query)
+    try {
       const pipeline = [
         { $match: query },
         {
