@@ -1,0 +1,3026 @@
+From c68e479f7c60c754a00fe32fe39e844434a25bba Mon Sep 17 00:00:00 2001
+From: NeeharpremAtts <neeharprem@atts.in>
+Date: Sat, 30 May 2026 12:15:30 +0530
+Subject: [PATCH] owners app based changes
+
+---
+ src/index.js                                  |  31 +-
+ .../models/chit/metalRateModel.js             |  42 --
+ .../repositories/chit/metalRateRepository.js  |  67 +--
+ .../repositories/ownersapp/customerRepo.js    | 224 ++++++++
+ .../repositories/ownersapp/dashboardRepo.js   |  85 ++-
+ .../repositories/ownersapp/metalrateRepo.js   |  80 +++
+ .../repositories/ownersapp/paymentRepo.js     | 165 ++++++
+ .../ownersapp/schemeAccountRepo.js            |  93 ++++
+ .../repositories/ownersapp/schemeRepo.js      | 189 +++++++
+ .../chit/admin/client/metalRateController.js  |  30 +-
+ .../ownersapp/customerController.js           | 111 ++++
+ .../ownersapp/metalrateController.js          |  30 ++
+ .../ownersapp/paymentController.js            |  19 +
+ .../ownersapp/schemeAccountController.js      |  19 +
+ .../controllers/ownersapp/schemeController.js |  57 ++
+ .../routes/ownersapp/customerRoutes.js        |  16 +
+ src/interfaces/routes/ownersapp/indexRoute.js |  11 +
+ .../routes/ownersapp/metalrateRoutes.js       |  15 +
+ .../routes/ownersapp/paymentRoutes.js         |  14 +
+ .../routes/ownersapp/schemeAccountRoutes.js   |  14 +
+ .../routes/ownersapp/schemeRoutes.js          |  15 +
+ .../auth/chit/client/CustomerUseCase.js       | 505 +++++++++---------
+ .../auth/chit/client/purityUseCases.js        | 184 +++----
+ src/usecases/ownersapp/customerUseCase.js     |  70 +++
+ src/usecases/ownersapp/metalrateUseCase.js    |  18 +
+ src/usecases/ownersapp/paymentUseCase.js      |  11 +
+ .../ownersapp/schemeAccountUseCase.js         |  11 +
+ src/usecases/ownersapp/schemeUseCase.js       |  15 +
+ 28 files changed, 1649 insertions(+), 492 deletions(-)
+ create mode 100644 src/infrastructure/repositories/ownersapp/customerRepo.js
+ create mode 100644 src/infrastructure/repositories/ownersapp/metalrateRepo.js
+ create mode 100644 src/infrastructure/repositories/ownersapp/paymentRepo.js
+ create mode 100644 src/infrastructure/repositories/ownersapp/schemeAccountRepo.js
+ create mode 100644 src/infrastructure/repositories/ownersapp/schemeRepo.js
+ create mode 100644 src/interfaces/controllers/ownersapp/customerController.js
+ create mode 100644 src/interfaces/controllers/ownersapp/metalrateController.js
+ create mode 100644 src/interfaces/controllers/ownersapp/paymentController.js
+ create mode 100644 src/interfaces/controllers/ownersapp/schemeAccountController.js
+ create mode 100644 src/interfaces/controllers/ownersapp/schemeController.js
+ create mode 100644 src/interfaces/routes/ownersapp/customerRoutes.js
+ create mode 100644 src/interfaces/routes/ownersapp/metalrateRoutes.js
+ create mode 100644 src/interfaces/routes/ownersapp/paymentRoutes.js
+ create mode 100644 src/interfaces/routes/ownersapp/schemeAccountRoutes.js
+ create mode 100644 src/interfaces/routes/ownersapp/schemeRoutes.js
+ create mode 100644 src/usecases/ownersapp/customerUseCase.js
+ create mode 100644 src/usecases/ownersapp/metalrateUseCase.js
+ create mode 100644 src/usecases/ownersapp/paymentUseCase.js
+ create mode 100644 src/usecases/ownersapp/schemeAccountUseCase.js
+ create mode 100644 src/usecases/ownersapp/schemeUseCase.js
+
+diff --git a/src/index.js b/src/index.js
+index 33d1af8..e889c3f 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -61,20 +61,23 @@ app.use(express.json({ limit: '50mb' }));
+ app.use(express.urlencoded({ limit: '50mb', extended: true }));
+ app.use(cookieParser());
+ app.use(morgan('dev'));
+-// app.use(
+-//   cors({
+-//     origin: [config.FRONT_URL],
+-//     credentials: true,
+-//   })
+-// );
+-app.use(
+-  cors({
+-    origin: (origin, callback) => {
+-      callback(null, true);
+-    },
+-    credentials: true,
+-  })
+-);
++if (config.NODE_ENV === "production") {
++  app.use(
++    cors({
++      origin: [config.FRONT_URL],
++      credentials: true,
++    })
++  );
++  console.log("CORS enabled (production mode)");
++} else {
++  app.use(
++    cors({
++      origin: true,
++      credentials: true,
++    })
++  );
++  console.log("CORS disabled (development mode)");
++}
+ 
+ const __filename = fileURLToPath(import.meta.url);
+ const __dirname = path.dirname(__filename);
+diff --git a/src/infrastructure/models/chit/metalRateModel.js b/src/infrastructure/models/chit/metalRateModel.js
+index 08cef05..f0ad235 100644
+--- a/src/infrastructure/models/chit/metalRateModel.js
++++ b/src/infrastructure/models/chit/metalRateModel.js
+@@ -22,56 +22,14 @@ const metalRatesSchema = new Schema(
+     },
+     rate: {
+       type: Number,
+-      // type: Decimal128,
+-      // default: Decimal128.fromString("0.00"),
+       required: true,
+     },
+-
+-
+-    // goldrate_22ct: {
+-    //   type: Decimal128,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+-    // goldrate_20ct: {
+-    //   type: Decimal128,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+-    // goldrate_24ct: {
+-    //   type: Decimal128,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+-    // silverrate_1gm: {
+-    //   type: Decimal128,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+-    // goldrate_18ct: {
+-    //   type: Decimal128,
+-    //   required: true,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+-    // goldcoin_1gm: {
+-    //   type: Decimal128,
+-    //   required: true,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+-    // platinum_1gm: {
+-    //   type: Decimal128,
+-    //   required: true,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+-    // diamond_1gm: {
+-    //   type: Decimal128,
+-    //   required: true,
+-    //   default: Decimal128.fromString("0.00")
+-    // },
+     created_by: {
+       type: mongoose.Schema.Types.ObjectId,
+-      required: true,
+       ref: "Employee"
+     },
+     modified_by: {
+       type: mongoose.Schema.Types.ObjectId,
+-      required: true,
+       ref: "Employee"
+     },
+     active: {
+diff --git a/src/infrastructure/repositories/chit/metalRateRepository.js b/src/infrastructure/repositories/chit/metalRateRepository.js
+index 75c0caf..69ab8b7 100644
+--- a/src/infrastructure/repositories/chit/metalRateRepository.js
++++ b/src/infrastructure/repositories/chit/metalRateRepository.js
+@@ -35,7 +35,7 @@ class MetalRateRepository {
+         .findOne({ purity_id: id })
+         .sort({ createdAt: -1 })
+         .lean();
+-  
++
+       return savedData || null;
+     } catch (error) {
+       console.error(error);
+@@ -43,11 +43,11 @@ class MetalRateRepository {
+     }
+   }
+ 
+-  async updateMetalId(id,metalId) {
++  async updateMetalId(id, metalId) {
+     try {
+       const updatedData = await metalRateModel.findByIdAndUpdate(
+         { _id: id },
+-        { $set: {material_type_id:metalId}},
++        { $set: { material_type_id: metalId } },
+         { new: true }
+       );
+ 
+@@ -148,67 +148,6 @@ class MetalRateRepository {
+     }
+   }
+ 
+-  // async getMetalRate(branchId, date = null) {
+-
+-  //   try {
+-  //     const purityQuery = { active: true, is_deleted: false };
+-  //     const purityCount = await purityModel.countDocuments(purityQuery);
+-
+-  //     if (purityCount === 0) {
+-  //       return { success: false, message: "No active purities found" };
+-  //     }
+-
+-  //     const purityData = await this.purityRepo.find(purityQuery);
+-
+-  //     const purityIds = purityData.map((purity) => purity._id);
+-
+-  //     let query = {
+-  //       active: true,
+-  //       is_deleted: false,
+-  //       purity_id: { $in: purityIds },
+-  //     };
+-
+-  //     let startOfDay, endOfDay;
+-
+-  //     if (branchId !== "0") {
+-  //       query.id_branch = branchId;
+-  //     }
+-
+-  //     if (date) {
+-  //       startOfDay = new Date(date);
+-  //       endOfDay = new Date(date);
+-  //       startOfDay.setUTCHours(0, 0, 0, 0);
+-  //       endOfDay.setUTCHours(23, 59, 59, 999);
+-
+-  //       query.createdAt = { $gte: startOfDay, $lte: endOfDay };
+-  //     }
+-
+-  //     // Fetch all metal rates for the given date
+-  //     let metalRates = await metalRateModel
+-  //       .find(query)
+-  //       .populate('material_type_id')
+-  //       .populate('purity_id')
+-  //       .sort({ createdAt: -1 })
+-  //       .limit(purityCount)
+-  //       .select("-created_by -modified_by -__v");
+-
+-  //     if (!metalRates.length && date) {
+-  //       query.createdAt = { $lt: startOfDay };
+-
+-  //       metalRates = await metalRateModel
+-  //         .find(query)
+-  //         .sort({ createdAt: -1 })
+-  //         .limit(purityCount)
+-  //         .select("-created_by -modified_by -__v");
+-  //     }
+-
+-  //     return metalRates.length ? metalRates : null;
+-  //   } catch (error) {
+-  //     console.error("Database error:", error);
+-  //     throw new Error("Database error while fetching metal rate");
+-  //   }
+-  // }
+-
+   async metalRateTable(query, page, limit) {
+     try {
+       const totalCount = await metalRateModel.countDocuments(query);
+diff --git a/src/infrastructure/repositories/ownersapp/customerRepo.js b/src/infrastructure/repositories/ownersapp/customerRepo.js
+new file mode 100644
+index 0000000..7a4d304
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/customerRepo.js
+@@ -0,0 +1,224 @@
++import customerModel from "../../models/chit/customerModel.js";
++import referralListModel from "../../models/chit/referralListModel.js";
++import DashboardRepository from "../chit/dashboardRepository.js";
++
++class CustomerRepo {
++    constructor() {
++        this.dashboardRepo = new DashboardRepository();
++    }
++
++    async getCustomers(query) {
++        try {
++            const branchId = query.branchId || query.branch;
++            const fromDate = query.fromDate;
++            const toDate = query.toDate;
++
++            const baseFilter = {
++                active: true,
++                is_deleted: false
++            };
++
++            if (branchId && branchId !== "0") {
++                baseFilter.id_branch = branchId;
++            }
++
++            const totalActiveCustomers = await customerModel.countDocuments(baseFilter);
++
++            let newJoineesFilter = { ...baseFilter };
++            if (fromDate || toDate) {
++                newJoineesFilter.createdAt = {};
++                if (fromDate) {
++                    const queryFromDate = new Date(fromDate);
++                    queryFromDate.setHours(0, 0, 0, 0);
++                    newJoineesFilter.createdAt.$gte = queryFromDate;
++                }
++                if (toDate) {
++                    const queryToDate = new Date(toDate);
++                    queryToDate.setHours(23, 59, 59, 999);
++                    newJoineesFilter.createdAt.$lte = queryToDate;
++                }
++            } else {
++                const now = new Date();
++                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
++                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
++                newJoineesFilter.createdAt = { $gte: startOfMonth, $lte: endOfMonth };
++            }
++            const newJoinees = await customerModel.countDocuments(newJoineesFilter);
++
++            const overdueData = await this.dashboardRepo.overdueCalculation();
++            const overDue = overdueData?.totalOverdueAccounts || 0;
++
++            const referralFilter = {
++                active: true,
++                is_deleted: false,
++                referred_by: "Customer"
++            };
++            const totalReferrals = await referralListModel.countDocuments(referralFilter);
++
++            return {
++                totalActiveCustomers,
++                newJoinees,
++                overDue,
++                totalReferrals
++            };
++
++        } catch (error) {
++            console.error("Error in getCustomers stats:", error);
++            throw error;
++        }
++    }
++
++    async findCustomer(mobile) {
++        try {
++            if (!mobile) {
++                throw new Error("Mobile number is required");
++            }
++
++            const customers = await customerModel.aggregate([
++                {
++                    $match: { mobile: Number(mobile) }
++                },
++                {
++                    $lookup: {
++                        from: "schemeaccounts",
++                        localField: "_id",
++                        foreignField: "id_customer",
++                        as: "schemeAccounts"
++                    }
++                },
++                {
++                    $unwind: {
++                        path: "$schemeAccounts",
++                        preserveNullAndEmptyArrays: true
++                    }
++                },
++                {
++                    $lookup: {
++                        from: "schemes",
++                        localField: "schemeAccounts.id_scheme",
++                        foreignField: "_id",
++                        as: "scheme"
++                    }
++                },
++                {
++                    $unwind: {
++                        path: "$scheme",
++                        preserveNullAndEmptyArrays: true
++                    }
++                },
++                {
++                    $lookup: {
++                        from: "metals",
++                        localField: "scheme.id_metal",
++                        foreignField: "_id",
++                        as: "metal"
++                    }
++                },
++                {
++                    $unwind: {
++                        path: "$metal",
++                        preserveNullAndEmptyArrays: true
++                    }
++                },
++                {
++                    $group: {
++                        _id: "$_id",
++                        customerDoc: { $first: "$$ROOT" },
++                        totalAmountPaid: {
++                            $sum: { $ifNull: ["$schemeAccounts.amount", 0] }
++                        },
++                        totalWeightPaid: {
++                            $sum: { $ifNull: ["$schemeAccounts.weight", 0] }
++                        },
++                        activeSchemeAccounts: {
++                            $sum: {
++                                $cond: [{ $eq: ["$schemeAccounts.status", 0] }, 1, 0]
++                            }
++                        },
++                        preClosedAccounts: {
++                            $sum: {
++                                $cond: [{ $eq: ["$schemeAccounts.status", 1] }, 1, 0]
++                            }
++                        },
++                        goldSavings: {
++                            $sum: {
++                                $cond: [
++                                    { $regexMatch: { input: { $ifNull: ["$metal.metal_name", ""] }, regex: /gold/i } },
++                                    { $ifNull: ["$schemeAccounts.weight", 0] },
++                                    0
++                                ]
++                            }
++                        },
++                        silverSavings: {
++                            $sum: {
++                                $cond: [
++                                    { $regexMatch: { input: { $ifNull: ["$metal.metal_name", ""] }, regex: /silver/i } },
++                                    { $ifNull: ["$schemeAccounts.weight", 0] },
++                                    0
++                                ]
++                            }
++                        }
++                    }
++                },
++                {
++                    $replaceRoot: {
++                        newRoot: {
++                            $mergeObjects: [
++                                "$customerDoc",
++                                {
++                                    totalAmountPaid: "$totalAmountPaid",
++                                    totalWeightPaid: "$totalWeightPaid",
++                                    activeSchemeAccounts: "$activeSchemeAccounts",
++                                    preClosedAccounts: "$preClosedAccounts",
++                                    goldSavings: "$goldSavings",
++                                    silverSavings: "$silverSavings"
++                                }
++                            ]
++                        }
++                    }
++                },
++                {
++                    $project: {
++                        _id: 1,
++                        firstname: { $ifNull: ["$firstname", ""] },
++                        lastname: { $ifNull: ["$lastname", ""] },
++                        mobile: { $ifNull: [{ $toString: "$mobile" }, ""] },
++                        address: { $ifNull: ["$address", ""] },
++                        pincode: { $ifNull: [{ $toString: "$pincode" }, ""] },
++                        gender: {
++                            $switch: {
++                                branches: [
++                                    { case: { $eq: ["$gender", 1] }, then: "Male" },
++                                    { case: { $eq: ["$gender", 2] }, then: "Female" },
++                                    { case: { $eq: ["$gender", 3] }, then: "Other" }
++                                ],
++                                default: ""
++                            }
++                        },
++                        date_of_birth: { $ifNull: ["$date_of_birth", ""] },
++                        date_of_wed: { $ifNull: ["$date_of_wed", ""] },
++                        whatsapp: { $ifNull: ["$whatsapp", ""] },
++                        email: { $ifNull: ["$email", ""] },
++                        cus_img: { $ifNull: ["$cus_img", ""] },
++                        pan: { $ifNull: ["$pan", ""] },
++                        aadharNumber: { $ifNull: ["$aadharNumber", ""] },
++                        active: { $ifNull: ["$active", false] },
++                        totalAmountPaid: { $ifNull: ["$totalAmountPaid", 0] },
++                        totalWeightPaid: { $ifNull: ["$totalWeightPaid", 0] },
++                        activeSchemeAccounts: { $ifNull: ["$activeSchemeAccounts", 0] },
++                        preClosedAccounts: { $ifNull: ["$preClosedAccounts", 0] },
++                        goldSavings: { $ifNull: ["$goldSavings", 0] },
++                        silverSavings: { $ifNull: ["$silverSavings", 0] }
++                    }
++                }
++            ]);
++
++            return customers;
++        } catch (error) {
++            console.error("Error in findCustomer stats:", error);
++            throw error;
++        }
++    }
++}
++
++export default CustomerRepo;
+diff --git a/src/infrastructure/repositories/ownersapp/dashboardRepo.js b/src/infrastructure/repositories/ownersapp/dashboardRepo.js
+index 2212ceb..f0378dc 100644
+--- a/src/infrastructure/repositories/ownersapp/dashboardRepo.js
++++ b/src/infrastructure/repositories/ownersapp/dashboardRepo.js
+@@ -1,13 +1,15 @@
+ import paymentModel from "../../models/chit/paymentModel.js";
+ import customerModel from "../../models/chit/customerModel.js";
++import metalRateModel from "../../models/chit/metalRateModel.js";
+ 
+ class DashboardRepo {
+     async getDashboardStats(fromDate, toDate) {
+         const now = new Date();
+-        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+-        const endOfDay = new Date(now.setHours(23, 59, 59, 999));
++        const endOfDay = new Date(new Date(now).setHours(23, 59, 59, 999));
++        const startOfOneWeekAgo = new Date(new Date(now).setDate(now.getDate() - 6));
++        startOfOneWeekAgo.setHours(0, 0, 0, 0);
+ 
+-        let queryFromDate = startOfDay;
++        let queryFromDate = startOfOneWeekAgo;
+         if (fromDate && !isNaN(new Date(fromDate).getTime())) {
+             queryFromDate = new Date(fromDate);
+         }
+@@ -17,7 +19,7 @@ class DashboardRepo {
+             queryToDate = new Date(toDate);
+         }
+ 
+-        const [paymentStatsResult, customerStatsResult] = await Promise.all([
++        const [paymentStatsResult, customerStatsResult, metalRatesResult] = await Promise.all([
+             paymentModel.aggregate([
+                 {
+                     $match: {
+@@ -81,7 +83,7 @@ class DashboardRepo {
+                 {
+                     $group: {
+                         _id: null,
+-                        totalCustomers: { $sum: 1 },
++                        // totalCustomers: { $sum: 1 },
+                         newJoiners: {
+                             $sum: {
+                                 $cond: [
+@@ -93,12 +95,82 @@ class DashboardRepo {
+                         }
+                     }
+                 }
++            ]),
++            metalRateModel.aggregate([
++                { $match: { active: true, is_deleted: false } },
++                { $sort: { createdAt: -1 } },
++                {
++                    $group: {
++                        _id: { material_type_id: "$material_type_id", purity_id: "$purity_id" },
++                        doc: { $first: "$$ROOT" }
++                    }
++                },
++                { $replaceRoot: { newRoot: "$doc" } },
++                {
++                    $lookup: {
++                        from: "purities",
++                        localField: "purity_id",
++                        foreignField: "_id",
++                        as: "purityInfo"
++                    }
++                },
++                { $unwind: { path: "$purityInfo", preserveNullAndEmptyArrays: true } },
++                { $match: { "purityInfo.metalNumber": { $in: [1, 2] } } },
++                {
++                    $lookup: {
++                        from: "metals",
++                        localField: "material_type_id",
++                        foreignField: "_id",
++                        as: "metalInfo"
++                    }
++                },
++                { $unwind: { path: "$metalInfo", preserveNullAndEmptyArrays: true } },
++                {
++                    $addFields: {
++                        purityPriority: {
++                            $switch: {
++                                branches: [
++                                    { case: { $regexMatch: { input: { $ifNull: ["$purityInfo.purity_name", ""] }, regex: /24/i } }, then: 30 },
++                                    { case: { $regexMatch: { input: { $ifNull: ["$purityInfo.purity_name", ""] }, regex: /22/i } }, then: 20 },
++                                    { case: { $regexMatch: { input: { $ifNull: ["$purityInfo.purity_name", ""] }, regex: /18/i } }, then: 10 },
++                                    { case: { $regexMatch: { input: { $ifNull: ["$purityInfo.purity_name", ""] }, regex: /999/i } }, then: 30 },
++                                    { case: { $regexMatch: { input: { $ifNull: ["$purityInfo.purity_name", ""] }, regex: /965/i } }, then: 20 }
++                                ],
++                                default: 0
++                            }
++                        }
++                    }
++                },
++                {
++                    $sort: {
++                        "purityInfo.metalNumber": 1,
++                        purityPriority: -1,
++                        createdAt: -1
++                    }
++                },
++                {
++                    $group: {
++                        _id: "$purityInfo.metalNumber",
++                        doc: { $first: "$$ROOT" }
++                    }
++                },
++                { $replaceRoot: { newRoot: "$doc" } },
++                { $sort: { "purityInfo.metalNumber": 1 } }
+             ])
+         ]);
+ 
+         const paymentStats = paymentStatsResult[0] || { totalAmount: 0, goldSavings: 0, silverSavings: 0 };
+         const customerStats = customerStatsResult[0] || { totalCustomers: 0, newJoiners: 0 };
+ 
++        const metalRates = metalRatesResult.map(rate => ({
++            metalId: rate.material_type_id,
++            purityId: rate.purity_id,
++            metalName: rate.metalInfo?.metal_name || "",
++            purityName: rate.purityInfo?.purity_name || "",
++            metalRate: rate.rate,
++            metalNumber: rate.purityInfo?.metalNumber
++        }));
++
+         return {
+             dateRange: {
+                 fromDate: queryFromDate,
+@@ -108,7 +180,8 @@ class DashboardRepo {
+             totalCustomers: customerStats.totalCustomers,
+             newJoiners: customerStats.newJoiners,
+             goldSavings: paymentStats.goldSavings,
+-            silverSavings: paymentStats.silverSavings
++            silverSavings: paymentStats.silverSavings,
++            metalRates
+         };
+     }
+ }
+diff --git a/src/infrastructure/repositories/ownersapp/metalrateRepo.js b/src/infrastructure/repositories/ownersapp/metalrateRepo.js
+new file mode 100644
+index 0000000..8a09aa7
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/metalrateRepo.js
+@@ -0,0 +1,80 @@
++import metalRateModel from "../../models/chit/metalRateModel.js";
++import mongoose from "mongoose";
++
++class MetalRateRepo {
++    async getMetalRate(branchId, date = null) {
++        try {
++            const matchQuery = {
++                active: true,
++                is_deleted: false
++            };
++
++            if (branchId && branchId !== "0") {
++                matchQuery.id_branch = new mongoose.Types.ObjectId(branchId);
++            }
++
++            if (date) {
++                const queryDate = new Date(date);
++                queryDate.setHours(23, 59, 59, 999);
++                matchQuery.createdAt = { $lte: queryDate };
++            }
++
++            const pipeline = [
++                { $match: matchQuery },
++
++                { $sort: { createdAt: -1 } },
++                {
++                    $group: {
++                        _id: "$purity_id",
++                        latestRate: { $first: "$$ROOT" }
++                    }
++                },
++                { $replaceRoot: { newRoot: "$latestRate" } },
++                {
++                    $lookup: {
++                        from: "purities",
++                        localField: "purity_id",
++                        foreignField: "_id",
++                        as: "purity_info"
++                    }
++                },
++                { $unwind: "$purity_info" },
++                {
++                    $match: {
++                        "purity_info.active": true,
++                        "purity_info.is_deleted": false
++                    }
++                },
++                {
++                    $lookup: {
++                        from: "metals",
++                        localField: "material_type_id",
++                        foreignField: "_id",
++                        as: "metal_info"
++                    }
++                },
++                { $unwind: { path: "$metal_info", preserveNullAndEmptyArrays: true } },
++                {
++                    $project: {
++                        _id: 0,
++                        purity_id: "$purity_id",
++                        material_type_id: "$material_type_id",
++                        rate: "$rate",
++                        id_branch: "$id_branch",
++                        metal_name: "$metal_info.metal_name",
++                        purity_name: "$purity_info.purity_name"
++                    }
++                }
++            ];
++
++            const result = await metalRateModel.aggregate(pipeline);
++
++            return result.length ? result : null;
++        } catch (error) {
++            console.error("Database error:", error);
++            throw new Error("Database error while fetching metal rate");
++        }
++    }
++}
++
++export default MetalRateRepo;
+diff --git a/src/infrastructure/repositories/ownersapp/paymentRepo.js b/src/infrastructure/repositories/ownersapp/paymentRepo.js
+new file mode 100644
+index 0000000..628a2d6
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/paymentRepo.js
+@@ -0,0 +1,165 @@
++import paymentModel from "../../models/chit/paymentModel.js";
++
++class PaymentRepo {
++    async getPayments(fromDate, toDate, page = 1, limit = 10) {
++        const now = new Date();
++        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
++        const endOfDay = new Date(now.setHours(0, 0, 0, 0));
++
++        let queryFromDate = startOfDay;
++        if (fromDate && !isNaN(new Date(fromDate).getTime())) {
++            queryFromDate = new Date(fromDate);
++        }
++
++        let queryToDate = endOfDay;
++        if (toDate && !isNaN(new Date(toDate).getTime())) {
++            queryToDate = new Date(toDate);
++        }
++
++        const pageNum = parseInt(page, 10) || 1;
++        const limitNum = parseInt(limit, 10) || 10;
++        const skipNum = (pageNum - 1) * limitNum;
++
++        const baseMatch = {
++            $match: {
++                date_payment: { $gte: queryFromDate, $lte: queryToDate },
++                payment_status: 1,
++                active: true,
++                is_deleted: false
++            }
++        };
++
++        const countGroup = {
++            $group: {
++                _id: null,
++                totalPaymentsCount: { $sum: 1 }
++            }
++        };
++
++        let pipeline = [
++            baseMatch,
++            {
++                $lookup: {
++                    from: "schemeaccounts",
++                    localField: "id_scheme_account",
++                    foreignField: "_id",
++                    as: "schemeAccount",
++                },
++            },
++            { $unwind: { path: "$schemeAccount", preserveNullAndEmptyArrays: true } },
++            { $match: { "schemeAccount.status": { $nin: [4, 3] } } },
++            {
++                $lookup: {
++                    from: "paymentmodes",
++                    localField: "payment_mode",
++                    foreignField: "_id",
++                    as: "payment_mode_info",
++                },
++            },
++            {
++                $unwind: {
++                    path: "$payment_mode_info",
++                    preserveNullAndEmptyArrays: true,
++                },
++            }
++        ];
++
++        let facetOptions = {
++            globalTotals: [
++                countGroup,
++                {
++                    $project: {
++                        _id: 0,
++                        totalPaymentsCount: 1
++                    }
++                }
++            ],
++            paginatedResults: [
++                { $sort: { createdAt: -1 } },
++                { $skip: skipNum },
++                { $limit: limitNum },
++                {
++                    $lookup: {
++                        from: "schemes",
++                        localField: "id_scheme",
++                        foreignField: "_id",
++                        as: "scheme_info"
++                    }
++                },
++                { $unwind: { path: "$scheme_info", preserveNullAndEmptyArrays: true } },
++                {
++                    $project: {
++                        _id: 1,
++                        customername: "$schemeAccount.account_name",
++                        payment_amount: 1,
++                        scheme_name: "$scheme_info.scheme_name",
++                        createdAt: 1
++                    }
++                }
++            ]
++        };
++
++        if (limitNum <= 5) {
++            facetOptions.modeWise = [
++                {
++                    $group: {
++                        _id: { $ifNull: ["$payment_mode_info.mode_name", "Unknown"] },
++                        totalAmount: { $sum: "$payment_amount" }
++                    }
++                },
++                {
++                    $sort: { _id: 1 }
++                },
++                {
++                    $project: {
++                        _id: 0,
++                        payment_mode: "$_id",
++                        totalAmount: 1
++                    }
++                }
++            ];
++        }
++
++        pipeline.push({ $facet: facetOptions });
++
++        const data = await paymentModel.aggregate(pipeline);
++
++        let totalCount = 0;
++        let modeWisePayments = [];
++        let paginatedResults = [];
++
++        if (data.length > 0) {
++            totalCount = data[0].globalTotals[0]?.totalPaymentsCount || 0;
++            paginatedResults = data[0].paginatedResults || [];
++
++            if (limitNum <= 5) {
++                modeWisePayments = (data[0].modeWise || []).map((mode, index) => ({
++                    number: index + 1,
++                    ...mode
++                }));
++            }
++        }
++
++        const result = {
++            dateRange: {
++                fromDate: queryFromDate,
++                toDate: queryToDate
++            },
++            payments: paginatedResults,
++            pagination: {
++                page: pageNum,
++                limit: limitNum,
++                totalCount: totalCount,
++                totalPages: Math.ceil(totalCount / limitNum) || 1
++            }
++        };
++
++        if (limitNum <= 5) {
++            result.modeWisePayments = modeWisePayments;
++        }
++
++        return result;
++    }
++}
++
++export default PaymentRepo;
+\ No newline at end of file
+diff --git a/src/infrastructure/repositories/ownersapp/schemeAccountRepo.js b/src/infrastructure/repositories/ownersapp/schemeAccountRepo.js
+new file mode 100644
+index 0000000..dc8a112
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/schemeAccountRepo.js
+@@ -0,0 +1,93 @@
++import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
++
++class SchemeAccountRepo {
++    async getSchemeAccounts(fromDate, toDate) {
++        const now = new Date();
++        const startOfDay = new Date(now.setHours(0, 0, 0, 0));
++        const endOfDay = new Date(now.setHours(0, 0, 0, 0));
++
++        let queryFromDate = startOfDay;
++        if (fromDate && !isNaN(new Date(fromDate).getTime())) {
++            queryFromDate = new Date(fromDate);
++        }
++
++        let queryToDate = endOfDay;
++        if (toDate && !isNaN(new Date(toDate).getTime())) {
++            queryToDate = new Date(toDate);
++        }
++
++        const data = await schemeAccountModel.aggregate([
++            {
++                $match: {
++                    createdAt: { $gte: queryFromDate, $lte: queryToDate },
++                    active: true,
++                    is_deleted: false
++                }
++            },
++            {
++                $lookup: {
++                    from: "payments",
++                    let: { accountId: "$_id" },
++                    pipeline: [
++                        {
++                            $match: {
++                                $expr: { $eq: ["$id_scheme_account", "$$accountId"] },
++                                payment_status: 1,
++                                active: true,
++                                is_deleted: false
++                            }
++                        }
++                    ],
++                    as: "paymentsList"
++                }
++            },
++            {
++                $group: {
++                    _id: null,
++                    totalActiveAccounts: { $sum: 1 },
++                    newAccounts: {
++                        $sum: { $cond: [{ $eq: ["$status", 0] }, 1, 0] }
++                    },
++                    closedAccounts: {
++                        $sum: { $cond: [{ $eq: ["$status", 1] }, 1, 0] }
++                    },
++                    completedAccounts: {
++                        $sum: { $cond: [{ $eq: ["$status", 2] }, 1, 0] }
++                    },
++                    totalPaymentAmount: { $sum: { $sum: "$paymentsList.payment_amount" } },
++                    totalMetalWeight: { $sum: { $sum: "$paymentsList.metal_weight" } }
++                }
++            },
++            {
++                $project: {
++                    _id: 0,
++                    totalActiveAccounts: 1,
++                    newAccounts: 1,
++                    closedAccounts: 1,
++                    completedAccounts: 1,
++                    totalPaymentAmount: 1,
++                    totalMetalWeight: 1
++                }
++            }
++        ]);
++
++        const result = data.length > 0 ? data[0] : {
++            totalActiveAccounts: 0,
++            newAccounts: 0,
++            closedAccounts: 0,
++            completedAccounts: 0,
++            totalPaymentAmount: 0,
++            totalMetalWeight: 0
++        };
++
++        return {
++            dateRange: {
++                fromDate: queryFromDate,
++                toDate: queryToDate
++            },
++            ...result
++        };
++    }
++}
++
++export default SchemeAccountRepo;
+diff --git a/src/infrastructure/repositories/ownersapp/schemeRepo.js b/src/infrastructure/repositories/ownersapp/schemeRepo.js
+new file mode 100644
+index 0000000..3b39ed0
+--- /dev/null
++++ b/src/infrastructure/repositories/ownersapp/schemeRepo.js
+@@ -0,0 +1,189 @@
++import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
++import paymentModel from "../../models/chit/paymentModel.js";
++import schemeModel from "../../models/chit/schemeModel.js";
++
++class SchemeRepo {
++    async getSchemeCount(query) {
++        try {
++            const filter = { ...query };
++            let startDate, endDate;
++
++            if (filter.fromDate && filter.toDate) {
++                startDate = new Date(filter.fromDate);
++                endDate = new Date(filter.toDate);
++                delete filter.fromDate;
++                delete filter.toDate;
++            } else {
++                startDate = new Date();
++                startDate.setHours(0, 0, 0, 0);
++                endDate = new Date();
++                endDate.setHours(23, 59, 59, 999);
++            }
++
++            const schemeFilter = { ...filter, createdAt: { $gte: startDate, $lte: endDate } };
++            const paymentFilter = { ...filter, createdAt: { $gte: startDate, $lte: endDate }, payment_status: 1 };
++
++            const [schemeStats, paymentStats, activeSchemesCount] = await Promise.all([
++                schemeAccountModel.aggregate([
++                    { $match: schemeFilter },
++                    {
++                        $group: {
++                            _id: null,
++                            newAccounts: {
++                                $sum: 1
++                            },
++                            completedAccounts: {
++                                $sum: { $cond: [{ $eq: ["$status", 2] }, 1, 0] }
++                            }
++                        }
++                    }
++                ]),
++                paymentModel.aggregate([
++                    { $match: paymentFilter },
++                    {
++                        $lookup: {
++                            from: "schemeaccounts",
++                            localField: "id_scheme_account",
++                            foreignField: "_id",
++                            as: "schemeAccount"
++                        }
++                    },
++                    { $unwind: { path: "$schemeAccount", preserveNullAndEmptyArrays: true } },
++                    {
++                        $lookup: {
++                            from: "schemes",
++                            localField: "schemeAccount.id_scheme",
++                            foreignField: "_id",
++                            as: "scheme"
++                        }
++                    },
++                    { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: true } },
++                    {
++                        $lookup: {
++                            from: "metals",
++                            localField: "scheme.id_metal",
++                            foreignField: "_id",
++                            as: "metal"
++                        }
++                    },
++                    { $unwind: { path: "$metal", preserveNullAndEmptyArrays: true } },
++                    {
++                        $group: {
++                            _id: null,
++                            receivedAmount: { $sum: { $ifNull: ["$payment_amount", 0] } },
++                            goldSavings: {
++                                $sum: {
++                                    $cond: [
++                                        { $regexMatch: { input: { $ifNull: ["$metal.metal_name", ""] }, regex: /gold/i } },
++                                        { $ifNull: ["$metal_weight", 0] },
++                                        0
++                                    ]
++                                }
++                            },
++                            silverSavings: {
++                                $sum: {
++                                    $cond: [
++                                        { $regexMatch: { input: { $ifNull: ["$metal.metal_name", ""] }, regex: /silver/i } },
++                                        { $ifNull: ["$metal_weight", 0] },
++                                        0
++                                    ]
++                                }
++                            }
++                        }
++                    }
++                ]),
++                schemeModel.countDocuments({ active: true, is_deleted: false })
++            ]);
++
++            const schemesResult = schemeStats.length > 0 ? schemeStats[0] : { newAccounts: 0, completedAccounts: 0 };
++            const paymentsResult = paymentStats.length > 0 ? paymentStats[0] : { receivedAmount: 0, goldSavings: 0, silverSavings: 0 };
++
++            return {
++                totalActiveSchemes: activeSchemesCount,
++                newAccounts: schemesResult.newAccounts,
++                completedAccounts: schemesResult.completedAccounts,
++                receivedAmount: paymentsResult.receivedAmount,
++                goldSavings: paymentsResult.goldSavings,
++                silverSavings: paymentsResult.silverSavings
++            };
++        } catch (error) {
++            console.error("Error in getSchemeCount repo:", error);
++            throw error;
++        }
++    }
++
++    async getSchemeDetails(query) {
++        try {
++            const filter = { ...query };
++            let startDate, endDate;
++
++            if (filter.fromDate && filter.toDate) {
++                startDate = new Date(filter.fromDate);
++                endDate = new Date(filter.toDate);
++                delete filter.fromDate;
++                delete filter.toDate;
++            }
++
++            const schemeAccountMatch = {
++                active: true,
++                status: 0
++            };
++
++            if (startDate && endDate) {
++                schemeAccountMatch.createdAt = { $gte: startDate, $lte: endDate };
++            }
++
++            const schemeMatch = {
++                ...filter,
++                // active: true,
++                is_deleted: false
++            };
++
++            const result = await schemeModel.aggregate([
++                {
++                    $match: schemeMatch
++                },
++                {
++                    $lookup: {
++                        from: "schemeaccounts",
++                        let: { schemeId: "$_id" },
++                        pipeline: [
++                            {
++                                $match: {
++                                    $expr: { $eq: ["$id_scheme", "$$schemeId"] },
++                                    ...schemeAccountMatch
++                                }
++                            },
++                            {
++                                $count: "activeCount"
++                            }
++                        ],
++                        as: "accounts"
++                    }
++                },
++                {
++                    $addFields: {
++                        totalActiveAccounts: {
++                            $ifNull: [{ $arrayElemAt: ["$accounts.activeCount", 0] }, 0]
++                        }
++                    }
++                },
++                {
++                    $project: {
++                        _id: 1,
++                        scheme_name: 1,
++                        totalActiveAccounts: 1,
++                        active: 1
++                    }
++                }
++            ]);
++
++            return result;
++        } catch (error) {
++            console.error("Error in getSchemeDetails repo:", error);
++            throw error;
++        }
++    }
++}
++
++export default SchemeRepo;
+diff --git a/src/interfaces/controllers/chit/admin/client/metalRateController.js b/src/interfaces/controllers/chit/admin/client/metalRateController.js
+index 7f89824..384b775 100644
+--- a/src/interfaces/controllers/chit/admin/client/metalRateController.js
++++ b/src/interfaces/controllers/chit/admin/client/metalRateController.js
+@@ -11,7 +11,7 @@ class metalRateController {
+       const { error } = this.validator.metalRateValidations.validate(
+         req.body
+       );
+-      
++
+       if (error) {
+         return res.status(400).json({ message: error.details[0].message });
+       }
+@@ -36,7 +36,7 @@ class metalRateController {
+         return res.status(400).json({ message: result.message });
+       }
+ 
+-      return res.status(201).json({ message: result.message , data:result.data});
++      return res.status(201).json({ message: result.message, data: result.data });
+     } catch (error) {
+       console.error(error);
+       return res.status(500).json({ message: "Internal server error" });
+@@ -109,7 +109,7 @@ class metalRateController {
+   }
+ 
+   async todaysMetalRateByMetal(req, res) {
+-    const { metalid,purity, date,branch} = req.query;
++    const { metalid, purity, date, branch } = req.query;
+ 
+     try {
+       if (!purity) {
+@@ -142,12 +142,12 @@ class metalRateController {
+         );
+       }
+ 
+-      let branchId=""
+-      if(!branch){
+-        branchId  = req.user.branch;
++      let branchId = ""
++      if (!branch) {
++        branchId = req.user.branch;
+       }
+ 
+-      if(!branch && !req.user.branch){
++      if (!branch && !req.user.branch) {
+         return res.status(400).json("No branch provided")
+       }
+       const result = await this.metalRateUseCase.todaysMetalRateByMetal(
+@@ -161,7 +161,7 @@ class metalRateController {
+         return res.status(404).json({ message: result.message });
+       }
+ 
+-      return res 
++      return res
+         .status(200)
+         .json({ message: result.message, data: result.data });
+     } catch (error) {
+@@ -173,7 +173,7 @@ class metalRateController {
+   async todaysMetalRate(req, res) {
+ 
+     const { branchId, date } = req.params;
+-    
++
+     try {
+       if (!branchId) {
+         return res.status(400).json({ message: "Branch ID is required" });
+@@ -185,8 +185,8 @@ class metalRateController {
+         if (isNaN(parsedDate.getTime())) {
+           return res.status(400).json({ message: "Invalid date format" });
+         }
+-      }else if (!date) {
+-        const date= new Date()
++      } else if (!date) {
++        const date = new Date()
+         parsedDate = new Date(date);
+         if (isNaN(parsedDate.getTime())) {
+           return res.status(400).json({ message: "Invalid date format" });
+@@ -290,15 +290,11 @@ class metalRateController {
+   async metalRatetoday(req, res) {
+     const { branchId } = req.params;
+     try {
+-      
++
+       if (!branchId) {
+-        query.branchId = req.user.branch;
++        query.branchId = req?.user?.branch;
+       }
+ 
+-      // if (!branchId) {
+-      //   return res.status(400).json({ message: "Branch ID is required" });
+-      // }
+-
+       const result = await this.metalRateUseCase.getMetalRate(
+         branchId
+       );
+diff --git a/src/interfaces/controllers/ownersapp/customerController.js b/src/interfaces/controllers/ownersapp/customerController.js
+new file mode 100644
+index 0000000..7958d2b
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/customerController.js
+@@ -0,0 +1,111 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++import customerModel from '../../../infrastructure/models/chit/customerModel.js';
++
++class CustomerController {
++    constructor(customerUseCase) {
++        this.customerUseCase = customerUseCase;
++    }
++
++    getCustomers = asyncHandler(async (req, res) => {
++        try {
++            const data = await this.customerUseCase.getCustomers(req.query);
++
++            res.status(200).json({
++                success: true,
++                data
++            });
++        } catch (error) {
++            console.error("Error in getCustomers controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++
++    setCustomers = asyncHandler(async (req, res) => {
++        try {
++            const { firstname, mobile, address, gender } = req.body;
++
++            if (!firstname || String(firstname).trim() === "") {
++                return res.status(400).json({ success: false, message: "Firstname is mandatory" });
++            }
++            if (!mobile || isNaN(Number(mobile))) {
++                return res.status(400).json({ success: false, message: "Mobile is mandatory and must be a valid number" });
++            }
++            if (!address || String(address).trim() === "") {
++                return res.status(400).json({ success: false, message: "Address is mandatory" });
++            }
++            if (gender === undefined || gender === null || String(gender).trim() === "") {
++                return res.status(400).json({ success: false, message: "Gender is mandatory" });
++            }
++
++            for (const key in req.body) {
++                if (customerModel.schema.paths[key]) {
++                    const type = customerModel.schema.paths[key].instance;
++                    const val = req.body[key];
++
++                    if (val !== null && val !== undefined && val !== "") {
++                        if (type === 'Number' && !isNaN(Number(val))) {
++                            req.body[key] = Number(val);
++                        } else if (type === 'String') {
++                            req.body[key] = String(val);
++                        } else if (type === 'Boolean') {
++                            req.body[key] = (val === 'true' || val === true || val === 1);
++                        } else if (type === 'Date') {
++                            req.body[key] = new Date(val);
++                        }
++                    }
++                }
++            }
++
++            const data = await this.customerUseCase.setCustomers(req.body);
++
++            res.status(200).json({
++                success: true,
++                data
++            });
++        } catch (error) {
++            console.error("Error in setCustomers controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++
++    findCustomer = asyncHandler(async (req, res) => {
++        try {
++            const { mobile } = req.query;
++
++            if (!mobile || isNaN(Number(mobile))) {
++                return res.status(400).json({ success: false, message: "Mobile is mandatory and must be a valid number" });
++            }
++
++            for (const key in req.query) {
++                if (customerModel.schema.paths[key]) {
++                    const type = customerModel.schema.paths[key].instance;
++                    const val = req.query[key];
++
++                    if (val !== null && val !== undefined && val !== "") {
++                        if (type === 'Number' && !isNaN(Number(val))) {
++                            req.query[key] = Number(val);
++                        } else if (type === 'String') {
++                            req.query[key] = String(val);
++                        } else if (type === 'Boolean') {
++                            req.query[key] = (val === 'true' || val === true || val === 1);
++                        } else if (type === 'Date') {
++                            req.query[key] = new Date(val);
++                        }
++                    }
++                }
++            }
++
++            const data = await this.customerUseCase.findCustomer(req.query);
++
++            res.status(200).json({
++                success: true,
++                data
++            });
++        } catch (error) {
++            console.error("Error in findCustomer controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++}
++
++export default CustomerController;
+diff --git a/src/interfaces/controllers/ownersapp/metalrateController.js b/src/interfaces/controllers/ownersapp/metalrateController.js
+new file mode 100644
+index 0000000..a5fe587
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/metalrateController.js
+@@ -0,0 +1,30 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++
++class MetalRateController {
++    constructor(metalRateUseCase) {
++        this.metalRateUseCase = metalRateUseCase;
++    }
++
++    getMetalRate = asyncHandler(async (req, res) => {
++        const branchId = req.query.branchId || req.params.branchId || req?.user?.branch;
++        const date = req.query.date || req.params.date;
++
++        const data = await this.metalRateUseCase.getMetalRate(branchId, date);
++
++        res.status(200).json({
++            success: true,
++            data
++        });
++    });
++
++    setMetalRate = asyncHandler(async (req, res) => {
++        const data = await this.metalRateUseCase.setMetalRate(req.body);
++
++        res.status(200).json({
++            success: true,
++            data
++        });
++    });
++}
++
++export default MetalRateController;
+diff --git a/src/interfaces/controllers/ownersapp/paymentController.js b/src/interfaces/controllers/ownersapp/paymentController.js
+new file mode 100644
+index 0000000..6bd552f
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/paymentController.js
+@@ -0,0 +1,19 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++
++class PaymentController {
++    constructor(paymentUseCase) {
++        this.paymentUseCase = paymentUseCase;
++    }
++
++    getPayments = asyncHandler(async (req, res) => {
++        const { fromDate, toDate, page = 1, limit = 5 } = req.query;
++        const data = await this.paymentUseCase.executeGetPayments(fromDate, toDate, page, limit);
++
++        res.status(200).json({
++            success: true,
++            data
++        });
++    });
++}
++
++export default PaymentController;
+diff --git a/src/interfaces/controllers/ownersapp/schemeAccountController.js b/src/interfaces/controllers/ownersapp/schemeAccountController.js
+new file mode 100644
+index 0000000..6e6aab9
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/schemeAccountController.js
+@@ -0,0 +1,19 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++
++class SchemeAccountController {
++    constructor(schemeAccountUseCase) {
++        this.schemeAccountUseCase = schemeAccountUseCase;
++    }
++
++    getSchemeAccounts = asyncHandler(async (req, res) => {
++        const { fromDate, toDate } = req.query;
++        const data = await this.schemeAccountUseCase.executeGetSchemeAccounts(fromDate, toDate);
++
++        res.status(200).json({
++            success: true,
++            data
++        });
++    });
++}
++
++export default SchemeAccountController;
+diff --git a/src/interfaces/controllers/ownersapp/schemeController.js b/src/interfaces/controllers/ownersapp/schemeController.js
+new file mode 100644
+index 0000000..e7961b3
+--- /dev/null
++++ b/src/interfaces/controllers/ownersapp/schemeController.js
+@@ -0,0 +1,57 @@
++import asyncHandler from '../../../utils/errors/asyncHandler.js';
++import schemeModel from '../../../infrastructure/models/chit/schemeModel.js';
++
++class SchemeController {
++    constructor(schemeUseCase) {
++        this.schemeUseCase = schemeUseCase;
++    }
++
++    getSchemeCount = asyncHandler(async (req, res) => {
++        try {
++            for (const key in req.query) {
++                if (schemeModel.schema.paths[key]) {
++                    const type = schemeModel.schema.paths[key].instance;
++                    const val = req.query[key];
++
++                    if (val !== null && val !== undefined && val !== "") {
++                        if (type === 'Number' && !isNaN(Number(val))) {
++                            req.query[key] = Number(val);
++                        } else if (type === 'String') {
++                            req.query[key] = String(val);
++                        } else if (type === 'Boolean') {
++                            req.query[key] = (val === 'true' || val === true || val === 1);
++                        } else if (type === 'Date') {
++                            req.query[key] = new Date(val);
++                        }
++                    }
++                }
++            }
++
++            const count = await this.schemeUseCase.getSchemeCount(req.query);
++
++            res.status(200).json({
++                success: true,
++                count
++            });
++        } catch (error) {
++            console.error("Error in getSchemeCount controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++
++    getSchemeDetails = asyncHandler(async (req, res) => {
++        try {
++            const details = await this.schemeUseCase.getSchemeDetails(req.query);
++
++            res.status(200).json({
++                success: true,
++                details
++            });
++        } catch (error) {
++            console.error("Error in getSchemeDetails controller:", error);
++            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
++        }
++    });
++}
++
++export default SchemeController;
+diff --git a/src/interfaces/routes/ownersapp/customerRoutes.js b/src/interfaces/routes/ownersapp/customerRoutes.js
+new file mode 100644
+index 0000000..b3e894b
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/customerRoutes.js
+@@ -0,0 +1,16 @@
++import express from 'express';
++import CustomerRepo from '../../../infrastructure/repositories/ownersapp/customerRepo.js';
++import CustomerUseCase from '../../../usecases/ownersapp/customerUseCase.js';
++import CustomerController from '../../controllers/ownersapp/customerController.js';
++
++const customerRepo = new CustomerRepo();
++const customerUseCase = new CustomerUseCase(customerRepo);
++const customerController = new CustomerController(customerUseCase);
++
++const router = express.Router();
++
++router.get('/customers', customerController.getCustomers);
++router.post('/customers', customerController.setCustomers);
++router.get('/customers/find', customerController.findCustomer);
++
++export default router;
+diff --git a/src/interfaces/routes/ownersapp/indexRoute.js b/src/interfaces/routes/ownersapp/indexRoute.js
+index e47654f..4a913bc 100644
+--- a/src/interfaces/routes/ownersapp/indexRoute.js
++++ b/src/interfaces/routes/ownersapp/indexRoute.js
+@@ -1,11 +1,22 @@
+ import express from 'express';
+ import dashboardRoutes from './dashboardRoutes.js';
+ import ownersAppAuthMiddleware from '../../../utils/middleware/ownersAppAuthMiddleware.js';
++import schemeAccountRoutes from './schemeAccountRoutes.js';
++import paymentRoutes from './paymentRoutes.js';
++import metalRateRoutes from './metalrateRoutes.js';
++import customerRoutes from './customerRoutes.js';
++import schemeRoutes from './schemeRoutes.js';
+ 
+ const router = express.Router();
+ 
+ router.use(ownersAppAuthMiddleware.protect);
+ 
+ router.use('/', dashboardRoutes);
++router.use("/", schemeAccountRoutes);
++router.use("/", paymentRoutes);
++router.use("/", metalRateRoutes);
++router.use("/", customerRoutes);
++router.use("/", schemeRoutes);
+ 
+ export default router;
++
+diff --git a/src/interfaces/routes/ownersapp/metalrateRoutes.js b/src/interfaces/routes/ownersapp/metalrateRoutes.js
+new file mode 100644
+index 0000000..57a3dab
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/metalrateRoutes.js
+@@ -0,0 +1,15 @@
++import express from 'express';
++import MetalRateRepo from '../../../infrastructure/repositories/ownersapp/metalrateRepo.js';
++import MetalRateUseCase from '../../../usecases/ownersapp/metalrateUseCase.js';
++import MetalRateController from '../../controllers/ownersapp/metalrateController.js';
++
++const metalRateRepo = new MetalRateRepo();
++const metalRateUseCase = new MetalRateUseCase(metalRateRepo);
++const metalRateController = new MetalRateController(metalRateUseCase);
++
++const router = express.Router();
++
++router.get('/metalrates', metalRateController.getMetalRate);
++router.post('/metalrates', metalRateController.setMetalRate);
++
++export default router;
+diff --git a/src/interfaces/routes/ownersapp/paymentRoutes.js b/src/interfaces/routes/ownersapp/paymentRoutes.js
+new file mode 100644
+index 0000000..c2147f9
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/paymentRoutes.js
+@@ -0,0 +1,14 @@
++import express from 'express';
++import PaymentController from '../../controllers/ownersapp/paymentController.js';
++import PaymentRepo from '../../../infrastructure/repositories/ownersapp/paymentRepo.js';
++import PaymentUseCase from '../../../usecases/ownersapp/paymentUseCase.js';
++
++const router = express.Router();
++
++const paymentRepo = new PaymentRepo();
++const paymentUseCase = new PaymentUseCase(paymentRepo);
++const paymentController = new PaymentController(paymentUseCase);
++
++router.get('/payments', (req, res) => paymentController.getPayments(req, res));
++
++export default router;
+diff --git a/src/interfaces/routes/ownersapp/schemeAccountRoutes.js b/src/interfaces/routes/ownersapp/schemeAccountRoutes.js
+new file mode 100644
+index 0000000..28b58b8
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/schemeAccountRoutes.js
+@@ -0,0 +1,14 @@
++import express from 'express';
++import SchemeAccountController from '../../controllers/ownersapp/schemeAccountController.js';
++import SchemeAccountRepo from '../../../infrastructure/repositories/ownersapp/schemeAccountRepo.js';
++import SchemeAccountUseCase from '../../../usecases/ownersapp/schemeAccountUseCase.js';
++
++const router = express.Router();
++
++const schemeAccountRepo = new SchemeAccountRepo();
++const schemeAccountUseCase = new SchemeAccountUseCase(schemeAccountRepo);
++const schemeAccountController = new SchemeAccountController(schemeAccountUseCase);
++
++router.get('/schemeaccounts', (req, res) => schemeAccountController.getSchemeAccounts(req, res));
++
++export default router;
+diff --git a/src/interfaces/routes/ownersapp/schemeRoutes.js b/src/interfaces/routes/ownersapp/schemeRoutes.js
+new file mode 100644
+index 0000000..74ae270
+--- /dev/null
++++ b/src/interfaces/routes/ownersapp/schemeRoutes.js
+@@ -0,0 +1,15 @@
++import express from 'express';
++import SchemeRepo from '../../../infrastructure/repositories/ownersapp/schemeRepo.js';
++import SchemeUseCase from '../../../usecases/ownersapp/schemeUseCase.js';
++import SchemeController from '../../controllers/ownersapp/schemeController.js';
++
++const schemeRepo = new SchemeRepo();
++const schemeUseCase = new SchemeUseCase(schemeRepo);
++const schemeController = new SchemeController(schemeUseCase);
++
++const router = express.Router();
++
++router.get('/schemes', schemeController.getSchemeCount);
++router.get('/schemes/details', schemeController.getSchemeDetails);
++
++export default router;
+diff --git a/src/usecases/auth/chit/client/CustomerUseCase.js b/src/usecases/auth/chit/client/CustomerUseCase.js
+index 8c58059..9e46c86 100644
+--- a/src/usecases/auth/chit/client/CustomerUseCase.js
++++ b/src/usecases/auth/chit/client/CustomerUseCase.js
+@@ -1,4 +1,4 @@
+- import { isValidObjectId } from "mongoose";
++import { isValidObjectId } from "mongoose";
+ import mongoose from "mongoose";
+ import config from "../../../../config/chit/env.js";
+ import crypto from "crypto";
+@@ -34,13 +34,13 @@ class CustomerUseCase {
+     this.employeeRepo = new EmployeeRepository()
+   }
+ 
+-  
++
+   async s3Helper(id_clientId) {
+     try {
+       let s3settings
+-      if(!id_clientId){
+-         s3settings = await this.s3Repo.getSetting();
+-      }else{
++      if (!id_clientId) {
++        s3settings = await this.s3Repo.getSetting();
++      } else {
+         s3settings = await this.s3Repo.getSettingByClient(id_clientId);
+       }
+ 
+@@ -70,8 +70,8 @@ class CustomerUseCase {
+   async urlConstructor(url, content, replacements) {
+     try {
+       const constructedUrl = url
+-      .replace(/xxxmobilexxx/g, replacements.mobile)
+-      .replace(/xxxmessagexxx/g, content);
++        .replace(/xxxmobilexxx/g, replacements.mobile)
++        .replace(/xxxmessagexxx/g, content);
+ 
+       return constructedUrl;
+     } catch (error) {
+@@ -93,10 +93,10 @@ class CustomerUseCase {
+         };
+       }
+ 
+-      if(data?.password){
++      if (data?.password) {
+ 
+       }
+-      
++
+       let dataToSave = {};
+       dataToSave = {
+         ...data,
+@@ -114,7 +114,7 @@ class CustomerUseCase {
+         whatsapp: data?.whatsapp || data.mobile || null,
+         added_by: data?.added_by || 0,
+         address: data?.address || "",
+-        email:data?.email || null
++        email: data?.email || null
+       };
+ 
+       if (data?.password) {
+@@ -124,7 +124,7 @@ class CustomerUseCase {
+         dataToSave.password = hashedPassword;
+       }
+ 
+-      const s3Configs = await this.s3Helper(token.id_client);
++      const s3Configs = await this.s3Helper(token?.id_client);
+ 
+       if (!s3Configs) {
+         return { success: false, messsage: "No s3bucket configuraiton found" };
+@@ -161,15 +161,16 @@ class CustomerUseCase {
+         );
+         dataToSave.password = hashPassword;
+       }
+-      
+-      const empCode = generateReferralCode(data.mobile,new Date())
++
++      const empCode = generateReferralCode(data.mobile, new Date())
+       data.employeeId = `CUS${empCode}`
++
+       const savedData = await this.customerRepository.addCustomer(dataToSave);
+ 
+       if (!savedData) {
+         return { success: false, message: "Failed to add customer" };
+       }
+-      
++
+       const smsInfo = await this.smsRepo.findOne({
+         id_branch: data.id_branch,
+         customer_sent: 1,
+@@ -182,15 +183,15 @@ class CustomerUseCase {
+         const replacements = {
+           mobile: userInfo.mobile,
+         };
+-        
++
+         const urlToSend = await this.urlConstructor(
+           smsurl,
+           smsContent,
+           replacements
+         );
+-        
++
+         const smsSendStatus = await this.smsSender.sendSms(urlToSend);
+-        
++
+         if (smsSendStatus) {
+           return {
+             success: true,
+@@ -212,135 +213,135 @@ class CustomerUseCase {
+   }
+ 
+   async editCustomer(id, data, uploads, token) {
+-    const genderImages = [null,'1749878256269.webp',"1749878753243.webp", '1749878926644.webp', ]; //null,male,female, other
+-    
+-    try {
+-        if (!isValidObjectId(id)) {
+-            return { success: false, message: "Provide a valid object id" };
+-        }
++    const genderImages = [null, '1749878256269.webp', "1749878753243.webp", '1749878926644.webp',]; //null,male,female, other
+ 
+-        const userExists = await this.customerRepository.findById(id);
+-        if (!userExists) {
+-            return { success: false, message: "No user found" };
+-        }
++    try {
++      if (!isValidObjectId(id)) {
++        return { success: false, message: "Provide a valid object id" };
++      }
+ 
+-        const existingUser = await this.customerRepository.checkUser(id, data.mobile);
+-        if (existingUser) {
+-            return {
+-                success: false,
+-                message: "User already exists with same mobile number",
+-            };
+-        }
++      const userExists = await this.customerRepository.findById(id);
++      if (!userExists) {
++        return { success: false, message: "No user found" };
++      }
+ 
+-        const normalizeValue = (key, value) => {
+-            if (["gender", "mobile", "pincode", "notification"].includes(key)) {
+-                return Number(value);
+-            }
+-            if (value instanceof mongoose.Types.ObjectId) {
+-                return value.toString();
+-            }
+-            if (value instanceof Date) {
+-                return value.toISOString();
+-            }
+-            return value;
++      const existingUser = await this.customerRepository.checkUser(id, data.mobile);
++      if (existingUser) {
++        return {
++          success: false,
++          message: "User already exists with same mobile number",
+         };
++      }
+ 
+-        const fieldsToUpdate = {};
++      const normalizeValue = (key, value) => {
++        if (["gender", "mobile", "pincode", "notification"].includes(key)) {
++          return Number(value);
++        }
++        if (value instanceof mongoose.Types.ObjectId) {
++          return value.toString();
++        }
++        if (value instanceof Date) {
++          return value.toISOString();
++        }
++        return value;
++      };
+ 
+-        Object.keys(data).forEach((key) => {
+-            const newValue = data[key];
++      const fieldsToUpdate = {};
+ 
+-            if (
+-                ["_id", "createdAt", "updatedAt", "__v", "is_deleted"].includes(key) ||
+-                normalizeValue(key, userExists[key]) === normalizeValue(key, newValue) ||
+-                newValue === "" || newValue === null
+-            ) {
+-                return;
+-            }
+-        
+-            fieldsToUpdate[key] = newValue;
+-        });
++      Object.keys(data).forEach((key) => {
++        const newValue = data[key];
+ 
+-        if (Object.keys(fieldsToUpdate).length === 0) {
+-            return { success: false, message: "No fields to update" };
+-        } else {
+-            fieldsToUpdate.date_upd = Date.now();
++        if (
++          ["_id", "createdAt", "updatedAt", "__v", "is_deleted"].includes(key) ||
++          normalizeValue(key, userExists[key]) === normalizeValue(key, newValue) ||
++          newValue === "" || newValue === null
++        ) {
++          return;
+         }
+ 
+-        const s3Configs = await this.s3Helper(token.id_client);
+-        if (!s3Configs) {
+-            return { success: false, messsage: "No s3bucket configuration found" };
+-        }
++        fieldsToUpdate[key] = newValue;
++      });
++
++      if (Object.keys(fieldsToUpdate).length === 0) {
++        return { success: false, message: "No fields to update" };
++      } else {
++        fieldsToUpdate.date_upd = Date.now();
++      }
+ 
+-        if (uploads) {
+-            try {
+-                if (uploads.cus_img && uploads.cus_img[0]) {
+-                    if (
+-                        userExists.cus_img &&
+-                        userExists.cus_img !== uploads.cus_img[0].filename &&
+-                        !genderImages.includes(userExists.cus_img)
+-                    ) {
+-                        const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.cus_img}`;
+-                        await this.s3service.deleteFromS3(keyPath, s3Configs);
+-                    }
+-                    fieldsToUpdate.cus_img = await this.s3service.uploadToS3(
+-                        uploads.cus_img[0],
+-                        "customer",
+-                        s3Configs
+-                    );
+-                } else if (data.gender !== undefined && data.gender !== null) {
+-                    const genderIndex = Number(data.gender);
+-                    if (!isNaN(genderIndex) && (!userExists.cus_img || genderImages.includes(userExists.cus_img))) {
+-                        const selectedImage = genderImages[genderIndex % genderImages.length];
+-                        fieldsToUpdate.cus_img = selectedImage;
+-                    }
+-                }
+-
+-                if (uploads.id_proof && uploads.id_proof[0]) {
+-                    if (
+-                        userExists.id_proof &&
+-                        userExists.id_proof !== uploads.id_proof[0].filename
+-                    ) {
+-                        const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.id_proof}`;
+-                        await this.s3service.deleteFromS3(keyPath, s3Configs);
+-                    }
+-                    fieldsToUpdate.id_proof = await this.s3service.uploadToS3(
+-                        uploads.id_proof[0],
+-                        "customer",
+-                        s3Configs
+-                    );
+-                }
+-            } catch (error) {
+-                console.error(error);
+-                return { success: false, message: "Error uploading files" };
++      const s3Configs = await this.s3Helper(token.id_client);
++      if (!s3Configs) {
++        return { success: false, messsage: "No s3bucket configuration found" };
++      }
++
++      if (uploads) {
++        try {
++          if (uploads.cus_img && uploads.cus_img[0]) {
++            if (
++              userExists.cus_img &&
++              userExists.cus_img !== uploads.cus_img[0].filename &&
++              !genderImages.includes(userExists.cus_img)
++            ) {
++              const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.cus_img}`;
++              await this.s3service.deleteFromS3(keyPath, s3Configs);
+             }
+-        } else if (data.gender !== undefined && data.gender !== null) {
++            fieldsToUpdate.cus_img = await this.s3service.uploadToS3(
++              uploads.cus_img[0],
++              "customer",
++              s3Configs
++            );
++          } else if (data.gender !== undefined && data.gender !== null) {
+             const genderIndex = Number(data.gender);
+-            if (!isNaN(genderIndex)) {
+-                const currentImage = userExists.cus_img;
+-                if (!currentImage || genderImages.includes(currentImage)) {
+-                    // const selectedImage = genderImages[genderIndex % genderImages.length];
+-                    const selectedImage = genderImages[genderIndex];
+-                    fieldsToUpdate.cus_img = selectedImage;
+-                }
++            if (!isNaN(genderIndex) && (!userExists.cus_img || genderImages.includes(userExists.cus_img))) {
++              const selectedImage = genderImages[genderIndex % genderImages.length];
++              fieldsToUpdate.cus_img = selectedImage;
++            }
++          }
++
++          if (uploads.id_proof && uploads.id_proof[0]) {
++            if (
++              userExists.id_proof &&
++              userExists.id_proof !== uploads.id_proof[0].filename
++            ) {
++              const keyPath = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/${userExists?.id_proof}`;
++              await this.s3service.deleteFromS3(keyPath, s3Configs);
+             }
++            fieldsToUpdate.id_proof = await this.s3service.uploadToS3(
++              uploads.id_proof[0],
++              "customer",
++              s3Configs
++            );
++          }
++        } catch (error) {
++          console.error(error);
++          return { success: false, message: "Error uploading files" };
++        }
++      } else if (data.gender !== undefined && data.gender !== null) {
++        const genderIndex = Number(data.gender);
++        if (!isNaN(genderIndex)) {
++          const currentImage = userExists.cus_img;
++          if (!currentImage || genderImages.includes(currentImage)) {
++            // const selectedImage = genderImages[genderIndex % genderImages.length];
++            const selectedImage = genderImages[genderIndex];
++            fieldsToUpdate.cus_img = selectedImage;
++          }
+         }
++      }
+ 
+-        const updatedCustomer = await this.customerRepository.findByIdAndUpdate(
+-            id,
+-            fieldsToUpdate
+-        );
++      const updatedCustomer = await this.customerRepository.findByIdAndUpdate(
++        id,
++        fieldsToUpdate
++      );
+ 
+-        return {
+-            success: true,
+-            message: "Customer updated successfully",
+-            data: updatedCustomer,
+-        };
++      return {
++        success: true,
++        message: "Customer updated successfully",
++        data: updatedCustomer,
++      };
+     } catch (error) {
+-        console.error(error);
+-        return { success: false, message: "Error updating customer" };
++      console.error(error);
++      return { success: false, message: "Error updating customer" };
+     }
+-}
++  }
+ 
+   async deleteCustomer(id) {
+     try {
+@@ -419,7 +420,7 @@ class CustomerUseCase {
+     const customers = await this.customerRepository.getCustomersByBranch(
+       branchId
+     );
+-    
++
+     return customers.length > 0 ? customers : [];
+   }
+ 
+@@ -435,11 +436,11 @@ class CustomerUseCase {
+         return { success: false, message: "No customer found" };
+       }
+ 
+-     if(existsData.mpin){
+-       existsData.mpinStatus = true
+-     }else{
+-      existsData.mpinStatus = false
+-     }
++      if (existsData.mpin) {
++        existsData.mpinStatus = true
++      } else {
++        existsData.mpinStatus = false
++      }
+ 
+       return {
+         success: true,
+@@ -460,69 +461,69 @@ class CustomerUseCase {
+           message: "Please provide search text.",
+         };
+       }
+- 
++
+       let customerMobile = customers;
+- 
++
+       if (isValidObjectId(customers)) {
+         const currentCustomer = await this.customerRepository.findById(customers);
+         customerMobile = currentCustomer?.mobile?.toString() || null;
+       }
+- 
++
+       const searchTerm = search.trim();
+       let result = null;
+- 
++
+       if (customerMobile && customerMobile.toString() === searchTerm) {
+         return {
+           success: false,
+           message: "Self referring is not allowed.",
+         };
+       }
+- 
++
+       if (`Cus-${customerMobile}` === `Cus-${searchTerm}`) {
+         return {
+           success: false,
+           message: "Self referring is not allowed.",
+         };
+       }
+- 
++
+       if (/^\d{10}$/.test(searchTerm)) {
+         result = await this.customerRepository.searchCustomerByMobile(searchTerm);
+       } else {
+         result = await this.customerRepository.finByReferralCode(`Cus-${searchTerm}`);
+       }
+- 
++
+       if (!result) {
+         result = await this.employeeRepo.findOne({ mobile: searchTerm });
+       }
+- 
++
+       if (!result) {
+         return {
+           success: false,
+           message: "No customer or employee found with given details.",
+         };
+       }
+- 
++
+       if (result?.mobile?.toString() === customerMobile?.toString()) {
+         return {
+           success: false,
+           message: "Self referring is not allowed.",
+         };
+       }
+- 
++
+       if (`Cus-${result?.referral_code?.split('-')[1]}` === `Cus-${searchTerm}`) {
+         return {
+           success: false,
+           message: "Self referring is not allowed.",
+         };
+       }
+- 
+- 
++
++
+       return {
+         success: true,
+         message: "Data fetched successfully.",
+         data: result,
+       };
+- 
++
+     } catch (error) {
+       console.error("Error in searchCustomerByMobile:", error);
+       return {
+@@ -537,66 +538,66 @@ class CustomerUseCase {
+     try {
+       const pageNum = parseInt(page) || 1;
+       const pageSize = parseInt(limit) || 10;
+-  
++
+       const searchTerm = search?.trim() || "";
+       const searchConditions = [];
+-  
++
+       const isNumericSearch = !isNaN(searchTerm) && searchTerm !== "";
+-  
++
+       if (searchTerm) {
+         searchConditions.push({
+           firstname: { $regex: searchTerm, $options: "i" }
+         });
+-  
++
+         if (isNumericSearch) {
+           searchConditions.push({ mobile: Number(searchTerm) });
+         }
+       }
+-  
+-      const searchQuery = searchConditions.length > 0 
++
++      const searchQuery = searchConditions.length > 0
+         ? { $or: searchConditions }
+         : {};
+-  
++
+       const dateFilter = {};
+-  
++
+       if (fromDate) dateFilter.createdAt = { $gte: fromDate };
+-  
++
+       if (toDate) {
+         dateFilter.createdAt = dateFilter.createdAt
+           ? { ...dateFilter.createdAt, $lte: toDate }
+           : { $lte: toDate };
+       }
+-  
++
+       const query = {
+         is_deleted: { $ne: true },
+         ...searchQuery,
+         ...dateFilter,
+       };
+-  
++
+       if (isValidObjectId(id_branch)) {
+         query.id_branch = id_branch;
+       }
+-  
++
+       const activeStr = String(active).trim().toLowerCase();
+-  
++
+       if (activeStr === "true") {
+         query.active = true;
+       } else if (activeStr === "false") {
+         query.active = false;
+       }
+-  
++
+       const documentskip = (pageNum - 1) * pageSize;
+-  
++
+       const Data = await this.customerRepository.getAllCustomers({
+         query,
+         documentskip,
+         documentlimit: pageSize,
+       });
+-  
++
+       if (!Data || Data.data.length === 0) {
+         return { success: false, message: "No customers found" };
+       }
+-  
++
+       return {
+         success: true,
+         message: "Customer data fetched successfully",
+@@ -605,7 +606,7 @@ class CustomerUseCase {
+         totalPages: Math.ceil(Data.totalCount / pageSize),
+         currentPage: pageNum,
+       };
+-  
++
+     } catch (error) {
+       console.error(error);
+       return { success: false, message: "Failed to fetch data" };
+@@ -726,7 +727,7 @@ class CustomerUseCase {
+         const saveOtp = await this.otpRepo.saveOtp({
+           otp_code: otp,
+           mobile: mobile,
+-          channel:"sms",
++          channel: "sms",
+           send_otptime: new Date(),
+           type,
+         });
+@@ -828,7 +829,7 @@ class CustomerUseCase {
+       userData.password = hashPassword;
+       const referralCode = generateReferralCode(userData.mobile);
+       userData.referral_code = `Cus-${referralCode}`;
+-      
++
+       const savedUser = await this.customerRepository.addCustomer(userData);
+       if (!savedUser) {
+         return { success: false, message: "Failed to create user" };
+@@ -842,7 +843,7 @@ class CustomerUseCase {
+     }
+   }
+ 
+-    async forgetPassword(mobile, newPassword) {
++  async forgetPassword(mobile, newPassword) {
+     try {
+       const user = await this.customerRepository.existingUser(mobile);
+ 
+@@ -863,8 +864,8 @@ class CustomerUseCase {
+       }
+ 
+       let checkOldPassword = ""
+-      if(user.password){
+-        checkOldPassword=  await this.hashingService.comparePassword(
++      if (user.password) {
++        checkOldPassword = await this.hashingService.comparePassword(
+           newPassword,
+           user.password
+         );
+@@ -997,11 +998,11 @@ class CustomerUseCase {
+ 
+   async getReferralDetals(customerId) {
+     try {
+-      if(!isValidObjectId(customerId)){
+-        return {status:false,message:"Customer id is not a valid object id"}
++      if (!isValidObjectId(customerId)) {
++        return { status: false, message: "Customer id is not a valid object id" }
+       }
+ 
+-      const checkCusmoter = await this.customerRepository.findOne({_id:customerId});
++      const checkCusmoter = await this.customerRepository.findOne({ _id: customerId });
+       if (!checkCusmoter) {
+         return {
+           success: false,
+@@ -1009,143 +1010,143 @@ class CustomerUseCase {
+         };
+       }
+ 
+-      let code=''
+-      if(checkCusmoter.referral_code == "0" || checkCusmoter.referral_code == null){
++      let code = ''
++      if (checkCusmoter.referral_code == "0" || checkCusmoter.referral_code == null) {
+         const referralCode = generateReferralCode(checkCusmoter.mobile);
+-       code = `Cus-${referralCode}`;
+-        await this.customerRepository.updateUniversal(customerId,{referral_code:code})
++        code = `Cus-${referralCode}`;
++        await this.customerRepository.updateUniversal(customerId, { referral_code: code })
+       }
+ 
+-       const referralData = await this.customerRepository.getReferrlMessage();
++      const referralData = await this.customerRepository.getReferrlMessage();
+ 
+       if (referralData) {
+-        const outputData ={
++        const outputData = {
+           referralCode: checkCusmoter?.referral_code || code,
+-          referralMessage:referralData?.message || "",
++          referralMessage: referralData?.message || "",
+           applink: referralData?.appLink || "",
+           faq: referralData?.faq || ""
+-         }
++        }
+ 
+-        return { success: true, message: "Referral details fetched successfully" ,data:outputData};
++        return { success: true, message: "Referral details fetched successfully", data: outputData };
+       }
+ 
+-      const outputdata={
+-        referralData:checkCusmoter?.referral_code || code,
++      const outputdata = {
++        referralData: checkCusmoter?.referral_code || code,
+       }
+ 
+-      return { success: false, message: "Failed to get referral details" ,data:outputdata};
++      return { success: false, message: "Failed to get referral details", data: outputdata };
+     } catch (error) {
+       console.error(error);
+       return { success: false, message: "Error while getting referral data" };
+     }
+   }
+ 
+-  async customerOverview(branch,mobile,idCustomer) {
++  async customerOverview(branch, mobile, idCustomer) {
+     try {
+-      if(!isValidObjectId(idCustomer) && idCustomer){
+-        return {success:false,message:"Customer id is not valid object id"}
++      if (!isValidObjectId(idCustomer) && idCustomer) {
++        return { success: false, message: "Customer id is not valid object id" }
+       }
+ 
+-      if(!isValidObjectId(branch) && !idCustomer){
+-        return {success:false,message:"Branch id is not valid object id"}
++      if (!isValidObjectId(branch) && !idCustomer) {
++        return { success: false, message: "Branch id is not valid object id" }
+       }
+ 
+-      const customerData= await this.customerRepository.customerOverview({branch,mobile,idCustomer})
++      const customerData = await this.customerRepository.customerOverview({ branch, mobile, idCustomer })
+ 
+-      if(customerData){
++      if (customerData) {
+         const s3Configs = await this.s3Helper();
+         customerData.customerDetails.pathUrl = `${s3Configs.s3display_url}${config.AWS_LOCAL_PATH}customer/`;
+       }
+-      
+-      if(!customerData){
+-        return {success:false,message:"No customer details found"}
++
++      if (!customerData) {
++        return { success: false, message: "No customer details found" }
+       }
+ 
+       const overdueData = await this.schemeAccountRepo.overdueCalculation(customerData.customerDetails._id)
+ 
+       customerData.overDueData = {
+-        overdueSchemes:overdueData?.totalOverdueSchemes,
+-        overdueCount:overdueData?.totalOverdueAccounts,
+-        overdueAmount:overdueData?.totalFlexFixedOverdue
++        overdueSchemes: overdueData?.totalOverdueSchemes,
++        overdueCount: overdueData?.totalOverdueAccounts,
++        overdueAmount: overdueData?.totalFlexFixedOverdue
+       }
+ 
+-      return { success: true, message: "Customer details fetched successfully",data:customerData};
++      return { success: true, message: "Customer details fetched successfully", data: customerData };
+     } catch (error) {
+       console.error(error);
+       return { success: false, message: "Error while getting referral data" };
+     }
+   }
+ 
+-  async findUsersBySchema (data){
+-    try{
++  async findUsersBySchema(data) {
++    try {
+       const result = await this.customerRepository.findUsersBySchema(data)
+-       if(!result){
+-        return {success:false,message:"No customers found"}
++      if (!result) {
++        return { success: false, message: "No customers found" }
+       }
+-      return { success: true, message: "Customers fetched successfully",data:result};
+-    }catch(error){
++      return { success: true, message: "Customers fetched successfully", data: result };
++    } catch (error) {
+       console.error(error);
+       return { success: false, message: "Error while getting customers by scheme" };
+     }
+   }
+ 
+-  async changePassword ({idCustomer,newPass,oldPass}){
+-    try{
++  async changePassword({ idCustomer, newPass, oldPass }) {
++    try {
+       const existingCustomer = await this.customerRepository.getCustomerDataLess(idCustomer)
+ 
+-      if(existingCustomer.is_deleted){
+-        return {success:false,message:"Deleted customer operation not allowed"}
++      if (existingCustomer.is_deleted) {
++        return { success: false, message: "Deleted customer operation not allowed" }
+       }
+ 
+-      if(!existingCustomer.active){
+-        return {success:false,message:"Customer not active opetation not allowed,Contact admin"}
++      if (!existingCustomer.active) {
++        return { success: false, message: "Customer not active opetation not allowed,Contact admin" }
+       }
+ 
+-      const comparePass = await this.hashingService.comparePassword(oldPass,existingCustomer.password)
++      const comparePass = await this.hashingService.comparePassword(oldPass, existingCustomer.password)
+ 
+-      if(!comparePass){
+-        return {success:false,message:"Current password is wrong"}
++      if (!comparePass) {
++        return { success: false, message: "Current password is wrong" }
+       }
+ 
+-      const newPassCompare = await this.hashingService.comparePassword(newPass,existingCustomer.password)
++      const newPassCompare = await this.hashingService.comparePassword(newPass, existingCustomer.password)
+ 
+-      if(newPassCompare){
+-        return {success:false,message:"New password cannot be same as your old password"}
++      if (newPassCompare) {
++        return { success: false, message: "New password cannot be same as your old password" }
+       }
+ 
+-      const updatedPassword = await this.customerRepository.updatePassword(existingCustomer._id,newPass)
++      const updatedPassword = await this.customerRepository.updatePassword(existingCustomer._id, newPass)
+ 
+-      if(updatedPassword){
+-        return {success:true,message:"Password successfully updated"}
++      if (updatedPassword) {
++        return { success: true, message: "Password successfully updated" }
+       }
+ 
+-      return {scuccess:false,message:"Failed to update password,try again"}
+-    }catch(error){
++      return { scuccess: false, message: "Failed to update password,try again" }
++    } catch (error) {
+       console.error(error);
+       return { success: false, message: "Error while changing password" };
+     }
+   }
+ 
+-  async verfiyPassword ({password,idCustomer}){
+-    try{
++  async verfiyPassword({ password, idCustomer }) {
++    try {
+       const existingCustomer = await this.customerRepository.getCustomerDataLess(idCustomer)
+ 
+-      if(existingCustomer.is_deleted){
+-        return {success:false,message:"Deleted customer,operation not allowed"}
++      if (existingCustomer.is_deleted) {
++        return { success: false, message: "Deleted customer,operation not allowed" }
+       }
+ 
+-      if(!existingCustomer.active){
+-        return {success:false,message:"Customer not active opetation not allowed,Contact admin"}
++      if (!existingCustomer.active) {
++        return { success: false, message: "Customer not active opetation not allowed,Contact admin" }
+       }
+ 
+-      const comparePass = await this.hashingService.comparePassword(password,existingCustomer.password)
++      const comparePass = await this.hashingService.comparePassword(password, existingCustomer.password)
+ 
+-      if(!comparePass){
+-        return {success:false,message:"Wrong password"}
++      if (!comparePass) {
++        return { success: false, message: "Wrong password" }
+       }
+ 
+-      return {success:true,message:"Password verified successfully"}
+-    }catch(error){
++      return { success: true, message: "Password verified successfully" }
++    } catch (error) {
+       console.error(error);
+       return { success: false, message: "Error while changing password" };
+     }
+@@ -1157,26 +1158,26 @@ class CustomerUseCase {
+       if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+ 
+       const files = fs.readdirSync(exportDir);
+-    for (const file of files) {
+-      if (file.endsWith(".xlsx")) {
+-        fs.unlinkSync(path.join(exportDir, file));
++      for (const file of files) {
++        if (file.endsWith(".xlsx")) {
++          fs.unlinkSync(path.join(exportDir, file));
++        }
+       }
+-    }
+-  
++
+       const filename = `customers_${Date.now()}.xlsx`;
+       const filePath = path.join(exportDir, filename);
+-  
++
+       const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ filename: filePath });
+       const sheet = workbook.addWorksheet("Customers");
+-  
++
+       sheet.addRow(["Firstname", "LastName", "Mobile", "Joined Date", "Scheme Accounts"]).commit();
+-  
++
+       let skip = 0;
+       const limit = 10000;
+       let hasMore = true;
+-  
++
+       const filterQuery = {};
+-      
++
+       if (startDate || endDate) {
+         filterQuery.createdAt = {};
+         if (startDate) {
+@@ -1188,7 +1189,7 @@ class CustomerUseCase {
+           filterQuery.createdAt.$lte = endDateObj;
+         }
+       }
+-  
++
+       if (search && search.trim() !== '') {
+         filterQuery.$or = [
+           { firstname: { $regex: search, $options: 'i' } },
+@@ -1199,24 +1200,24 @@ class CustomerUseCase {
+           filterQuery.$or.push({ mobile: Number(search) });
+         }
+       }
+-  
++
+       let totalExported = 0;
+-  
++
+       while (hasMore) {
+         const customers = await this.customerRepository.getCustomersBatch(skip, limit, filterQuery);
+         if (!customers.length) break;
+-  
++
+         for (const c of customers) {
+           const schemeAccounts = await this.schemeAccountRepo.countDocuments({
+             id_customer: c._id,
+             active: true,
+             status: 0
+           });
+-  
++
+           const formattedDate = c.createdAt
+             ? new Date(c.createdAt).toLocaleDateString("en-GB").replace(/\//g, "-")
+             : "";
+-  
++
+           sheet.addRow([
+             c.firstname,
+             c.lastname,
+@@ -1225,16 +1226,16 @@ class CustomerUseCase {
+             schemeAccounts || 0
+           ]).commit();
+         }
+-  
++
+         totalExported += customers.length;
+         skip += limit;
+         hasMore = customers.length === limit;
+       }
+-  
++
+       await workbook.commit();
+-  
++
+       console.log(`Exported ${totalExported} customers with filters:`, { startDate, endDate, search });
+-  
++
+       return {
+         success: true,
+         message: "Customers exported successfully",
+diff --git a/src/usecases/auth/chit/client/purityUseCases.js b/src/usecases/auth/chit/client/purityUseCases.js
+index f4c7cc2..9afae72 100644
+--- a/src/usecases/auth/chit/client/purityUseCases.js
++++ b/src/usecases/auth/chit/client/purityUseCases.js
+@@ -2,17 +2,17 @@ import { isValidObjectId } from "mongoose";
+ import mongoose from "mongoose";
+ import MetalRepository from "../../../../infrastructure/repositories/chit/MetalRepository.js";
+ 
+-class PurityUseCase { 
+-  constructor(purityRepository,metalRateRepo) {
++class PurityUseCase {
++  constructor(purityRepository, metalRateRepo) {
+     this.purityRepository = purityRepository;
+     this.metalRateRepo = metalRateRepo;
+     this.metalRepo = new MetalRepository();
+   }
+ 
+-  async addPurity(data,token) {
++  async addPurity(data, token) {
+     try {
+       const exists = await this.purityRepository.findOne({
+-        purity_name: { $regex: new RegExp(`^${data.purity_name}$`, "i") },is_deleted:false
++        purity_name: { $regex: new RegExp(`^${data.purity_name}$`, "i") }, is_deleted: false
+       });
+ 
+       if (exists) {
+@@ -28,16 +28,6 @@ class PurityUseCase {
+         return { success: false, message: "Failed to add purity" };
+       }
+ 
+-      // const metalRate = {
+-      //   id_branch: token.id_branch,
+-      //   purity_id: savedData._id,
+-      //   material_type_id: data.id_metal,
+-      //   rate: 0,
+-      //   created_by: token.id_employee,
+-      //   modified_by:  token.id_employee
+-      // };      
+-
+-      // await this.metalRateRepo.addInitialRate(metalRate)
+       return { success: true, message: "Purity added successfully" };
+     } catch (error) {
+       console.error(error);
+@@ -85,7 +75,7 @@ class PurityUseCase {
+         };
+       }
+ 
+-      const savedData = await this.purityRepository.updatePurity(id,updates);
++      const savedData = await this.purityRepository.updatePurity(id, updates);
+ 
+       if (!savedData) {
+         return { success: false, message: "Failed to update purity" };
+@@ -93,7 +83,7 @@ class PurityUseCase {
+ 
+       const metaRate = await this.metalRateRepo.getByPurityId(id)
+ 
+-      await this.metalRateRepo.updateMetalId(metaRate._id,data.id_metal)
++      await this.metalRateRepo.updateMetalId(metaRate._id, data.id_metal)
+       return { success: true, message: "Purity updated successfully" };
+     } catch (error) {
+       console.error(error);
+@@ -130,137 +120,137 @@ class PurityUseCase {
+     }
+   }
+ 
+-  async activatePurity(id){
++  async activatePurity(id) {
+     try {
+-        if(!isValidObjectId(id)){
+-            return {success:false, message:'Provide a valid object id'}
+-        }
++      if (!isValidObjectId(id)) {
++        return { success: false, message: 'Provide a valid object id' }
++      }
+ 
+-        const existingData = await this.purityRepository.findById(id);
++      const existingData = await this.purityRepository.findById(id);
+ 
+-        if(!existingData){
+-            return {success:false,message:'No documents found'}
+-        }
++      if (!existingData) {
++        return { success: false, message: 'No documents found' }
++      }
+ 
+-        if(existingData.is_deleted){
+-            return {success:false,message:"Deleted document action not permited"}
+-        }
++      if (existingData.is_deleted) {
++        return { success: false, message: "Deleted document action not permited" }
++      }
+ 
+-        
+-        const newData= await this.purityRepository.activatePurity(id,existingData.active)
+ 
+-        if(!newData){
+-            return {success:false,message:'Failed change active state'}
+-        }
++      const newData = await this.purityRepository.activatePurity(id, existingData.active)
++
++      if (!newData) {
++        return { success: false, message: 'Failed change active state' }
++      }
+ 
+-        let message = existingData.active ?
++      let message = existingData.active ?
+         "Purity deactivated successfullly" :
+         "Purity activated successfully"
+ 
+-        return {success:true,message:message}
++      return { success: true, message: message }
+     } catch (error) {
+-        console.error(error);
+-        return {success:false,message:'Error while changing active state'}
++      console.error(error);
++      return { success: false, message: 'Error while changing active state' }
+     }
+   }
+ 
+-  async purityDisplaySettings(id){
++  async purityDisplaySettings(id) {
+     try {
+-        if(!isValidObjectId(id)){
+-            return {success:false, message:'Provide a valid object id'}
+-        }
++      if (!isValidObjectId(id)) {
++        return { success: false, message: 'Provide a valid object id' }
++      }
+ 
+-        const existingData = await this.purityRepository.findById(id);
++      const existingData = await this.purityRepository.findById(id);
+ 
+-        if(!existingData){
+-            return {success:false,message:'No documents found'}
+-        }
++      if (!existingData) {
++        return { success: false, message: 'No documents found' }
++      }
+ 
+-        if(existingData.is_deleted){
+-            return {success:false,message:"Deleted document action not permited"}
+-        }
++      if (existingData.is_deleted) {
++        return { success: false, message: "Deleted document action not permited" }
++      }
+ 
+-        if(!existingData.active){
+-            return {success:false,message:'Purity not active action not permit'}
+-        }
++      if (!existingData.active) {
++        return { success: false, message: 'Purity not active action not permit' }
++      }
+ 
+-        const newData= await this.purityRepository.purityDisplaySettings(id,existingData.display_app)
++      const newData = await this.purityRepository.purityDisplaySettings(id, existingData.display_app)
+ 
+-        if(!newData){
+-            return {success:false,message:'Failed change active state'}
+-        }
++      if (!newData) {
++        return { success: false, message: 'Failed change active state' }
++      }
+ 
+-        let message = existingData.display_app ?
++      let message = existingData.display_app ?
+         "App display deactivated successfully" :
+         "App display activated successfully"
+ 
+-        return {success:true,message:message}
++      return { success: true, message: message }
+     } catch (error) {
+-        console.error(error);
+-        return {success:false,message:'Error while changing display state'}
++      console.error(error);
++      return { success: false, message: 'Error while changing display state' }
+     }
+   }
+ 
+-  async getPurityById(id){
++  async getPurityById(id) {
+     try {
+-        if(!isValidObjectId(id)){
+-            return {success:false,message:'Provide a valid object id'}
+-        }
++      if (!isValidObjectId(id)) {
++        return { success: false, message: 'Provide a valid object id' }
++      }
+ 
+-        const existingData = await this.purityRepository.findById(id);
++      const existingData = await this.purityRepository.findById(id);
+ 
+-        if(!existingData){
+-            return {success:false,message:'No documents found'}
+-        }
++      if (!existingData) {
++        return { success: false, message: 'No documents found' }
++      }
+ 
+-        if(existingData.is_deleted){
+-            return {success:false,message:'Deleted document'}
+-        }
++      if (existingData.is_deleted) {
++        return { success: false, message: 'Deleted document' }
++      }
+ 
+ 
+-        return {success:true,message:'Purity data fetched successfully',data:existingData}
++      return { success: true, message: 'Purity data fetched successfully', data: existingData }
+     } catch (error) {
+-        console.error(error);
+-        return {success:false,message:'Error while fetching purity data'}
++      console.error(error);
++      return { success: false, message: 'Error while fetching purity data' }
+     }
+   }
+ 
+-  async getPurityByMetalId(id){
++  async getPurityByMetalId(id) {
+     try {
+       let existingData
+-      if(isValidObjectId(id)){
+-        existingData = await this.purityRepository.find({id_metal:id,active:true,is_deleted:false});
+-       }else{
++      if (isValidObjectId(id)) {
++        existingData = await this.purityRepository.find({ id_metal: id, active: true, is_deleted: false });
++      } else {
+         existingData = await this.purityRepository.findByNum(id)
+-       }
++      }
+ 
+-        if(!existingData){
+-            return {success:false,message:'No documents found'}
+-        }
++      if (!existingData) {
++        return { success: false, message: 'No documents found' }
++      }
+ 
+-        return {success:true,message:'Purity data fetched successfully',data:existingData}
++      return { success: true, message: 'Purity data fetched successfully', data: existingData }
+     } catch (error) {
+-        console.error(error);
+-        return {success:false,message:'Error while fetching purity data'}
++      console.error(error);
++      return { success: false, message: 'Error while fetching purity data' }
+     }
+   }
+ 
+-  async getAllPurity(){
++  async getAllPurity() {
+     try {
+-        const Data = await this.purityRepository.find({active:true,is_deleted:false});
++      const Data = await this.purityRepository.find({ active: true, is_deleted: false });
+ 
+-        if(!Data){
+-            return {success:false,message:'No purity data found'}
+-        }
++      if (!Data) {
++        return { success: false, message: 'No purity data found' }
++      }
+ 
+-        return {success:true,message:'Purity data fetched successfully',data:Data}
++      return { success: true, message: 'Purity data fetched successfully', data: Data }
+     } catch (error) {
+-        console.error(error);
+-        return {success:false,message:'Error while fetching purity data'}
++      console.error(error);
++      return { success: false, message: 'Error while fetching purity data' }
+     }
+   }
+ 
+-  async puityTable(page=1, limit=10, search) {
++  async puityTable(page = 1, limit = 10, search) {
+     try {
+       const pageNum = page ? parseInt(page) : 1;
+       const pageSize = limit ? parseInt(limit) : 10;
+@@ -269,14 +259,14 @@ class PurityUseCase {
+ 
+       const searchCriteria = searchTerm
+         ? {
+-            $or: [
+-              { purity_name: { $regex: searchTerm, $options: "i" } }
+-            ],
+-          }
++          $or: [
++            { purity_name: { $regex: searchTerm, $options: "i" } }
++          ],
++        }
+         : {};
+ 
+       const query = {
+-       is_deleted:false,
++        is_deleted: false,
+         ...searchCriteria,
+       };
+ 
+diff --git a/src/usecases/ownersapp/customerUseCase.js b/src/usecases/ownersapp/customerUseCase.js
+new file mode 100644
+index 0000000..0371845
+--- /dev/null
++++ b/src/usecases/ownersapp/customerUseCase.js
+@@ -0,0 +1,70 @@
++import customerUseCase from "../../../src/usecases/auth/chit/client/CustomerUseCase.js";
++import CustomerRepository from "../../infrastructure/repositories/chit/CustomerRepository.js";
++import S3BucketRepository from "../../infrastructure/repositories/chit/super/s3BucketSettingRepository.js";
++import SmsSettingRepository from "../../infrastructure/repositories/chit/super/smsSettingRepository.js";
++import smsService from "../../config/chit/smsService.js";
++
++
++class CustomerUseCase {
++    constructor(customerRepo) {
++        this.customerRepo = customerRepo;
++        this.S3BucketRepository = new S3BucketRepository();
++        this.smsSettingRepository = new SmsSettingRepository();
++        this.smsService = smsService;
++        this.customerUseCase = new customerUseCase(new CustomerRepository(), null, this.S3BucketRepository, this.smsService, this.smsSettingRepository, null, null, null);
++    }
++
++    async getCustomers(query) {
++        try {
++            return await this.customerRepo.getCustomers(query);
++        } catch (error) {
++            console.error("Error in getCustomers usecase:", error);
++            throw error;
++        }
++    }
++
++    async setCustomers(query) {
++        try {
++            const s3Data = await this.S3BucketRepository.getSetting();
++            if (s3Data) {
++                const token = {
++                    id_client: s3Data?.id_client
++                }
++
++                return await this.customerUseCase.addCustomer(query, null, token)
++            }
++            return await this.customerUseCase.addCustomer(query, null, null)
++        } catch (error) {
++            console.error("Error in setCustomers usecase:", error);
++            throw error;
++        }
++    }
++
++    async findCustomer(query) {
++        try {
++            console.log(query)
++            const data = await this.customerRepo.findCustomer(query.mobile);
++
++            let message = "Customer not found"
++
++            if (data) {
++                message = "Customer found"
++            }
++
++            if (!data?.active) {
++                message = "Customer is not active"
++            }
++
++            return {
++                success: true,
++                message: message,
++                data
++            }
++        } catch (error) {
++            console.error("Error in findCustomer usecase:", error);
++            throw error;
++        }
++    }
++}
++
++export default CustomerUseCase;
+diff --git a/src/usecases/ownersapp/metalrateUseCase.js b/src/usecases/ownersapp/metalrateUseCase.js
+new file mode 100644
+index 0000000..a583b6c
+--- /dev/null
++++ b/src/usecases/ownersapp/metalrateUseCase.js
+@@ -0,0 +1,18 @@
++import metalRateUseCase from "../auth/chit/client/metalRateUseCase.js";
++import MetalRateRepository from "../../infrastructure/repositories/chit/metalRateRepository.js";
++class MetalRateUseCase {
++    constructor(metalRateRepo) {
++        this.metalRateRepo = metalRateRepo;
++        this.metalrateUseCase = new metalRateUseCase(new MetalRateRepository());
++    }
++
++    async getMetalRate(branchId, date = null) {
++        return await this.metalRateRepo.getMetalRate(branchId, date);
++    }
++
++    async setMetalRate(data) {
++        return await this.metalrateUseCase.addMetalRate(data);
++    }
++}
++
++export default MetalRateUseCase;
+diff --git a/src/usecases/ownersapp/paymentUseCase.js b/src/usecases/ownersapp/paymentUseCase.js
+new file mode 100644
+index 0000000..1256e77
+--- /dev/null
++++ b/src/usecases/ownersapp/paymentUseCase.js
+@@ -0,0 +1,11 @@
++class PaymentUseCase {
++    constructor(paymentRepo) {
++        this.paymentRepo = paymentRepo;
++    }
++
++    async executeGetPayments(fromDate, toDate, page, limit) {
++        return await this.paymentRepo.getPayments(fromDate, toDate, page, limit);
++    }
++}
++
++export default PaymentUseCase;
+diff --git a/src/usecases/ownersapp/schemeAccountUseCase.js b/src/usecases/ownersapp/schemeAccountUseCase.js
+new file mode 100644
+index 0000000..8586b6f
+--- /dev/null
++++ b/src/usecases/ownersapp/schemeAccountUseCase.js
+@@ -0,0 +1,11 @@
++class SchemeAccountUseCase {
++    constructor(schemeAccountRepo) {
++        this.schemeAccountRepo = schemeAccountRepo;
++    }
++
++    async executeGetSchemeAccounts(fromDate, toDate) {
++        return await this.schemeAccountRepo.getSchemeAccounts(fromDate, toDate);
++    }
++}
++
++export default SchemeAccountUseCase;
+diff --git a/src/usecases/ownersapp/schemeUseCase.js b/src/usecases/ownersapp/schemeUseCase.js
+new file mode 100644
+index 0000000..e7d9435
+--- /dev/null
++++ b/src/usecases/ownersapp/schemeUseCase.js
+@@ -0,0 +1,15 @@
++class SchemeUseCase {
++    constructor(schemeRepo) {
++        this.schemeRepo = schemeRepo;
++    }
++
++    async getSchemeCount(query) {
++        return await this.schemeRepo.getSchemeCount(query);
++    }
++
++    async getSchemeDetails(query) {
++        return await this.schemeRepo.getSchemeDetails(query);
++    }
++}
++
++export default SchemeUseCase;
+-- 
+2.52.0.windows.1
+

@@ -879,6 +879,7 @@ class CustomerUseCase {
       }
 
       await this.otpRepo.deleteOtpByMobile(userData.mobile, "signup");
+      cacheService.invalidatePattern("dashboard:");
       return { success: true, message: "Registration completed successfully." };
     } catch (error) {
       console.error(error);

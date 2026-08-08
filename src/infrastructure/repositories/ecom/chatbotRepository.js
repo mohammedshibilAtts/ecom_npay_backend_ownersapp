@@ -14,6 +14,10 @@ class ChatbotRepository {
     return await ChatbotItem.find({ isRoot: true }).populate("options.nextId");
   }
 
+  async findAllItems() {
+    return await ChatbotItem.find({}).populate("options.nextId");
+  }
+
   async updateItem(id, updateData) {
     return await ChatbotItem.findByIdAndUpdate(id, updateData, { new: true });
   }

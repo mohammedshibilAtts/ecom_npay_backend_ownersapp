@@ -700,8 +700,8 @@ class SchemeAccountRepository {
     }
   }
 
-  async getAllSchemeAccountsForMobile(customerId, weight) {
-    try {
+  async getAllSchemeAccountsForMobile(customerId, weight,type,digi=false) {
+    try { 
       const matchStages = [
         {
           $match: {
@@ -742,6 +742,31 @@ class SchemeAccountRepository {
             preserveNullAndEmptyArrays: false,
           },
         },
+        ...(type !== null && type !== ""
+          ? [
+            {
+              $match: {
+                "schemes.scheme_type": type,
+                status: { $nin: [1, 3] },
+              },
+            },
+          ]
+          : digi
+            ? [
+              {
+                $match: {
+                  status: { $nin: [1, 3] },
+                },
+              },
+            ]
+            : [
+              {
+                $match: {
+                  "schemes.scheme_type": { $nin: [10, 14] },
+                  status: { $nin: [1, 3] },
+                },
+              },
+            ]),
         ...(weight
           ? [
             {
@@ -1824,24 +1849,6 @@ class SchemeAccountRepository {
           },
         },
         { $unwind: { path: "$schemetype_details", preserveNullAndEmptyArrays: true } },
-        // {
-        //   $lookup: {
-        //     from: "metals",
-        //     localField: "scheme_details.id_metal",
-        //     foreignField: "_id",
-        //     as: "metal_details",
-        //   },
-        // },
-        // { $unwind: { path: "$metal_details", preserveNullAndEmptyArrays: true } },
-        // {
-        //   $lookup: {
-        //     from: "purities",
-        //     localField: "scheme_details.id_purity",
-        //     foreignField: "_id",
-        //     as: "purity_details",
-        //   },
-        // },
-        // { $unwind: { path: "$purity_details", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "payments",
@@ -1895,16 +1902,6 @@ class SchemeAccountRepository {
             last_paid_installment: { $ifNull: ["$lastpayment.paid_installments", 0] },
             last_paid_amount: { $ifNull: ["$lastpayment.payment_amount", 0] },
             last_paid_weight: { $ifNull: ["$lastpayment.metal_weight", 0] },
-            // created_through: {
-            //   $switch: {
-            //     branches: [
-            //       { case: { $eq: ["$added_by", 3] }, then: "Admin" },
-            //       { case: { $eq: ["$added_by", 1] }, then: "Android" },
-            //       { case: { $eq: ["$added_by", 2] }, then: "IOS" }
-            //     ],
-            //     default: "Web"
-            //   }
-            // },
             id_customer: {
               _id: "$customer_details._id",
               address: "$customer_details.address",
@@ -1927,6 +1924,7 @@ class SchemeAccountRepository {
               bonus_type: "$scheme_details.bonus_type",
             },
             scheme_type: "$scheme_details.scheme_type",
+            closedDate: "$closed_date",
             scheme_name: {
               $switch: {
                 branches: [
@@ -1968,7 +1966,6 @@ class SchemeAccountRepository {
             metal_details: 0,
             purity_details: 0,
             added_by: 0,
-            closed_date: 0,
             referral_id: 0,
             referral_type: 0,
             referralpaid: 0,

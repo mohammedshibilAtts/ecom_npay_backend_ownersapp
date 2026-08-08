@@ -17,17 +17,17 @@ const schemeAccountSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
       required: false,
-    },    
+    },
     referral_type: {
       type: String,
-      enum: ["Employee", "Customer","Agent",""],
-      default:"",
+      enum: ["Employee", "Customer", "Agent", ""],
+      default: "",
       required: false,
     },
     referralpaid: {
       type: Boolean,
       default: false, // 0-No, 1-Yes
-    }, 
+    },
     id_scheme: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Scheme",
@@ -52,7 +52,7 @@ const schemeAccountSchema = new mongoose.Schema(
     },
     id_branch: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      required: false,
       ref: "Branch",
     },
     scheme_acc_number: {
@@ -66,12 +66,12 @@ const schemeAccountSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    scheme_count_number:{
-      type:Number,
+    scheme_count_number: {
+      type: Number,
     },
     last_paid_date: {
       type: Date,
-      default:null
+      default: null
     },
     start_date: {
       type: Date,
@@ -83,7 +83,7 @@ const schemeAccountSchema = new mongoose.Schema(
     },
     closed_date: {
       type: Date,
-      default:null
+      default: null
     },
     revert_date: {
       type: Date,
@@ -97,7 +97,7 @@ const schemeAccountSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
       default: false,  // 0-no, 1-yes
-    }, 
+    },
     typeofcustomer: {
       type: Number,
       required: true,
@@ -133,7 +133,7 @@ const schemeAccountSchema = new mongoose.Schema(
       type: Number,
       required: true,
       default: 0, // 0 - WebApp, 1 - Android, 2 - Ios
-    }, 
+    },
     closed_by: {
       type: String,
       required: true,
@@ -148,32 +148,32 @@ const schemeAccountSchema = new mongoose.Schema(
       type: Number,
       required: true,
       default: 0,  // 0-open, 1-Closed, 2-completed
-      enum:[0,1,2]
-    },                
+      enum: [0, 1, 2]
+    },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
       required: false,
       ref: "Employee",
     },
-    amount:{
-      type:Number,
+    amount: {
+      type: Number,
       default: 0
     },
-    weight:{
-      type:Number,
-      default:0
+    weight: {
+      type: Number,
+      default: 0
     },
-    completedDate:{
-      type:Date,
-      default:null
+    completedDate: {
+      type: Date,
+      default: null
     },
-    flexFixed:{
-      type:Number,
-      default:0
+    flexFixed: {
+      type: Number,
+      default: 0
     },
-    closingBonus:{
-      type:Number,
-      default:0
+    closingBonus: {
+      type: Number,
+      default: 0
     }
   },
   {

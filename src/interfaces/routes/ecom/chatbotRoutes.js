@@ -11,8 +11,11 @@ const usecase = new ChatbotUsecase(repository);
 const controller = new ChatbotController(usecase);
 
 // Admin Routes (Adding and editing questions/answers)
+router.get("/admin/nodes", (req, res) => controller.getAllNodes(req, res));
 router.post("/", (req, res) => controller.createNode(req, res));
 router.put("/:id/options", (req, res) => controller.addOption(req, res));
+router.put("/:id", (req, res) => controller.updateNode(req, res));
+router.delete("/:id", (req, res) => controller.deleteNode(req, res));
 
 // Client Routes (Retrieving the chat flow)
 router.get("/root", (req, res) => controller.getRootNodes(req, res));

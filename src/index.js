@@ -9,17 +9,18 @@ import authRoutes from './interfaces/routes/chit/admin/authRoutes.js';
 import adminRoutes from './interfaces/routes/chit/admin/adminRoutes.js';
 import clientRoutes from './interfaces/routes/chit/client/indexRoute.js';
 import otpRoutes from './interfaces/routes/chit/client/otpRoutes.js'
-// import ausaleRoutes from './interfaces/routes/chit/admin/ausleRoutes.js'
 import AppError from './utils/errors/AppError.js';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import bodyParser from 'body-parser';
 import './config/chit/cronSetup.js'
 import './cron/digigoldAutoCron.js'
 import './cron/overdueAutoCron.js'
 import shopRoutes from './interfaces/routes/ecom/ecomIndexRoutes.js'
 import chitRedeemRoutes from './interfaces/routes/chitRedeem/chitRedeemRoutes.js';
+import ownersappRoute from './interfaces/routes/ownersapp/indexRoute.js';
 import './cron/promotionCronSetup.js'
 import { setupSwagger } from './config/swaggerConfig.js';
 import "./config/chit/cronSetup.js"
@@ -109,8 +110,18 @@ app.use(globalRateLimiter);
 
 // Routes
 app.get('/e-product/:id', (req, res) => {
-  return res.sendFile(__dirname + '/utils/deepLinkPage.html'); // Or use res.render() if using a template engine
+  const filePath = path.join(__dirname, 'utils', 'deepLinkPage.html');
+  fs.readFile(filePath, 'utf8', (err, htmlData) => {
+    if (err) {
+      logger.error("Error reading deepLinkPage.html: " + err);
+      return res.status(500).send("Server Error");
+    }
+    const modifiedHtml = htmlData.replace('{{FRONT_URL}}', config.ECOM_WEB_FRONT_URL);
+    console.log(modifiedHtml,"kd")
+    res.send(modifiedHtml);
+  });
 })
+
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/client', clientRoutes);
@@ -141,6 +152,8 @@ app.use('/api/ecom/app/products', ecomAppProducts);
 app.use('/api/ecom/app/wishlist', ecomAppWishlist);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/ecom/web/auth', webAuthRoutes);
+
+app.use('/api/owner', ownersappRoute);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/exports", express.static(path.join(process.cwd(), "public", "exports")));

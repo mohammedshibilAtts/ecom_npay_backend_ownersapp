@@ -1452,6 +1452,15 @@ class SchemeAccountUseCase {
         { $unwind: { path: "$scheme", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
+            from: "schemetypes",
+            localField: "scheme.scheme_type",
+            foreignField: "scheme_type",
+            as: "schemeType",
+          },
+        },
+        { $unwind: { path: "$schemeType", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
             from: "schemeclassifications",
             localField: "id_classification",
             foreignField: "_id",
@@ -1493,13 +1502,14 @@ class SchemeAccountUseCase {
           max_amount: "$scheme.max_amount",
           min_weight: "$scheme.min_weight",
           max_weight: "$scheme.max_weight",
-          scheme_type: "$scheme.scheme_type",
+          scheme_typename: "$schemeType.scheme_typename",
           total_installments: "$scheme.total_installments",
           paid_installments: "$paid_installments",
           gift_type: "$scheme.gift_type",
           status_name: "$status.status_name",
           total_weight: "$weight",
           start_date: "$start_date",
+          createdAt: "$createdAt",
           maturity_date: "$maturity_date",
           last_paid_date: "$last_paid_date",
           scheme_acc_number: "$scheme_acc_number",
@@ -1992,7 +2002,7 @@ class SchemeAccountUseCase {
     }
   }
 
-  async getAllSchemeAccountsForMobile(customerId, weight = false) {
+  async getAllSchemeAccountsForMobile(customerId, weight = false, type,token,digi) {
     try {
       const customer = await this.customerRepo.findOne({
         _id: customerId,
@@ -2004,10 +2014,28 @@ class SchemeAccountUseCase {
         return { status: false, message: "No customer found" };
       }
 
+      if (token._id != customer._id) {
+        return { status: false, message: "Unauthorized" }
+      }
+
+      let typeToPass
+      if (type != "10" && type != "14") {
+        typeToPass = null
+      } else {
+        typeToPass = Number(type)
+      }
+
+      let digiToPass = false
+      if(digi){
+        digiToPass = true
+      }
+
       const result =
         await this.schemeAccountRepository.getAllSchemeAccountsForMobile(
           customerId,
           weight,
+          typeToPass,
+          digiToPass
         );
 
       if (result) {

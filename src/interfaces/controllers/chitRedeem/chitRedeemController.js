@@ -70,6 +70,46 @@ class ChitRedeemController {
       });
     }
   }
+
+  async addWalletPoints(req, res) {
+    try {
+      const result = await this.chitRedeemUsecase.addWalletPoints(req.body, req.erpUser);
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          message: result.message,
+          data: result.data,
+        });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error(error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async redeemWalletPoints(req, res) {
+    try {
+      const result = await this.chitRedeemUsecase.redeemWalletPoints(req.body, req.erpUser);
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          message: result.message,
+          data: result.data,
+        });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error(error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
 }
 
 export default ChitRedeemController;

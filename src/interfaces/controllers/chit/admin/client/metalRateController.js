@@ -314,12 +314,8 @@ class metalRateController {
     const { branchId } = req.params;
     try {
       if (!branchId) {
-        query.branchId = req.user.branch;
+        query.branchId = req?.user?.branch;
       }
-
-      // if (!branchId) {
-      //   return res.status(400).json({ message: "Branch ID is required" });
-      // }
 
       const result = await this.metalRateUseCase.getMetalRate(branchId);
 

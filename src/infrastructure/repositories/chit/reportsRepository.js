@@ -1,4 +1,5 @@
 import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
+import getBranchHelper from "../../../utils/branchHelper.js";
 import Scheme from "../../models/chit/schemeModel.js";
 import SchemePayment from "../../models/chit/paymentModel.js";
 import giftItemModel from "../../models/chit/giftItemModel.js";
@@ -11,7 +12,7 @@ class ReportRepository {
   async overAllReport(filter, skip, pageSize, sort = {}, dateFilter) {
     const sortField = Object.keys(sort)[0] || "createdAt";
     const sortOrder = sort[sortField] === "asc" ? 1 : -1;
-
+    console.log(dateFilter, 'kd')
     try {
       const result = await Scheme.aggregate([
         {
@@ -173,76 +174,88 @@ class ReportRepository {
           },
         },
 
-        // Payments lookups
+        // Payments lookup filtered by date
         {
           $lookup: {
             from: "payments",
-            let: { accountIds: "$closedSchemeAccountIds" },
+            let: { schemeId: "$_id" },
             pipeline: [
               {
                 $match: {
-                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
+                  $expr: { $eq: ["$id_scheme", "$$schemeId"] },
                   payment_status: 1,
+                  ...(dateFilter.createdAt?.$gte || dateFilter.createdAt?.$lte
+                    ? {
+                      createdAt: {
+                        ...(dateFilter.createdAt.$gte ? { $gte: new Date(dateFilter.createdAt.$gte) } : {}),
+                        ...(dateFilter.createdAt.$lte ? { $lte: new Date(dateFilter.createdAt.$lte) } : {}),
+                      },
+                    }
+                    : {}),
                 },
               },
-            ],
-            as: "ClosedPayments",
-          },
-        },
-        {
-          $lookup: {
-            from: "payments",
-            let: { accountIds: "$refundSchemeAccountIds" },
-            pipeline: [
               {
-                $match: {
-                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
-                  payment_status: 1,
+                $lookup: {
+                  from: "schemeaccounts",
+                  localField: "id_scheme_account",
+                  foreignField: "_id",
+                  as: "account",
                 },
               },
+              { $unwind: "$account" },
             ],
-            as: "RefundPayments",
-          },
-        },
-        {
-          $lookup: {
-            from: "payments",
-            let: { accountIds: "$preCloseSchemeAccountIds" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
-                  payment_status: 1,
-                },
-              },
-            ],
-            as: "PreClosePayments",
-          },
-        },
-        {
-          $lookup: {
-            from: "payments",
-            let: { accountIds: "$openSchemeAccountIds" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $in: ["$id_scheme_account", "$$accountIds"] },
-                  payment_status: 1,
-                },
-              },
-            ],
-            as: "OpenPayments",
+            as: "FilteredPayments",
           },
         },
 
         // Add totals
         {
           $addFields: {
-            totalCloseAmount: { $sum: "$ClosedPayments.payment_amount" },
-            totalRefundAmount: { $sum: "$RefundPayments.payment_amount" },
-            totalPreCloseAmount: { $sum: "$PreClosePayments.payment_amount" },
-            totalOpenAmount: { $sum: "$OpenPayments.payment_amount" },
-            closedWeight: { $sum: "$ClosedPayments.metal_weight" },
+            totalCloseAmount: {
+              $sum: {
+                $map: {
+                  input: { $filter: { input: "$FilteredPayments", as: "p", cond: { $eq: ["$$p.account.status", 1] } } },
+                  as: "p",
+                  in: "$$p.payment_amount"
+                }
+              }
+            },
+            totalRefundAmount: {
+              $sum: {
+                $map: {
+                  input: { $filter: { input: "$FilteredPayments", as: "p", cond: { $eq: ["$$p.account.status", 4] } } },
+                  as: "p",
+                  in: "$$p.payment_amount"
+                }
+              }
+            },
+            totalPreCloseAmount: {
+              $sum: {
+                $map: {
+                  input: { $filter: { input: "$FilteredPayments", as: "p", cond: { $eq: ["$$p.account.status", 3] } } },
+                  as: "p",
+                  in: "$$p.payment_amount"
+                }
+              }
+            },
+            totalOpenAmount: {
+              $sum: {
+                $map: {
+                  input: { $filter: { input: "$FilteredPayments", as: "p", cond: { $eq: ["$$p.account.status", 0] } } },
+                  as: "p",
+                  in: "$$p.payment_amount"
+                }
+              }
+            },
+            closedWeight: {
+              $sum: {
+                $map: {
+                  input: { $filter: { input: "$FilteredPayments", as: "p", cond: { $eq: ["$$p.account.status", 1] } } },
+                  as: "p",
+                  in: "$$p.metal_weight"
+                }
+              }
+            },
             totalPaidAccounts: {
               $size: {
                 $ifNull: [
@@ -250,7 +263,7 @@ class ReportRepository {
                     $setUnion: [
                       {
                         $map: {
-                          input: "$OpenPayments",
+                          input: { $filter: { input: "$FilteredPayments", as: "p", cond: { $eq: ["$$p.account.status", 0] } } },
                           as: "payment",
                           in: "$$payment.id_scheme_account",
                         },
@@ -306,8 +319,8 @@ class ReportRepository {
 
   async pendingDuePayment(page, limit, query, sort = {}) {
     try {
-      const sortField = Object.keys(sort)[0] || "_id";
-      const sortOrder = sort[sortField] === "desc" ? -1 : 1;
+      const sortField = Object.keys(sort || {})[0] || "createdAt";
+      const sortOrder = sort && sort[sortField] === "asc" ? 1 : -1;
       const currentDate = new Date();
 
       const modifiedQuery = {
@@ -315,6 +328,8 @@ class ReportRepository {
         status: 0,
         active: true,
       };
+
+      delete modifiedQuery.createdAt;
 
       const dueData = await schemeAccountModel.aggregate([
         { $match: modifiedQuery },
@@ -347,6 +362,24 @@ class ReportRepository {
         { $unwind: "$Classification" },
         { $unwind: "$Customer" },
         {
+          $lookup: {
+            from: "cities",
+            localField: "Customer.id_city",
+            foreignField: "_id",
+            as: "City",
+          },
+        },
+        { $unwind: { path: "$City", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "areas",
+            localField: "Customer.area",
+            foreignField: "_id",
+            as: "Area",
+          },
+        },
+        { $unwind: { path: "$Area", preserveNullAndEmptyArrays: true } },
+        {
           $addFields: {
             schemeAccountIdStr: { $toString: "$_id" },
           },
@@ -376,9 +409,6 @@ class ReportRepository {
         },
         {
           $addFields: {
-            referenceDate: {
-              $ifNull: ["$lastPaymentCreatedAt", "$start_date"],
-            },
             daysSinceLastPayment: {
               $dateDiff: {
                 startDate: {
@@ -388,62 +418,61 @@ class ReportRepository {
                 unit: "day",
               },
             },
+            expectedDueDates: {
+              $let: {
+                vars: {
+                  startDate: "$start_date",
+                  totalInstallments: "$total_installments",
+                  installmentType: "$Scheme.installment_type",
+                },
+                in: {
+                  $map: {
+                    input: { $range: [0, "$$totalInstallments"] },
+                    as: "i",
+                    in: {
+                      $dateAdd: {
+                        startDate: "$$startDate",
+                        unit: {
+                          $switch: {
+                            branches: [
+                              {
+                                case: { $eq: ["$$installmentType", 1] },
+                                then: "month",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 2] },
+                                then: "week",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 3] },
+                                then: "day",
+                              },
+                              {
+                                case: { $eq: ["$$installmentType", 4] },
+                                then: "year",
+                              },
+                            ],
+                            default: "month",
+                          },
+                        },
+                        amount: "$$i",
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         {
           $addFields: {
-            expectedInstallmentsSinceLastPayment: {
-              $switch: {
-                branches: [
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 1] }, // Monthly
-                    then: {
-                      $dateDiff: {
-                        startDate: "$referenceDate",
-                        endDate: currentDate,
-                        unit: "month",
-                      },
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 2] }, // Weekly
-                    then: {
-                      $floor: {
-                        $divide: [
-                          {
-                            $dateDiff: {
-                              startDate: "$referenceDate",
-                              endDate: currentDate,
-                              unit: "day",
-                            },
-                          },
-                          7,
-                        ],
-                      },
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 3] }, // Daily
-                    then: {
-                      $dateDiff: {
-                        startDate: "$referenceDate",
-                        endDate: currentDate,
-                        unit: "day",
-                      },
-                    },
-                  },
-                  {
-                    case: { $eq: ["$Scheme.installment_type", 4] }, // Yearly
-                    then: {
-                      $dateDiff: {
-                        startDate: "$referenceDate",
-                        endDate: currentDate,
-                        unit: "year",
-                      },
-                    },
-                  },
-                ],
-                default: 0,
+            expectedInstallmentCount: {
+              $size: {
+                $filter: {
+                  input: "$expectedDueDates",
+                  as: "dueDate",
+                  cond: { $lte: ["$$dueDate", currentDate] },
+                },
               },
             },
           },
@@ -451,30 +480,36 @@ class ReportRepository {
         {
           $addFields: {
             installmentDue: {
-              $max: [
-                {
+              $cond: {
+                if: {
+                  $gt: ["$expectedInstallmentCount", "$paid_installments"],
+                },
+                then: {
                   $subtract: [
-                    "$expectedInstallmentsSinceLastPayment",
-                    { $cond: ["$hasPayments", 1, 0] },
+                    "$expectedInstallmentCount",
+                    "$paid_installments",
                   ],
                 },
-                0,
-              ],
+                else: 0,
+              },
             },
             isOverdue: {
-              $or: [
-                { $eq: ["$hasPayments", false] },
+              $gt: [
                 {
-                  $gt: [
-                    {
+                  $cond: {
+                    if: {
+                      $gt: ["$expectedInstallmentCount", "$paid_installments"],
+                    },
+                    then: {
                       $subtract: [
-                        "$expectedInstallmentsSinceLastPayment",
-                        { $cond: ["$hasPayments", 1, 0] },
+                        "$expectedInstallmentCount",
+                        "$paid_installments",
                       ],
                     },
-                    0,
-                  ],
+                    else: 0,
+                  },
                 },
+                0,
               ],
             },
           },
@@ -484,9 +519,9 @@ class ReportRepository {
           $facet: {
             metadata: [{ $count: "total" }],
             data: [
+              { $sort: { [sortField]: sortOrder } },
               { $skip: (page - 1) * limit },
               { $limit: limit },
-              { $sort: { [sortField]: sortOrder } },
               {
                 $project: {
                   _id: 1,
@@ -501,7 +536,18 @@ class ReportRepository {
                   installmentDue: 1,
                   paid_installments: 1,
                   total_installments: 1,
-                  scheme_acc_number: 1,
+                  scheme_acc_number: {
+                    $cond: {
+                      if: {
+                        $or: [
+                          { $not: ["$scheme_acc_number"] },
+                          { $eq: ["$scheme_acc_number", ""] },
+                        ],
+                      },
+                      then: "Not allocated",
+                      else: "$scheme_acc_number",
+                    },
+                  },
                   account_name: 1,
                   maturity_date: 1,
                   createdAt: 1,
@@ -511,6 +557,8 @@ class ReportRepository {
                   amount: 1,
                   weight: 1,
                   hasPayments: 1,
+                  city_name: { $ifNull: ["$City.city_name", "-"] },
+                  area_name: { $ifNull: ["$Area.area_name", "-"] },
                 },
               },
             ],
@@ -1722,6 +1770,7 @@ class ReportRepository {
                   },
                   closedDate: "$closed_date",
                   schemeType: "$Scheme.scheme_type",
+                  id_branch: 1,
                 },
               },
             ],
@@ -1733,7 +1782,17 @@ class ReportRepository {
       const totalPages = Math.ceil(totalDocuments / limit);
       const data = preCloseData[0]?.data || [];
 
-      return { totalDocuments, totalPages, data };
+      const mappedData = await Promise.all(
+        data.map(async (item) => {
+          const branchData = await getBranchHelper(item.id_branch);
+          return {
+            ...item,
+            branchData: branchData || null,
+          };
+        })
+      );
+
+      return { totalDocuments, totalPages, data: mappedData };
     } catch (err) {
       console.error(err);
       throw err;

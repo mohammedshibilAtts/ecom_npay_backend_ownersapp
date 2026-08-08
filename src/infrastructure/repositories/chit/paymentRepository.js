@@ -212,23 +212,44 @@ class PaymentRepository {
     }
   }
 
-  async getPaymentsBySchemeId(query, skip, limit, isMobile) {
+  async getPaymentsBySchemeId(query, skip, limit, isMobile,all=false) {
     try {
       let documents;
       if (isMobile) {
-        documents = await paymentModel
-          .find(query)
-          .skip(skip)
-          .limit(limit)
-          .populate({
-            path: "id_scheme_account",
-            populate: {
-              path: "id_scheme",
-              select: ["scheme_name"],
-            },
-          })
-          .select("-__v")
-          .sort({ _id: -1 });
+        if (all) {
+          documents = await paymentModel
+            .find(query)
+            .populate({
+              path: "id_scheme_account",
+              populate: {
+                path: "id_scheme",
+                select: ["scheme_name"],
+              },
+            })
+            .select("-__v")
+            .sort({ _id: -1 });
+        } else {
+          if (
+            skip &&
+            typeof skip === "string" &&
+            skip.length === 24 &&
+            mongoose.isValidObjectId(skip)
+          ) {
+            query._id = { $lt: skip };
+          }
+          documents = await paymentModel
+            .find(query)
+            .limit(limit)
+            .populate({
+              path: "id_scheme_account",
+              populate: {
+                path: "id_scheme",
+                select: ["scheme_name"],
+              },
+            })
+            .select("-__v")
+            .sort({ _id: -1 });
+        }
       } else {
         documents = await paymentModel
           .find(query)
@@ -248,6 +269,7 @@ class PaymentRepository {
       const totalCount = await paymentModel.countDocuments(query);
 
       let updatedDocuments;
+      let nextCursor = null;
       if (!isMobile) {
         updatedDocuments = await Promise.all(
           documents.map(async (doc) => {
@@ -262,9 +284,12 @@ class PaymentRepository {
         );
       } else {
         updatedDocuments = documents;
+        if (documents.length === limit) {
+          nextCursor = documents[documents.length - 1]._id;
+        }
       }
 
-      return { documents: updatedDocuments, totalCount };
+      return { documents: updatedDocuments, totalCount, nextCursor };
     } catch (error) {
       console.error(error);
       throw error; // Optional: bubble up the error
