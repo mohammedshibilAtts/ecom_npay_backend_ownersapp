@@ -1,6 +1,7 @@
 import closeAccBillModel from "../../models/chit/closeAccBillModel.js";
 import paymentModel from "../../models/chit/paymentModel.js";
 import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
+import customerModel from "../../models/chit/customerModel.js";
 
 class ChitRedeemRepository {
   async findSchemeAccount({ mobile, scheme_acc_number }) {
@@ -503,6 +504,15 @@ class ChitRedeemRepository {
     ];
 
     return await closeAccBillModel.aggregate(pipeline);
+  }
+
+  async getCustomer({ mobile }) {
+    const result = await customerModel.findOne({
+      mobile:String(mobile),
+      is_deleted: false,
+      active:true
+    });
+    return result;
   }
 }
 

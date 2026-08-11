@@ -268,13 +268,49 @@ class ChitRedeemUsecase {
   }
 
   async addWalletPoints(data, token) {
-    if (!data.wallet_id) {
-      return { success: false, message: "Wallet ID is required" };
+    let wallet_id = data.wallet_id;
+
+    if (!wallet_id) {
+      if (!data.mobile && !data.id_customer) {
+        return { success: false, message: "Wallet ID, customer ID, or mobile is required" };
+      }
+
+      let customer;
+      if (data.mobile) {
+         customer = await this.chitRedeemRepository.getCustomer({ mobile: data.mobile });
+      } else if (data.id_customer) {
+         customer = await this.chitRedeemRepository.getCustomer({ _id: data.id_customer });
+      }
+
+      if (!customer) {
+        return { success: false, message: "Customer not found" };
+      }
+
+      let wallet = await this.walletRepository.findWallet({ id_customer: customer._id });
+
+      if (!wallet) {
+         wallet = await this.walletRepository.addWallet({
+            id_customer: customer._id,
+            mobile:data.mobile,
+            balance_amt: 0,
+            total_reward_amt: 0,
+            redeem_amt: 0,
+            active: true,
+            created_by: token?.id_employee || token?._id
+         });
+         
+         if (!wallet) {
+           return { success: false, message: "Failed to create wallet for customer" };
+         }
+      }
+      wallet_id = wallet._id;
     }
+
     if (!data.balance_amt) {
       return { success: false, message: "Balance amount is required" };
     }
-    return await this.walletUsecase.addBalanceToWallet(data.wallet_id, data, token);
+
+    return await this.walletUsecase.addBalanceToWallet(wallet_id, data, token);
   }
 
   async redeemWalletPoints(data, token) {
@@ -284,7 +320,59 @@ class ChitRedeemUsecase {
     if (!data.redeem_amt) {
       return { success: false, message: "Redeem amount is required" };
     }
-    return await this.walletUsecase.redeemFromWallet(data, token);
+    
+    const walletRedeemData = await this.walletUsecase.redeemFromWallet(data, token);
+
+    return walletRedeemData;
+  }
+
+  async getPurchaseHistory(data) {
+    const { page = 1, limit = 10, mobile } = data;
+    return await this.walletUsecase.getPurchaseHistoryByUser(page, limit, mobile);
+  }
+
+  async customerExists(data, token) {
+    if (!data.mobile) {
+      return { success: false, message: "Mobile no is required" };
+    }
+
+    const customer = await this.chitRedeemRepository.getCustomer({
+      mobile: data.mobile,
+    });
+
+    if(customer){
+      return {status: true, exists: true}
+    }
+    return { status: false, exists: false , message: "Customer Not Found" };
+  }
+
+  async findWalletByMobile(data) {
+    if (!data.mobile) {
+      return { success: false, message: "Mobile no is required" };
+    }
+
+    const customer = await this.chitRedeemRepository.getCustomer({
+      mobile: data.mobile,
+    });
+
+    if (!customer) {
+      return { success: false, message: "Customer not found" };
+    }
+
+    const wallet = await this.walletRepository.findWallet({
+      id_customer: customer._id,
+    });
+
+    if (!wallet) {
+      return { success: false, message: "Wallet not found for this customer" };
+    }
+
+    const walletData = {
+      walletId: wallet._id,
+      balanceAmount: wallet.balance_amt,
+    }
+
+    return { success: true, data: walletData };
   }
 }
 

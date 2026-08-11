@@ -93,12 +93,107 @@ class ChitRedeemController {
 
   async redeemWalletPoints(req, res) {
     try {
-      const result = await this.chitRedeemUsecase.redeemWalletPoints(req.body, req.erpUser);
+      const requestBody = {...req.body,redeem_type:2}
+
+      const result = await this.chitRedeemUsecase.redeemWalletPoints(requestBody, req.erpUser);
       if (result.success) {
         return res.status(200).json({
           success: true,
           message: result.message,
+          // data: result.data,
+        });
+      }
+      return res.status(400).json({ message: result.message });
+    } catch (error) {
+      console.error(error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async customerExists(req, res) {
+    try {
+      const { mobile } = req.query;
+
+      if (!mobile) {
+        return res.status(400).json({
+          success: false,
+          message: "Mobile no is required",
+        });
+      }
+
+      const result = await this.chitRedeemUsecase.customerExists({
+        mobile,
+      });
+
+      if(result.status){
+        return res.status(200).json({
+          success: true,
+          exists: true,
+          name: result.name,
+          customer_id: result.customer_id,
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        exists: false,
+        message: "Customer Not Found",
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async findWalletByMobile(req, res) {
+    try {
+      const { mobile } = req.query;
+
+      if (!mobile) {
+        return res.status(400).json({
+          success: false,
+          message: "Mobile no is required",
+        });
+      }
+
+      const result = await this.chitRedeemUsecase.findWalletByMobile({ mobile });
+
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
           data: result.data,
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async getPurchaseHistory(req, res) {
+    try {
+      const result = await this.chitRedeemUsecase.getPurchaseHistory(req.query);
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          data: result.data,
+          totalCount: result.totalCount,
+          totalPages: result.totalPages,
+          currentPage: result.currentPage
         });
       }
       return res.status(400).json({ message: result.message });

@@ -6,40 +6,6 @@ import customerModel from "../../models/chit/customerModel.js";
 import walletListModel from "../../models/chit/walletListModel.js";
 
 class WalletRepository {
-  // async findData(query) {
-  //     try {
-  //         const data = await walletRateModel.findOne(query)
-
-  //     if (data) {
-  //         return data;
-  //     }
-
-  //     return null;
-  //     } catch (error) {
-  //         console.error(error)
-  //     }
-  // }
-
-  // async findLatestActiveWalletRate() {
-  //     try {
-  //         const exists = await walletRateModel.findOne(
-  //             { is_deleted: false, active: true }
-  //         ).sort({ createdAt: -1 });
-
-  //         if (!exists) {
-  //             return null;
-  //         }
-
-  //         return exists;
-  //     } catch (error) {
-  //         console.error(error);
-  //     }
-  // }
-
-  // async addWalletRate(data) {
-  //     return await walletRateModel.create(data);
-  // }
-
   async addWalletHistory(data) {
     try {
       const createdData = await walletListModel.create(data);
@@ -68,55 +34,6 @@ class WalletRepository {
     }
   }
 
-  // async getCustomerWalletDetails(customerId) {
-  //     try {
-  //       const idCustomer = new mongoose.Types.ObjectId(customerId);
-
-  //       const result = await walletModel.aggregate([
-  //         {
-  //           $match: {
-  //             id_customer: idCustomer
-  //           }
-  //         },
-  //         {
-  //           $lookup: {
-  //             from: "customers",
-  //             localField: "id_customer",
-  //             foreignField: "_id",
-  //             as: "customer"
-  //           }
-  //         },
-  //         {
-  //             $lookup: {
-  //               from: "schemeaccounts",
-  //               localField: "id_customer",
-  //               foreignField: "id_customer",
-  //               as: "schemeaccount"
-  //             }
-  //           },
-  //         {
-  //             $project: {
-  //               _id: 0,
-  //               balance_amt: 1,
-  //               firstname: { $arrayElemAt: ["$customer.firstname", 0] },
-  //               lastname: {
-  //                 $cond: {
-  //                   if: { $ne: [ { $arrayElemAt: ["$customer.lastname", 0] }, null ] },
-  //                   then: { $arrayElemAt: ["$customer.lastname", 0] },
-  //                   else: "$$REMOVE"
-  //                 }
-  //               },
-  //               address:{ $arrayElemAt: ["$customer.address", 0] },
-  //             }
-  //           }
-  //       ]);
-
-  //       return result.length > 0 ? result[0] : 0;
-  //     } catch (error) {
-  //       console.error(error);
-  //       throw new Error("Failed to get customer wallet details");
-  //     }
-  //   }
   async getCustomerWalletDetails(customerId) {
     try {
       const idCustomer = new mongoose.Types.ObjectId(customerId);
@@ -588,7 +505,7 @@ class WalletRepository {
   }
 
   async updateWallet(dataId, data) {
-    try {
+    try { console.log(dataId,data,"wallet")
       const updatedData = await walletModel.updateOne(
         dataId,
         { $set: data },
@@ -665,7 +582,12 @@ class WalletRepository {
   async getRedeemByUser({ query, documentskip = 0, documentlimit = 10 }) {
     try {
       const walletMatch = query.wallet_id
-        ? { _id: new mongoose.Types.ObjectId(query.wallet_id) }
+        ? {
+            $or: [
+              { id_customer: new mongoose.Types.ObjectId(query.wallet_id) },
+              { id_employee: new mongoose.Types.ObjectId(query.wallet_id) },
+            ],
+          }
         : {};
 
       const walletData = await walletModel.aggregate([
@@ -738,6 +660,95 @@ class WalletRepository {
       };
     } catch (error) {
       console.error("Error in getRedeemByUser:", error);
+      throw new Error("Database error occurred while fetching wallet data.");
+    }
+  }
+
+  async getPurchaseHistoryByUser({ query, documentskip = 0, documentlimit = 10 }) {
+    try {
+      const walletMatch = query.wallet_id
+        ? {
+            $or: [
+              { id_customer: new mongoose.Types.ObjectId(query.wallet_id) },
+              { id_employee: new mongoose.Types.ObjectId(query.wallet_id) },
+            ],
+          }
+        : {};
+
+      const walletData = await walletModel.aggregate([
+        { $match: walletMatch },
+        {
+          $lookup: {
+            from: "customers",
+            localField: "id_customer",
+            foreignField: "_id",
+            as: "id_customer",
+          },
+        },
+        {
+          $lookup: {
+            from: "employees",
+            localField: "id_employee",
+            foreignField: "_id",
+            as: "id_employee",
+          },
+        },
+        {
+          $addFields: {
+            user: {
+              $cond: [
+                { $gt: [{ $size: "$id_customer" }, 0] },
+                { $arrayElemAt: ["$id_customer", 0] },
+                { $arrayElemAt: ["$id_employee", 0] },
+              ],
+            },
+          },
+        },
+        {
+          $project: {
+            id_customer: 0,
+            id_employee: 0,
+          },
+        },
+      ]);
+
+      if (!walletData.length) return null;
+
+      const walletIds = walletData.map((w) => w._id);
+
+      const result = await walletListModel.aggregate([
+        {
+          $match: {
+            wallet_id: { $in: walletIds },
+            $or: [
+              { redeem_type: 2 },
+              { reward_mode: 2 },
+              { reward_mode: "2" }
+            ]
+          },
+        },
+        {
+          $facet: {
+            data: [
+              { $sort: { createdAt: -1 } },
+              { $skip: documentskip },
+              { $limit: documentlimit },
+            ],
+            totalCount: [{ $count: "count" }],
+          },
+        },
+      ]);
+
+      const data = result[0].data;
+      const totalCount = result[0].totalCount[0]?.count || 0;
+
+      return {
+        walletData,
+        data,
+        totalCount,
+      };
+    } catch (error) {
+      console.error("Error in getPurchaseHistoryByUser:", error);
       throw new Error("Database error occurred while fetching wallet data.");
     }
   }
@@ -1064,7 +1075,6 @@ class WalletRepository {
       const filter = { ...query };
       delete filter.wallet_id;
 
-      // First find the wallet document that matches the mobile number
       const walletDoc = await walletModel.findOne({ mobile: query.mobile });
 
       if (!walletDoc) {
@@ -1077,7 +1087,6 @@ class WalletRepository {
         };
       }
 
-      // Determine the ID to use for filtering (either id_customer or id_employee)
       const filterId = walletDoc.id_customer || walletDoc.id_employee;
       if (!filterId) {
         return {
@@ -1089,7 +1098,6 @@ class WalletRepository {
         };
       }
 
-      // Modify the wallet pipeline to only include documents for this user
       const walletPipeline = [
         {
           $match: {
@@ -1158,7 +1166,6 @@ class WalletRepository {
 
       const walletData = await walletModel.aggregate(walletPipeline);
 
-      // Modify the referral pipeline to only include documents for this user
       const referralPipeline = [
         {
           $match: {
@@ -1514,59 +1521,15 @@ class WalletRepository {
           },
         },
         {
-          $match: { referral_amount: { $gt: 0 } }, // ✅ Only include positive referral payments
+          $match: { referral_amount: { $gt: 0 } },
         },
-        // {
-        //   $project: {
-        //     id_customer: {
-        //       firstname: 1,
-        //       lastname: 1,
-        //       mobile: 1,
-        //       id_branch: 1,
-        //     },
-        //     id_employee: {
-        //       firstname: 1,
-        //       lastname: 1,
-        //       mobile: 1,
-        //       id_branch: 1,
-        //     },
-        //     id_scheme_account: {
-        //       _id: 1,
-        //       scheme_acc_number: 1,
-        //       total_installments: 1,
-        //       paymentcount: 1,
-        //       start_date: 1,
-        //       maturity_date: 1,
-        //       paid_installments: 1, // ✅ pull from schemeaccount
-        //     },
-        //     id_scheme: {
-        //       scheme_name: 1,
-        //       description: 1,
-        //       scheme_type: 1,
-        //       code: 1,
-        //       maturity_period: 1,
-        //       referralPercentage: 1,
-        //     },
-        //     payment_receipt: 1,
-        //     payment_amount: 1,
-        //     total_amt: 1,
-        //     metal_rate: 1,
-        //     metal_weight: 1,
-        //     payment_mode: 1,
-        //     createdAt: 1,
-        //     referral_amount: 1,
-        //     payment_status: 1,
-        //     remarks: 1,
-        //     referrlTriggerType:"$id_scheme.referralTriggerType", // 1) each 2) start
-        //     commissionType:"$id_scheme.referralTriggerType"  //1) % 2) amount
-        //   },
-        // },
+       
         {
           $setWindowFields: {
-            partitionBy: "$id_scheme_account._id", // group payments by scheme account
-            sortBy: { createdAt: 1 }, // earliest first
+            partitionBy: "$id_scheme_account._id", 
+            sortBy: { createdAt: 1 },
             output: {
-              paymentOrder: { $rank: {} }, // assign 1,2,3...
+              paymentOrder: { $rank: {} }, 
             },
           },
         },

@@ -120,5 +120,8 @@ router.post('/', verifyJwt, (req, res) => chitRedeemController.closeAccount(req,
 router.get('/daybook-report', verifyJwt, (req, res) => chitRedeemController.dayBookReport(req, res));
 router.patch('/wallet/add', verifyJwt, (req, res) => chitRedeemController.addWalletPoints(req, res));
 router.post('/wallet/redeem', verifyJwt, (req, res) => chitRedeemController.redeemWalletPoints(req, res));
+router.get('/customer', verifyJwt, (req, res) => chitRedeemController.customerExists(req, res));
+router.get('/wallet', verifyJwt, (req, res) => chitRedeemController.findWalletByMobile(req, res));
+router.get('/wallet/purchase-history', verifyJwt, (req, res) => chitRedeemController.getPurchaseHistory(req, res));
 
 export default router;
