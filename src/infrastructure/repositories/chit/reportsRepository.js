@@ -9,56 +9,81 @@ import referralListModel from "../../models/chit/referralListModel.js";
 import schemeModel from "../../models/chit/schemeModel.js";
 
 class ReportRepository {
-  async overAllReport(filter, skip, pageSize, sort = {}, dateFilter) {
+  async overAllReport(
+    filter,
+    skip,
+    pageSize,
+    sort = {},
+    dateFilter,
+    id_employee,
+    id_city,
+    id_area,
+  ) {
     const sortField = Object.keys(sort)[0] || "createdAt";
     const sortOrder = sort[sortField] === "asc" ? 1 : -1;
-    console.log(dateFilter, 'kd')
+
     try {
+      let customerIds = null;
+      if (id_city) {
+        customerIds = await mongoose
+          .model("Customer")
+          .find({ id_city, area: id_area })
+          .distinct("_id");
+      }
+
       const result = await Scheme.aggregate([
         {
           $match: {
             ...filter,
-            // ...dateFilter
           },
         },
 
         {
           $lookup: {
             from: "schemeaccounts",
-            localField: "_id",
-            foreignField: "id_scheme",
-            as: "SchemeAccount",
-          },
-        },
-
-        {
-          $addFields: {
-            SchemeAccount: {
-              $filter: {
-                input: "$SchemeAccount",
-                as: "account",
-                cond: {
-                  $and: [
-                    dateFilter.createdAt?.$gte
-                      ? {
-                        $gte: [
-                          "$$account.createdAt",
-                          dateFilter.createdAt.$gte,
-                        ],
-                      }
-                      : true,
-                    dateFilter.createdAt?.$lte
-                      ? {
-                        $lte: [
-                          "$$account.createdAt",
-                          dateFilter.createdAt.$lte,
-                        ],
-                      }
-                      : true,
-                  ],
+            let: { schemeId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$id_scheme", "$$schemeId"] },
+                  active: true,
+                  is_deleted: false,
+                  ...(id_employee ? { created_by: id_employee } : {}),
+                  ...(customerIds ? { id_customer: { $in: customerIds } } : {}),
+                  ...(dateFilter.createdAt?.$gte || dateFilter.createdAt?.$lte
+                    ? {
+                      createdAt: {
+                        ...(dateFilter.createdAt.$gte
+                          ? { $gte: new Date(dateFilter.createdAt.$gte) }
+                          : {}),
+                        ...(dateFilter.createdAt.$lte
+                          ? { $lte: new Date(dateFilter.createdAt.$lte) }
+                          : {}),
+                      },
+                    }
+                    : {}),
                 },
               },
-            },
+              ...(id_city
+                ? [
+                  {
+                    $lookup: {
+                      from: "customers",
+                      localField: "id_customer",
+                      foreignField: "_id",
+                      as: "customer",
+                    },
+                  },
+                  { $unwind: "$customer" },
+                  {
+                    $match: {
+                      "customer.id_city": id_city,
+                    },
+                  },
+                ]
+                : []),
+            ],
+            as: "SchemeAccount",
           },
         },
 
@@ -184,13 +209,19 @@ class ReportRepository {
                 $match: {
                   $expr: { $eq: ["$id_scheme", "$$schemeId"] },
                   payment_status: 1,
+                  ...(id_employee ? { created_by: id_employee } : {}),
+                  ...(customerIds ? { id_customer: { $in: customerIds } } : {}),
                   ...(dateFilter.createdAt?.$gte || dateFilter.createdAt?.$lte
                     ? {
-                      createdAt: {
-                        ...(dateFilter.createdAt.$gte ? { $gte: new Date(dateFilter.createdAt.$gte) } : {}),
-                        ...(dateFilter.createdAt.$lte ? { $lte: new Date(dateFilter.createdAt.$lte) } : {}),
-                      },
-                    }
+                        createdAt: {
+                          ...(dateFilter.createdAt.$gte
+                            ? { $gte: new Date(dateFilter.createdAt.$gte) }
+                            : {}),
+                          ...(dateFilter.createdAt.$lte
+                            ? { $lte: new Date(dateFilter.createdAt.$lte) }
+                            : {}),
+                        },
+                      }
                     : {}),
                 },
               },
@@ -203,6 +234,7 @@ class ReportRepository {
                 },
               },
               { $unwind: "$account" },
+              { $match: { "account.active": true, "account.is_deleted": false } },
             ],
             as: "FilteredPayments",
           },
@@ -1363,6 +1395,29 @@ class ReportRepository {
             },
           },
         },
+        {
+          $addFields: {
+            totalWeight: {
+              $cond: {
+                if: {
+                  $or: [
+                    { $eq: ["$Scheme.scheme_type", 10] },
+                    { $eq: ["$Scheme.scheme_type", 14] },
+                  ],
+                },
+                then: { $add: ["$savedWeight", "$bonusWeight"] },
+                else: {
+                  $convert: {
+                    input: "$metal_weight",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0,
+                  },
+                },
+              },
+            },
+          },
+        },
       ];
 
       if (search) {
@@ -1431,6 +1486,7 @@ class ReportRepository {
                 savedWeight: 1,
                 bonusAmount: 1,
                 bonusWeight: 1,
+                totalWeight: 1,
                 metalRate: "$MetalRate.rate",
                 digibonus: "$digiBonus",
               },

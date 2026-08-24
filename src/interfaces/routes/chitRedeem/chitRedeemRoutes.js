@@ -28,6 +28,33 @@ import AuthMiddleware from '../../../utils/middleware/authMiddleware.js';
 import config from '../../../config/chit/env.js';
 
 
+// const verifyJwt = (req, res, next) => {
+//   try {
+//     const authHeader = req.headers.authorization;
+
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Access token missing",
+//       });
+//     }
+
+//     const token = authHeader.split(" ")[1];
+//     const key = config.ERP_JWT_SECRET_KEY || config.JWT_SECRET
+//     const decoded = jwt.verify(token, key);
+
+//     req.erpUser = decoded;
+//     next();
+//   } catch (error) {
+//     next()
+//     console.log("JWT VERIFY ERROR:", error);
+//     return res.status(401).json({
+//       success: false,
+//       message: "Invalid or expired token",
+//     });
+//   }
+// };
+
 const verifyJwt = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -40,14 +67,35 @@ const verifyJwt = (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const key = config.ERP_JWT_SECRET_KEY
-    const decoded = jwt.verify(token, key);
+
+    const keys = [
+      config.ERP_JWT_SECRET_KEY,
+      config.JWT_SECRET,
+    ].filter(Boolean);
+
+    let decoded = null;
+
+    for (const key of keys) {
+      try {
+        decoded = jwt.verify(token, key);
+        break;
+      } catch (error) {
+      }
+    }
+
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token",
+      });
+    }
 
     req.erpUser = decoded;
+
     next();
   } catch (error) {
-    next()
-    console.log("JWT VERIFY ERROR:", error);
+    console.error("JWT VERIFY ERROR:", error);
+
     return res.status(401).json({
       success: false,
       message: "Invalid or expired token",

@@ -286,12 +286,20 @@ class ChitRedeemUsecase {
         return { success: false, message: "Customer not found" };
       }
 
-      let wallet = await this.walletRepository.findWallet({ id_customer: customer._id });
+      let wallet = await this.walletRepository.findWallet({ mobile: customer.mobile || data.mobile });
+
+      if (wallet && !wallet.id_customer) {
+        await this.walletRepository.updateWallet(wallet._id, { id_customer: customer._id });
+      }
+
+      if (!wallet) {
+         wallet = await this.walletRepository.findWallet({ id_customer: customer._id });
+      }
 
       if (!wallet) {
          wallet = await this.walletRepository.addWallet({
             id_customer: customer._id,
-            mobile:data.mobile,
+            mobile: customer.mobile || data.mobile,
             balance_amt: 0,
             total_reward_amt: 0,
             redeem_amt: 0,

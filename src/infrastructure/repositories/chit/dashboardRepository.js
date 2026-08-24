@@ -1268,30 +1268,45 @@ class DashboardRepository {
             },
           },
 
+          // {
+          //   $addFields: {
+          //     includeWeight: {
+          //       $cond: {
+          //         if: {
+          //           $and: [
+          //             {
+          //               $not: {
+          //                 $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
+          //               },
+          //             },
+          //             {
+          //               $not: {
+          //                 $in: ["$schemeAccount.status", [3, 4]],
+          //               },
+          //             },
+          //           ]
+          //         },
+          //         then: "$safeMetalWeight",
+          //         else: 0,
+          //       },
+          //     },
+          //   },
+          // },
           {
-            $addFields: {
-              includeWeight: {
-                $cond: {
-                  if: {
-                    $and: [
-                      {
-                        $not: {
-                          $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
-                        },
-                      },
-                      {
-                        $not: {
-                          $in: ["$schemeAccount.status", [3, 4]],
-                        },
-                      },
-                    ]
-                  },
-                  then: "$safeMetalWeight",
-                  else: 0,
-                },
-              },
-            },
+  $addFields: {
+    includeWeight: {
+      $cond: {
+        if: {
+          $not: {
+            $in: ["$scheme.scheme_type", [0, 8, 13, 11, 1, 7]],
           },
+        },
+        then: "$safeMetalWeight",
+        else: 0,
+      },
+    },
+  },
+},
           {
             $facet: {
               overall: [

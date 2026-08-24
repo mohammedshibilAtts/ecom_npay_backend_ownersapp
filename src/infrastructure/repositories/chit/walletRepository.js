@@ -753,323 +753,6 @@ class WalletRepository {
     }
   }
 
-  // async getRefferalListByUser({ query, documentskip, documentlimit }) {
-  //     try {
-  //         const filter = { ...query };
-  //         delete filter.wallet_id;
-
-  //         const walletMatchStage = query.wallet_id
-  //             ? {
-  //                 $match: {
-  //                     $expr: {
-  //                         $or: [
-  //                             { $eq: ["$id_customer", new mongoose.Types.ObjectId(query.wallet_id)] },
-  //                             { $eq: ["$id_employee", new mongoose.Types.ObjectId(query.wallet_id)] }
-  //                         ]
-  //                     }
-  //                 }
-  //             }
-  //             : null;
-
-  //         const walletPipeline = [
-  //             ...(walletMatchStage ? [walletMatchStage] : []),
-  //             {
-  //                 $lookup: {
-  //                     from: "customers",
-  //                     localField: "id_customer",
-  //                     foreignField: "_id",
-  //                     as: "id_customer"
-  //                 }
-  //             },
-  //             {
-  //                 $lookup: {
-  //                     from: "employees",
-  //                     localField: "id_employee",
-  //                     foreignField: "_id",
-  //                     as: "id_employee"
-  //                 }
-  //             },
-  //             {
-  //                 $addFields: {
-  //                     id_customer: { $arrayElemAt: ["$id_customer", 0] },
-  //                     id_employee: { $arrayElemAt: ["$id_employee", 0] }
-  //                 }
-  //             },
-  //             {
-  //                 $sort: { _id: -1 }
-  //             },
-  //             {
-  //                 $skip: documentskip
-  //             },
-  //             {
-  //                 $limit: documentlimit
-  //             },
-  //             {
-  //                 $project: {
-  //                     id_customer: {
-  //                         firstname: 1,
-  //                         lastname: 1,
-  //                         mobile: 1,
-  //                         id_branch: 1
-  //                     },
-  //                     id_employee: {
-  //                         firstname: 1,
-  //                         lastname: 1,
-  //                         mobile: 1,
-  //                         id_branch: 1
-  //                     },
-  //                     bill_no: 1,
-  //                     total_reward_amt: 1,
-  //                     redeem_amt: 1,
-  //                     balance_amt: 1,
-  //                     createdAt: 1,
-  //                     updatedAt: 1
-  //                 }
-  //             }
-  //         ];
-
-  //         const walletData = await walletModel.aggregate(walletPipeline);
-
-  //         const referralPipeline = [
-  //             ...(walletMatchStage ? [walletMatchStage] : []),
-  //             {
-  //                 $lookup: {
-  //                     from: "customers",
-  //                     localField: "id_customer",
-  //                     foreignField: "_id",
-  //                     as: "id_customer"
-  //                 }
-  //             },
-  //             { $unwind: { path: "$id_customer", preserveNullAndEmptyArrays: true } },
-  //             {
-  //                 $lookup: {
-  //                     from: "employees",
-  //                     localField: "id_employee",
-  //                     foreignField: "_id",
-  //                     as: "id_employee"
-  //                 }
-  //             },
-  //             { $unwind: { path: "$id_employee", preserveNullAndEmptyArrays: true } },
-  //             {
-  //                 $lookup: {
-  //                     from: "schemeaccounts",
-  //                     localField: "id_scheme_account",
-  //                     foreignField: "_id",
-  //                     as: "id_scheme_account"
-  //                 }
-  //             },
-  //             { $unwind: { path: "$id_scheme_account", preserveNullAndEmptyArrays: true } },
-  //             {
-  //                 $lookup: {
-  //                     from: "customers",
-  //                     localField: "id_scheme_account.id_customer",
-  //                     foreignField: "_id",
-  //                     as: "scheme_account_customer"
-  //                 }
-  //             },
-  //             {
-  //                 $set: {
-  //                     scheme_account_customer: {
-  //                         $let: {
-  //                             vars: { cust: { $arrayElemAt: ["$scheme_account_customer", 0] } },
-  //                             in: {
-  //                                 firstname: "$$cust.firstname",
-  //                                 lastname: "$$cust.lastname",
-  //                                 mobile: "$$cust.mobile",
-  //                                 id_branch: "$$cust.id_branch"
-  //                             }
-  //                         }
-  //                     }
-  //                 }
-  //             },
-  //             {
-  //                 $set: {
-  //                     id_scheme_account: {
-  //                         $mergeObjects: ["$id_scheme_account", "$scheme_account_customer"]
-  //                     }
-  //                 }
-  //             },
-  //             { $unset: "scheme_account_customer" },
-  //             {
-  //                 $lookup: {
-  //                     from: "schemes",
-  //                     localField: "id_scheme_account.id_scheme",
-  //                     foreignField: "_id",
-  //                     as: "id_scheme"
-  //                 }
-  //             },
-  //             {
-  //                 $set: {
-  //                     id_scheme: { $arrayElemAt: ["$id_scheme", 0] }
-  //                 }
-  //             },
-  //             {
-  //                 $lookup: {
-  //                     from: "payments",
-  //                     let: { customerId: "$id_scheme_account.id_customer" },
-  //                     pipeline: [
-  //                         {
-  //                             $match: {
-  //                                 $expr: {
-  //                                     $and: [
-  //                                         { $eq: ["$id_customer", "$$customerId"] },
-  //                                         { $eq: ["$is_deleted", false] }
-  //                                     ]
-  //                                 }
-  //                             }
-  //                         },
-  //                         { $sort: { createdAt: -1 } }
-  //                     ],
-  //                     as: "payment"
-  //                 }
-  //             },
-  //             {
-  //                 $addFields: {
-  //                     payment: {
-  //                         $cond: {
-  //                             if: { $isArray: "$payment" },
-  //                             then: {
-  //                                 $map: {
-  //                                     input: "$payment",
-  //                                     as: "pay",
-  //                                     in: {
-  //                                         $mergeObjects: [
-  //                                             "$$pay",
-  //                                             {
-  //                                                 referral_amount: {
-  //                                                     $round: [
-  //                                                         {
-  //                                                             $multiply: [
-  //                                                                 {
-  //                                                                     $divide: [
-  //                                                                         { $ifNull: ["$id_scheme.referralPercentage", 0] },
-  //                                                                         100
-  //                                                                     ]
-  //                                                                 },
-  //                                                                 { $ifNull: ["$$pay.payment_amount", 0] }
-  //                                                             ]
-  //                                                         },
-  //                                                         2
-  //                                                     ]
-  //                                                 }
-  //                                             }
-  //                                         ]
-  //                                     }
-  //                                 }
-  //                             },
-  //                             else: []
-  //                         }
-  //                     }
-  //                 }
-  //             },
-
-  //             // 📌 Grouping by id_scheme_account to merge multiple referrals
-  //             {
-  //                 $group: {
-  //                     _id: "$id_scheme_account._id",
-  //                     doc: { $first: "$$ROOT" },
-  //                     total_credited_amount: { $sum: "$credited_amount" },
-  //                     referral_payments: { $push: "$payment" }
-  //                 }
-  //             },
-  //             {
-  //                 $addFields: {
-  //                     "doc.credited_amount": "$total_credited_amount",
-  //                     "doc.payment": {
-  //                         $reduce: {
-  //                             input: "$referral_payments",
-  //                             initialValue: [],
-  //                             in: { $concatArrays: ["$$value", "$$this"] }
-  //                         }
-  //                     }
-  //                 }
-  //             },
-  //             {
-  //                 $replaceRoot: { newRoot: "$doc" }
-  //             },
-  //             {
-  //                 $project: {
-  //                     id_customer: {
-  //                         firstname: 1,
-  //                         lastname: 1,
-  //                         mobile: 1,
-  //                         id_branch: 1
-  //                     },
-  //                     id_employee: {
-  //                         firstname: 1,
-  //                         lastname: 1,
-  //                         mobile: 1,
-  //                         id_branch: 1
-  //                     },
-  //                     id_scheme_account: {
-  //                         _id: 1,
-  //                         scheme_acc_number: 1,
-  //                         total_installments: 1,
-  //                         paymentcount: 1,
-  //                         start_date: 1,
-  //                         maturity_date: 1,
-  //                         firstname: 1,
-  //                         lastname: 1,
-  //                         mobile: 1,
-  //                         id_branch: 1
-  //                     },
-  //                     id_scheme: {
-  //                         scheme_name: 1,
-  //                         description: 1,
-  //                         code: 1,
-  //                         maturity_period: 1,
-  //                         referralPercentage: 1
-  //                     },
-  //                     payment: {
-  //                         paid_installments: 1,
-  //                         payment_amount: 1,
-  //                         total_amt: 1,
-  //                         metal_rate: 1,
-  //                         metal_weight: 1,
-  //                         payment_mode: 1,
-  //                         createdAt: 1,
-  //                         referral_amount: 1
-  //                     },
-  //                     credited_amount: 1,
-  //                     reward_mode: 1,
-  //                     bill_no: 1,
-  //                     total_reward_amt: 1,
-  //                     redeem_amt: 1,
-  //                     balance_amt: 1,
-  //                     createdAt: 1,
-  //                     updatedAt: 1
-  //                 }
-  //             },
-  //             {
-  //                 $sort: { _id: -1 }
-  //             },
-  //             {
-  //                 $facet: {
-  //                     data: [
-  //                         { $skip: documentskip },
-  //                         { $limit: documentlimit }
-  //                     ],
-  //                     totalCount: [{ $count: "count" }]
-  //                 }
-  //             }
-  //         ];
-
-  //         const result = await referralListModel.aggregate(referralPipeline);
-  //         const data = result[0]?.data || [];
-  //         const totalCount = result[0]?.totalCount?.[0]?.count || 0;
-
-  //         return {
-  //             data: {
-  //                 data,
-  //                 walletData,
-  //                 totalCount
-  //             }
-  //         };
-  //     } catch (error) {
-  //         console.error("Error in getRefferal:", error);
-  //         throw new Error("Database error occurred while fetching referral list.");
-  //     }
-  // }
   async getRefferalListByUser({ query, documentskip, documentlimit }) {
     try {
       const filter = { ...query };
@@ -1592,8 +1275,13 @@ class WalletRepository {
     }
   }
 
-  async getWalletData(query) {
+  async getWalletData(query, cursor, limit = 10) {
     try {
+      let cursorMatch = {};
+      if (cursor && mongoose.isValidObjectId(cursor)) {
+        cursorMatch = { _id: { $lt: new mongoose.Types.ObjectId(cursor) } };
+      }
+
       const walletData = await walletModel.aggregate([
         {
           $match: {
@@ -1615,6 +1303,7 @@ class WalletRepository {
               {
                 $match: {
                   $expr: { $eq: ["$wallet_id", "$$walletId"] },
+                  ...cursorMatch
                 },
               },
               {
@@ -1624,6 +1313,8 @@ class WalletRepository {
                   type: { $literal: "wallet" }, // Add type identifier
                 },
               },
+              { $sort: { _id: -1 } },
+              { $limit: limit },
             ],
             as: "wallethistory",
           },
@@ -1636,6 +1327,7 @@ class WalletRepository {
               {
                 $match: {
                   $expr: { $eq: ["$id_customer", "$$customerId"] },
+                  ...cursorMatch
                 },
               },
               {
@@ -1691,6 +1383,8 @@ class WalletRepository {
                   type: { $literal: "referral" }, // Add type identifier
                 },
               },
+              { $sort: { _id: -1 } },
+              { $limit: limit },
             ],
             as: "referralData",
           },
@@ -1709,8 +1403,15 @@ class WalletRepository {
             transactionHistory: {
               $sortArray: {
                 input: "$transactionHistory",
-                sortBy: { createdAt: -1 },
+                sortBy: { _id: -1 },
               },
+            },
+          },
+        },
+        {
+          $addFields: {
+            transactionHistory: {
+              $slice: ["$transactionHistory", limit],
             },
           },
         },

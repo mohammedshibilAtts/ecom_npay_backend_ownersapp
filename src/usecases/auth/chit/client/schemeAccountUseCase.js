@@ -2026,7 +2026,7 @@ class SchemeAccountUseCase {
       }
 
       let digiToPass = false
-      if(digi){
+      if(digi && digi == "true"){
         digiToPass = true
       }
 

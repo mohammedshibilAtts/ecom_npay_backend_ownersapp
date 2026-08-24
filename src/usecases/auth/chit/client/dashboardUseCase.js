@@ -257,13 +257,61 @@ class DashboardUseCase {
     }
   }
 
-  async getMonthlyInsights(params) {
-    try {
-      const { id_branch, idScheme, year, month } = params;
-      const cacheKey = generateCacheKey("monthlyinsights", id_branch, params);
-      const cachedData = cacheService.get(cacheKey);
-      if (cachedData) return cachedData;
+  // async getMonthlyInsights(params) {
+  //   try {
+  //     const { id_branch, idScheme, year, month } = params;
+  //     const cacheKey = generateCacheKey("monthlyinsights", id_branch, params);
+  //     const cachedData = cacheService.get(cacheKey);
+  //     if (cachedData) return cachedData;
 
+  //     const filter = { is_deleted: false };
+
+  //     if (id_branch) {
+  //       if (isValidObjectId(id_branch)) {
+  //         const isValidBranch = await this.branchRepository.findById(id_branch);
+  //         if (!isValidBranch) {
+  //           return { success: false, message: "Branch not found" };
+  //         }
+  //         filter.id_branch = new mongoose.Types.ObjectId(id_branch);
+  //       } else {
+  //         return { success: false, message: "Provide a valid Branch ID" };
+  //       }
+  //     }
+
+  //     if (idScheme) {
+  //       if (isValidObjectId(idScheme)) {
+  //         filter.id_scheme = new mongoose.Types.ObjectId(idScheme);
+  //       } else {
+  //         return { success: false, message: "Provide a valid Scheme ID" };
+  //       }
+  //     }
+
+  //     const isYearly = year === true || year === "true";
+  //     const isMonthly = month === true || month === "true" || !isYearly; // Default to monthly if neither is true
+
+  //     const data = await this.dashboardRepository.getInsightsData(
+  //       filter,
+  //       isYearly,
+  //       isMonthly,
+  //     );
+  //     if (data) {
+  //       const response = {
+  //         success: true,
+  //         data,
+  //         message: "Insights fetched successfully",
+  //       };
+  //       cacheService.set(cacheKey, response);
+  //       return response;
+  //     }
+
+  //     return { success: false, message: "Failed to fetch data" };
+  //   } catch (err) {
+  //     console.error(err);
+  //     return { success: false, message: "Failed to get Insights data" };
+  //   }
+  // }
+  async getMonthlyInsights({ id_branch, idScheme, year, month }) {
+    try {
       const filter = { is_deleted: false };
 
       if (id_branch) {
@@ -295,13 +343,11 @@ class DashboardUseCase {
         isMonthly,
       );
       if (data) {
-        const response = {
+        return {
           success: true,
           data,
           message: "Insights fetched successfully",
         };
-        cacheService.set(cacheKey, response);
-        return response;
       }
 
       return { success: false, message: "Failed to fetch data" };

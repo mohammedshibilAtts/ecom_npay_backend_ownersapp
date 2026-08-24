@@ -212,6 +212,49 @@ class PaymentController {
     }
   }
 
+  async getPaymentBySchemeAccountWeb(req, res) {
+    try {
+      let {
+        schacc,
+        page,
+        limit
+      } = req.query;
+
+      if (!schacc) {
+        return res.status(400).json({
+          status: "Failed",
+          message: "Scheme Account Number required",
+        });
+      }
+
+      const result = await this.paymentUseCase.getPaymentsBySchemeIdWeb({
+        id: schacc,
+        page,
+        limit
+      });
+
+      if (!result || !result.success) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          message: "No payment data found",
+        });
+      }
+
+      return res.status(200).json({
+        message: result.message,
+        data: result.data,
+        totalDocument: result.totalCount,
+        totalPages: result.totalPages,
+        currentPage: result.currentPage,
+        nextCursor: result.nextCursor
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
   async processPayment(req, res) {
     try {
       const { schemes } = req.body;

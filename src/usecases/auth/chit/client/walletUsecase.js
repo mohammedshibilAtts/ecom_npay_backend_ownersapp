@@ -724,7 +724,7 @@ class WalletUsecase {
     }
   }
 
-  async getWalletData(value) {
+  async getWalletData(value, cursor, limit) {
     try {
       const query = {
         active: true,
@@ -732,15 +732,21 @@ class WalletUsecase {
         mobile:value
       };
 
-      const walletData = await this.walletRepo.getWalletData(query);
+      const parsedLimit = limit ? parseInt(limit) : 10;
+      const walletData = await this.walletRepo.getWalletData(query, cursor, parsedLimit);
 
       if (walletData && (walletData.is_deleted === true)) {
         return { success: false, message: "Wallet does not exist" };
       }
 
+      let nextCursor = null;
+      if (walletData && walletData.transactionHistory && walletData.transactionHistory.length === parsedLimit) {
+        nextCursor = walletData.transactionHistory[walletData.transactionHistory.length - 1]._id;
+      }
+
       const data = walletData
 
-      return { success: true, message: walletData ? "Wallet exists" : "Wallet not exists", data };
+      return { success: true, message: walletData ? "Wallet exists" : "Wallet not exists", data, nextCursor };
     } catch (error) {
       console.error("Error in getCustomerWalletDetails:", error);
       throw new Error("Internal server error");

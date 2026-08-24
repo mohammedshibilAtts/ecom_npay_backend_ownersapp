@@ -157,6 +157,22 @@ router.get("/schacc", (req, res) =>
 
 /**
  * @swagger
+ * /api/client/payment/schacc/web:
+ *   get:
+ *     summary: Get payments by scheme account (without mobile flag)
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of payments
+ */
+router.get("/schacc/web", (req, res) =>
+  paymentController.getPaymentBySchemeAccountWeb(req, res),
+);
+
+/**
+ * @swagger
  * /api/client/payment/{id}:
  *   get:
  *     summary: Get payment by ID
@@ -246,6 +262,7 @@ router.post("/table", (req, res) => paymentController.paymentTable(req, res));
 router.get("/schemeaccount/:id", (req, res) =>
   paymentController.getPaymentsBySchemeId(req, res),
 );
+
 router.delete("/:id", authMiddleware.protect, (req, res) =>
   paymentController.deletePayment(req, res),
 ); // New DELETE route
