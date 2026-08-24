@@ -888,7 +888,52 @@ class SchemeAccountRepository {
               { $sort: { createdAt: -1 } },
               {
                 $addFields: {
-                  total_digi_bonus: { $divide: ["$digiBonus", "$metal_rate"] }
+                  total_digi_bonus: {
+                    $cond: {
+                      if: {
+                        $and: [
+                          { $gt: ["$metal_rate", 0] },
+                          { $gt: [{ $ifNull: ["$digiBonus", 0] }, 0] },
+                        ],
+                      },
+                      then: { $divide: [{ $ifNull: ["$digiBonus", 0] }, "$metal_rate"] },
+                      else: 0,
+                    },
+                  },
+                  savedWeight: {
+                    $cond: {
+                      if: {
+                        $and: [
+                          { $gt: ["$metal_rate", 0] },
+                          { $gt: ["$payment_amount", 0] },
+                        ],
+                      },
+                      then: { $divide: ["$payment_amount", "$metal_rate"] },
+                      else: 0,
+                    },
+                  },
+                  bonusWeight: {
+                    $cond: {
+                      if: {
+                        $and: [
+                          { $gt: [{ $ifNull: ["$digiBonus", 0] }, 0] },
+                          { $gt: ["$metal_rate", 0] }
+                        ],
+                      },
+                      then: {
+                        $divide: [
+                          {
+                            $multiply: [
+                              "$payment_amount",
+                              { $divide: [{ $ifNull: ["$digiBonus", 0] }, 100] },
+                            ],
+                          },
+                          "$metal_rate",
+                        ],
+                      },
+                      else: 0,
+                    },
+                  },
                 }
               },
               {
@@ -898,6 +943,8 @@ class SchemeAccountRepository {
                   total_paid_installments: { $sum: "$paid_installments" },
                   total_paid_amount: { $sum: "$payment_amount" },
                   total_paid_weight: { $sum: "$metal_weight" },
+                  total_saved_weight: { $sum: "$savedWeight" },
+                  total_bonus_weight: { $sum: "$bonusWeight" },
                   last_payment: { $first: "$$ROOT" },
                   total_digi_bonus: { $sum: "$total_digi_bonus" },
                   weighted_metal_rate_sum: {
@@ -911,6 +958,8 @@ class SchemeAccountRepository {
                   paid_installments: 1,
                   total_paid_amount: 1,
                   total_paid_weight: 1,
+                  total_saved_weight: 1,
+                  total_bonus_weight: 1,
                   digi_bonus: "$total_digi_bonus",
                   last_total_amt: "$last_payment.total_amt",
                   avg_metal_rate: {
@@ -945,6 +994,14 @@ class SchemeAccountRepository {
             total_paid_installments: { $ifNull: ["$payment_info.paid_installments", 0] },
             total_paid_amount: { $ifNull: ["$payment_info.total_paid_amount", 0] },
             total_paid_weight: { $ifNull: ["$payment_info.total_paid_weight", 0] },
+            total_saved_weight: { $ifNull: ["$payment_info.total_saved_weight", 0] },
+            total_bonus_weight: { $ifNull: ["$payment_info.total_bonus_weight", 0] },
+            total_weight: {
+              $add: [
+                { $ifNull: ["$payment_info.total_saved_weight", 0] },
+                { $ifNull: ["$payment_info.total_bonus_weight", 0] },
+              ],
+            },
             last_total_amt: { $ifNull: ["$payment_info.last_total_amt", 0] },
             schemestatusName: "$schemestatusnames.status_name",
             schemeName: "$schemes.scheme_name",
@@ -966,6 +1023,9 @@ class SchemeAccountRepository {
                   last_total_amt: 1,
                   total_paid_amount: 1,
                   total_paid_weight: 1,
+                  savedWeight: "$total_saved_weight",
+                  bonusWeight: "$total_bonus_weight",
+                  totalWeight: "$total_weight",
                   total_paid_installments: "$paid_installments",
                   schemestatusName: 1,
                   status: "$status",
@@ -993,6 +1053,9 @@ class SchemeAccountRepository {
                   total_paid_installments: { $sum: "$paid_installments" },
                   total_paid_amount: { $sum: "$total_paid_amount" },
                   total_paid_weight: { $sum: "$total_paid_weight" },
+                  total_saved_weight: { $sum: "$total_saved_weight" },
+                  total_bonus_weight: { $sum: "$total_bonus_weight" },
+                  total_weight: { $sum: "$total_weight" },
                 },
               },
               {
@@ -1001,6 +1064,9 @@ class SchemeAccountRepository {
                   total_paid_installments: 1,
                   total_paid_amount: 1,
                   total_paid_weight: 1,
+                  total_saved_weight: 1,
+                  total_bonus_weight: 1,
+                  total_weight: 1,
                 },
               },
             ],

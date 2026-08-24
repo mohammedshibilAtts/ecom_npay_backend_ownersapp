@@ -498,7 +498,7 @@ class CustomerUseCase {
       if (customerMobile && customerMobile.toString() === searchTerm) {
         return {
           success: false,
-          message: "Please provide search text.",
+          message: "Self referring is not allowed.",
         };
       }
 

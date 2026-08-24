@@ -68,7 +68,8 @@ const walletSchema = new mongoose.Schema({
 });
 
 walletSchema.index(
-  { mobile: 1, is_deleted: 1 }
+  { mobile: 1, is_deleted: 1 },
+  { unique: true }
 );
 
 

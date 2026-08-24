@@ -450,20 +450,22 @@ class WalletController {
     async getWalletData(req, res) {
         try {
             const { mobile } = req.user;
+            const { cursor, limit } = req.query;
 
             // if(!customer){
             //     return res.status(400).json({message:"Provide a valid customer id"})
             // }
 
-            const result = await this.walletUsecase.getWalletData(mobile);
+            const result = await this.walletUsecase.getWalletData(mobile, cursor, limit);
 
             if (!result.success) {
                 return res.status(200).json({ message: result.message, data: null })
             }
 
             return res.status(200).json({
-                message: result.message, data: result.data
-
+                message: result.message, 
+                data: result.data,
+                nextCursor: result.nextCursor
             })
         } catch (error) {
             console.error(error);
