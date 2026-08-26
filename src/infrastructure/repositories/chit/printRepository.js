@@ -293,17 +293,12 @@ class PrintRepository {
           },
         },
         {
-          $set: {
-            truncated_metal_weight: { $trunc: ["$metal_weight", 3] },
-          },
-        },
-        {
           $setWindowFields: {
             sortBy: { createdAt: 1 },
             output: {
               index: { $documentNumber: {} },
               accWeight: {
-                $sum: "$truncated_metal_weight",
+                $sum: "$metal_weight",
                 window: {
                   documents: ["unbounded", "current"],
                 },
@@ -321,7 +316,7 @@ class PrintRepository {
             payment_amount: 1,
             metal_rate: 1,
             metal_weight: 1,
-            accWeight: { $round: ["$accWeight", 3] },
+            accWeight: { $trunc: ["$accWeight", 3] },
           },
         },
         {
