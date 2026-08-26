@@ -419,34 +419,21 @@ class PaymentUseCase {
           data.id_scheme_account,
         );
 
-        let metalRateData = null;
+        const metalId = schemeData?.id_metal?._id;
+        const purity = schemeData?.id_purity?._id;
+        const branchId = data?.id_branch;
 
-        const isInvalidMetalRate =
-          data?.metal_rate === undefined ||
-          data?.metal_rate === null ||
-          Number(data?.metal_rate) === 0;
+        const metalRateData = await this.metalRateRepository.todaysMetalRateByMetal(
+          metalId,
+          purity,
+          branchId,
+          todayDate,
+        );
 
-        if (isInvalidMetalRate) {
-          const metalId = schemeData?.id_metal?._id;
-          const purity = schemeData?.id_purity?._id;
-          const branchId = data?.id_branch;
-
-          metalRateData = await this.metalRateRepository.todaysMetalRateByMetal(
-            metalId,
-            purity,
-            branchId,
-            todayDate,
-          );
-        }
-
-        const finalMetalRate = isInvalidMetalRate
-          ? Number(metalRateData?.rate)
-          : Number(data?.metal_rate);
+        const finalMetalRate = Number(metalRateData?.rate);
 
         if (!Number.isFinite(finalMetalRate) || finalMetalRate <= 0) {
-          throw new Error(
-            "Metal rate not found or invalid, cannot calculate weight",
-          );
+          return { success: false, message: "Metal rate is not available for today, please try payment again" };
         }
 
         const paymentAmount = Number(data?.payment_amount);
@@ -683,7 +670,7 @@ class PaymentUseCase {
             payment_amount: data.payment_amount,
             paid_installments: data.installments,
             scheme_total: data.total_amt,
-            metal_rate: data?.metal_rate,
+            metal_rate: finalMetalRate,
             payment_mode: data.payment_mode,
             payment_type: 1,
             platform: 0,
@@ -760,6 +747,23 @@ class PaymentUseCase {
 
       const todayDate = new Date();
 
+      const metalId = scheme?.id_metal?._id;
+      const purity = scheme?.id_purity?._id;
+      const branchId = data?.id_branch;
+
+      const metalRateData = await this.metalRateRepository.todaysMetalRateByMetal(
+        metalId,
+        purity,
+        branchId,
+        todayDate,
+      );
+
+      const finalMetalRate = Number(metalRateData?.rate);
+
+      if (!Number.isFinite(finalMetalRate) || finalMetalRate <= 0) {
+        return { success: false, message: "Metal rate is not available for today, please try payment again" };
+      }
+
       const lastPaidData = await this.paymentRepository.findPaymentData(
         data.id_scheme_account,
       );
@@ -818,7 +822,8 @@ class PaymentUseCase {
         total_amt: totalAmount,
         paymentModeName: paymentMode.mode_name,
         digiBonus: digidata.appliedBonusPercent,
-        metal_weight: Number(digidata?.finalAmount) / Number(data?.metal_rate),
+        metal_rate: finalMetalRate,
+        metal_weight: Number(digidata?.finalAmount) / finalMetalRate,
       };
 
       const savedPayment = await this.paymentRepository.addPayment(dataToSave);
@@ -846,7 +851,7 @@ class PaymentUseCase {
 
       let metalWeight = 0;
       if (!data.metal_weight || data.metal_weight == "") {
-        metalWeight = Number(data?.payment_amount) / Number(data?.metal_rate);
+        metalWeight = Number(data?.payment_amount) / finalMetalRate;
       }
 
       await this.schemeAccountRepository.updateAmountOrWeight(
@@ -1018,7 +1023,7 @@ class PaymentUseCase {
         payment_amount: data.payment_amount,
         paid_installments: data.installments,
         scheme_total: data.total_amt,
-        metal_rate: data.metal_rate,
+        metal_rate: finalMetalRate,
         payment_mode: data.payment_mode,
         payment_type: 1,
         platform: 0,
