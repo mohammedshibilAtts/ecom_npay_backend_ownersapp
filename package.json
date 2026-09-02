@@ -11,9 +11,10 @@
     "migrate:up": "migrate-mongo up -f src/config/chit/migrate-mongo-config.js",
     "migrate:status": "migrate-mongo status -f src/config/chit/migrate-mongo-config.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "overrides": {
+    "jws": "^3.2.3",
+    "tar": "^6.2.1"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",
     "axios": "^1.7.9",

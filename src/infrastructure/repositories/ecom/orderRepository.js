@@ -7,6 +7,7 @@ import productModel from "../../models/chit/productModel.js";
 import orderStatusModel from "../../models/ecom/orderStatusModel.js";
 import metalRateModel from "../../models/chit/metalRateModel.js";
 import itemModel from "../../models/ecom/itemModel.js";
+import organisation from "../../models/chit/organisationModel.js";
 import {
   ORDER_STATUS,
   ORDER_STATUS_NO,
@@ -651,16 +652,104 @@ class OrderRepository {
         ...filter,
         active: true,
       };
+
+      // Extract search regex to support searching by SKU / Tag No & Customer Name / Mobile
+      let searchRegex = null;
+      if (filter.sku) {
+        searchRegex = filter.sku instanceof RegExp ? filter.sku : new RegExp(filter.sku, "i");
+        delete filter.sku;
+      } else if (filter.$or && Array.isArray(filter.$or)) {
+        const regexCond = filter.$or.find((cond) => cond.orderId && cond.orderId.$regex);
+        if (regexCond) {
+          searchRegex = regexCond.orderId.$regex;
+        }
+      }
+
+      if (searchRegex) {
+        const Customer = mongoose.model("Customer");
+
+        const [matchedOrderItems, matchedCustomers] = await Promise.all([
+          OrderItem.find({ sku: searchRegex }).distinct("orderId"),
+          Customer.find({
+            $or: [
+              { firstname: searchRegex },
+              { lastname: searchRegex },
+              { mobile: searchRegex },
+            ],
+          }).distinct("_id"),
+        ]);
+
+        if (!filter.$or) filter.$or = [];
+        if (matchedOrderItems.length > 0) {
+          filter.$or.push({ _id: { $in: matchedOrderItems } });
+        }
+        if (matchedCustomers.length > 0) {
+          filter.$or.push({ userId: { $in: matchedCustomers } });
+        }
+      }
+
       const orders = await Order.find(filter)
         .populate("userId", "firstname lastname mobile")
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
 
       const totalCount = await Order.countDocuments(filter);
 
+      const orderIds = orders.map((order) => order._id);
+      const cartIds = orders
+        .map((order) => order.cartId)
+        .filter((cartId) => cartId != null);
+
+      const [orderItems, cartItems] = await Promise.all([
+        OrderItem.find({ orderId: { $in: orderIds } })
+          .select("orderId sku")
+          .lean(),
+        cartIds.length > 0
+          ? CartItem.find({ cartId: { $in: cartIds } })
+              .select("cartId sku")
+              .lean()
+          : Promise.resolve([]),
+      ]);
+
+      const orderItemMap = {};
+      orderItems.forEach((item) => {
+        const key = item.orderId.toString();
+        if (!orderItemMap[key]) {
+          orderItemMap[key] = [];
+        }
+        orderItemMap[key].push({ sku: item.sku });
+      });
+
+      const cartItemMap = {};
+      cartItems.forEach((item) => {
+        const key = item.cartId.toString();
+        if (!cartItemMap[key]) {
+          cartItemMap[key] = [];
+        }
+        cartItemMap[key].push({ sku: item.sku });
+      });
+
+      const ordersWithCartItems = orders.map((order) => {
+        const orderIdKey = order._id ? order._id.toString() : null;
+        const cartIdKey = order.cartId ? order.cartId.toString() : null;
+
+        const items =
+          orderIdKey && orderItemMap[orderIdKey] && orderItemMap[orderIdKey].length > 0
+            ? orderItemMap[orderIdKey]
+            : cartIdKey && cartItemMap[cartIdKey]
+            ? cartItemMap[cartIdKey]
+            : [];
+
+        return {
+          ...order,
+          cartItems: items,
+        };
+      });
+
       return {
-        orders,
+        orders: ordersWithCartItems,
         totalCount,
         totalPages: Math.ceil(totalCount / limit),
       };
@@ -720,8 +809,16 @@ class OrderRepository {
           path: "userId",
           select: "firstname lastname email mobile cus_img",
         })
-
         .lean();
+
+      const orgData = await organisation
+        .findOne({})
+        .select("company_name mobile address id_city id_state id_country")
+        .populate("id_city", "city_name")
+        .populate("id_state", "state_name")
+        .populate("id_country", "country_name")
+        .lean();
+
       let address = "";
       if (findOrder.deliveryAddress) {
         const addr = findOrder.deliveryAddress;
@@ -890,6 +987,7 @@ class OrderRepository {
 
       return {
         item: findOrderItem,
+        orgData,
         overAll: {
           placedAt: findOrder.createdAt,
           estimatedDeliveryDate: findOrder.estimatedDeliveryDate,

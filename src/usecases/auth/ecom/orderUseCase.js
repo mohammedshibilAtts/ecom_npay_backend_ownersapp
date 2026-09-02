@@ -632,7 +632,7 @@ class OrderUseCase {
           $gte: startDate,
           $lte: endDate,
         };
-      } else {
+      } else if (!search || search.trim() === "") {
         const startDate = moment
           .tz(new Date(), "Asia/Kolkata")
           .startOf("day")
