@@ -498,7 +498,7 @@ class CustomerUseCase {
       if (customerMobile && customerMobile.toString() === searchTerm) {
         return {
           success: false,
-          message: "Please provide search text.",
+          message: "Self referring is not allowed.",
         };
       }
 
@@ -879,6 +879,7 @@ class CustomerUseCase {
       }
 
       await this.otpRepo.deleteOtpByMobile(userData.mobile, "signup");
+      cacheService.invalidatePattern("dashboard:");
       return { success: true, message: "Registration completed successfully." };
     } catch (error) {
       console.error(error);

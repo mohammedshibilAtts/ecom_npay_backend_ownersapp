@@ -45,6 +45,36 @@ class ChatbotController {
       return res.status(400).json({ success: false, message: error.message });
     }
   }
+
+  async getAllNodes(req, res) {
+    try {
+      const result = await this.chatbotUsecase.getAllNodes();
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  async updateNode(req, res) {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+      const result = await this.chatbotUsecase.updateNode(id, data);
+      return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async deleteNode(req, res) {
+    try {
+      const { id } = req.params;
+      await this.chatbotUsecase.deleteNode(id);
+      return res.status(200).json({ success: true, message: "Node deleted successfully" });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
 }
 
 export default ChatbotController;

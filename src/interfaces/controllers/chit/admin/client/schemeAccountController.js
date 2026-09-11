@@ -619,7 +619,7 @@ class SchemeAccountContorller {
 
   async getAllSchemeAccountsForMobile(req, res) {
     try {
-      let { customer, weight,type} = req.query;
+      let { customer, weight,type,digi} = req.query;
 
       if (!customer) {
         customer = req.user?._id;
@@ -636,7 +636,8 @@ class SchemeAccountContorller {
           customer,
           weight,
           type,
-          req.user
+          req.user,
+          digi
         );
 
       if (!data) {

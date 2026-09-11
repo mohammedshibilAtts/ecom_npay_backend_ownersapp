@@ -111,7 +111,7 @@ class PaymentController {
     try {
       const { id } = req.params;
       const isMobile = req.query.ismobile;
-      const { from_date, to_date } = req.query;
+      const { from_date, to_date, page, limit,all} = req.query;
 
       if (!id) {
         return res
@@ -124,6 +124,9 @@ class PaymentController {
         isMobile,
         from_date,
         to_date,
+        page,
+        limit,
+        all
       });
 
       if (!result.success) {
@@ -132,7 +135,14 @@ class PaymentController {
 
       return res
         .status(201)
-        .json({ message: result.message, data: result.data });
+        .json({ 
+          message: result.message, 
+          data: result.data,
+          totalCount: result.totalCount,
+          totalPages: result.totalPages,
+          currentPage: result.currentPage,
+          nextCursor: result.nextCursor
+        });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
@@ -194,6 +204,50 @@ class PaymentController {
         totalDocument: result.totalCount,
         totalPages: result.totalPages,
         currentPage: result.currentPage,
+        nextCursor: result.nextCursor
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async getPaymentBySchemeAccountWeb(req, res) {
+    try {
+      let {
+        schacc,
+        page,
+        limit
+      } = req.query;
+
+      if (!schacc) {
+        return res.status(400).json({
+          status: "Failed",
+          message: "Scheme Account Number required",
+        });
+      }
+
+      const result = await this.paymentUseCase.getPaymentsBySchemeIdWeb({
+        id: schacc,
+        page,
+        limit
+      });
+
+      if (!result || !result.success) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          message: "No payment data found",
+        });
+      }
+
+      return res.status(200).json({
+        message: result.message,
+        data: result.data,
+        totalDocument: result.totalCount,
+        totalPages: result.totalPages,
+        currentPage: result.currentPage,
+        nextCursor: result.nextCursor
       });
     } catch (error) {
       console.error(error);

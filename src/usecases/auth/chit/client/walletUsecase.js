@@ -50,8 +50,8 @@ class WalletUsecase {
         return { success: false, message: "Wallet already exists" };
       }
 
-      data.modified_by = token.id_employee || token._id || "";
-      data.created_by = token.id_employee || token._id || "";
+      data.modified_by = token?.id_employee || token?._id || "";
+      data.created_by = token?.id_employee || token?._id || "";
       data.total_reward_amt = data.balance_amt;
       const saveWallet = await this.walletRepo.addWallet(data);
 
@@ -60,13 +60,11 @@ class WalletUsecase {
       }
 
       const historyData = {
-        // id_customer: data.id_customer,
-        // id_scheme_account: data.id_scheme_account,
-        modified_by: token.id_employee || token._id,
-        created_by: token.id_employee || token._id,
-        credited_amount: data.balance_amt,
-        reward_mode: data.reward_mode,
-        wallet_id:saveWallet._id
+        modified_by: token?.id_employee || token?._id,
+        created_by: token?.id_employee || token?._id,
+        credited_amount: data?.balance_amt,
+        reward_mode: data?.reward_mode,
+        wallet_id:saveWallet?._id
       };
 
       await this.walletRepo.addWalletHistory(historyData);
@@ -93,35 +91,30 @@ class WalletUsecase {
       const newBalance = existingData.balance_amt + data.balance_amt;
       const newTotal = existingData.total_reward_amt + data.balance_amt;
 
-      // const newBalancePoint = existingData.balance_point + (data.balance_point || 0);
-      // const newTotalPoint = existingData.total_reward_point + (data.balance_point || 0);
-
       const updateData = {
         balance_amt: newBalance,
         total_reward_amt: newTotal,
-        // balance_point: newBalancePoint,
-        // total_reward_point: newTotalPoint,
-        modified_by: token.id_employee,
+        modified_by: token?.id_employee,
       };
 
-
-      const updatedData = await this.walletRepo.updateWallet(id, updateData);
+      const updatedData = await this.walletRepo.updateWallet({ _id: id }, updateData);
 
       if (!updatedData) {
         return { success: false, message: "Failed to add balance" };
       }
 
       const historyData = {
+        wallet_id: id,
         id_customer: existingData.id_customer,
         id_scheme_account: existingData.id_scheme_account,
-        modified_by: token.id_employee,
+        modified_by: token?.id_employee,
         credited_amount: data.balance_amt,
         reward_mode: data.reward_mode,
       };
 
       await this.walletRepo.addWalletHistory(historyData);
 
-      return { success: true, message: "Balance added successfully" };
+      return { success: true, message: "Balance added successfully", data: {wallet_id: id } };
     } catch (error) {
       console.error(error);
       return {
@@ -159,8 +152,8 @@ class WalletUsecase {
         wallet_id:data.wallet_id,
         balance_amt: newBalance,
         redeem_amt: newRedeemedAmt,
-        redeem_type:data.redeem_type,
-        modified_by: token.id_employee,
+        redeem_type:data?.redeem_type,
+        modified_by: token?.id_employee,
         // wallet_type:data.wallet_type,
       };
 
@@ -171,16 +164,12 @@ class WalletUsecase {
 
       const historyData = {
         wallet_id:data?.wallet_id,        
-        modified_by: token.id_employee || token._id,
-        created_by: token.id_employee || token._id,
+        modified_by: token?.id_employee || token?._id,
+        created_by: token?.id_employee || token?._id,
         credited_amount: -data.redeem_amt,
         redeem_type: data?.redeem_type,
         payment_mode: data?.payment_mode,
         bill_no: data?.bill_no,
-        // id_customer: data.id_customer,
-        // id_scheme_account: data?.id_scheme_account,
-        // wallet_type:data?.wallet_type,
-        // credited_point: -data.redeem_point,
       };
 
     
@@ -418,28 +407,6 @@ class WalletUsecase {
       
         query.createdAt = { $gte: startDate, $lte: endDate };
       }
-      
-      // Handle search
-      // if (search && search.trim() !== "") {
-      //   const regex = { $regex: search, $options: "i" };
-      //   query.$or = [
-      //     { "user.firstname": regex },
-      //     { "user.lastname": regex },
-      //     { "user.mobile": regex },
-      //     { bill_no: regex }
-      //   ];
-      // }
-
-    //   if (search) {
-    //     const searchRegex = new RegExp(search, "i");
-
-    //     query.$or = [{ firstname: { $regex: searchRegex }, 
-    //       lastname: { $regex: searchRegex },
-    //       mobile: { $regex: searchRegex },
-    //       bill_no: { $regex: searchRegex } 
-    //      }
-    //      ];
-    // }
   
       const documentskip = (pageNum - 1) * pageSize;
       const documentlimit = pageSize;
@@ -519,9 +486,6 @@ class WalletUsecase {
         query.wallet_id = custData._id
       }
 
-      // if (!custData) {
-      //   query.mobile = searchterm;
-      // }
       const employee = await this.employeeRepository.findOne({mobile:searchterm});
  
       if (employee) {
@@ -555,8 +519,64 @@ class WalletUsecase {
       
       };
     } catch (error) {
-      console.error("Error in getRedeem use case:", error);
       return { success: false, message: "An error occurred while fetching redeem data" };
+    }
+  }
+
+  async getPurchaseHistoryByUser(page, limit, mobile) {
+    try {
+      const pageNum = parseInt(page) || 1;
+      const pageSize = parseInt(limit) || 10;
+  
+      const query = {
+        is_deleted: false,
+        active: true,
+      };
+
+      const searchterm = mobile || "";
+      
+      const custData = await this.customerRepo.findCustomerData(searchterm);
+
+    
+      if (custData) {
+        query.wallet_id = custData._id
+      }
+
+      const employee = await this.employeeRepository.findOne({mobile:searchterm});
+ 
+      if (employee) {
+        query.wallet_id = employee._id
+      }
+
+      if (!custData && !employee) {
+        return { success: false, message: "No Data found" };
+      }
+     
+      const documentskip = (pageNum - 1) * pageSize;
+      const documentlimit = pageSize;
+  
+      const Data = await this.walletRepo.getPurchaseHistoryByUser({
+        query,
+        documentskip,
+        documentlimit
+      });
+     
+      if (!Data || !Data.data || Data.data.length === 0) {
+        return { success: true, message: "No purchase history found", data:Data?.data || [] };
+      }
+  
+      return {
+        success: true,
+        message: "Purchase history fetched successfully",
+        data: Data.data,
+        totalCount: Data.totalCount,
+        totalPages: Math.ceil(Data.totalCount / pageSize),
+        currentPage: pageNum,
+      
+      };
+    } catch (error) {
+      console.error("Error in getPurchaseHistory use case:", error);
+      return { success: false, message: "An error occurred while fetching purchase history" };
     }
   }
 
@@ -570,29 +590,6 @@ class WalletUsecase {
         active: true,
         mobile:mobile
       };
-
-      // const searchterm = mobile || "";
-      
-      // const custData = await this.customerRepo.findCustomerData(searchterm);
-
-      // if (custData) {
-      //   query.wallet_id = custData._id
-      // }
-
-      
-      // const employee = await this.employeeRepository.findOne({mobile:searchterm});
- 
-      // if (employee) {
-      //   query.wallet_id = employee._id
-      // }
-
-      // if (!custData && !employee) {
-      //   return { success: false, message: "No Data found" };
-      // }
-
-      const walletData = await this.walletRepo.findData({mobile:mobile})
-
-      query.wallet
      
       const documentskip = (pageNum - 1) * pageSize;
       const documentlimit = pageSize;
@@ -727,7 +724,7 @@ class WalletUsecase {
     }
   }
 
-  async getWalletData(value) {
+  async getWalletData(value, cursor, limit) {
     try {
       const query = {
         active: true,
@@ -735,22 +732,21 @@ class WalletUsecase {
         mobile:value
       };
 
-      // let custData;
-      // custData = await this.customerRepo.findCustomerData(searchterm);
-
-      // if (!custData) {
-      //   return { success: false, message: "No customer found" };
-      // }
-
-      const walletData = await this.walletRepo.getWalletData(query);
+      const parsedLimit = limit ? parseInt(limit) : 10;
+      const walletData = await this.walletRepo.getWalletData(query, cursor, parsedLimit);
 
       if (walletData && (walletData.is_deleted === true)) {
         return { success: false, message: "Wallet does not exist" };
       }
 
+      let nextCursor = null;
+      if (walletData && walletData.transactionHistory && walletData.transactionHistory.length === parsedLimit) {
+        nextCursor = walletData.transactionHistory[walletData.transactionHistory.length - 1]._id;
+      }
+
       const data = walletData
 
-      return { success: true, message: walletData ? "Wallet exists" : "Wallet not exists", data };
+      return { success: true, message: walletData ? "Wallet exists" : "Wallet not exists", data, nextCursor };
     } catch (error) {
       console.error("Error in getCustomerWalletDetails:", error);
       throw new Error("Internal server error");

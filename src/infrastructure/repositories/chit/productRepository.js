@@ -332,6 +332,7 @@ class ProductRepository {
           product_image: 1,
           showprice: 1,
           isMrp: 1,
+          pieceRate: 1,
           subcategoryId: 1,
           sizeId: 1,
           sku: 1,

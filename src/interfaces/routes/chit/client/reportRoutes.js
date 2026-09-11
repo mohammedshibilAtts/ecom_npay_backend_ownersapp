@@ -12,22 +12,6 @@ const reportUsecase = new ReportUseCase(reportRepo,branchRepo)
 const reportController = new ReportController(reportUsecase)
 
 
-
-// router.post('/preclosesummary',(req,res)=>reportController.getPreCloseSummary(req,res))
-// router.post('/redeemptionsummary',(req,res)=>reportController.getRedeemptionSummary(req,res))
-// router.post('/refundsummary',(req,res)=>reportController.getRefundSummary(req,res))
-// router.get('/employeereferral',(req,res)=>reportController.employeeReferralReport(req,res));
-// router.post('/schemeoverall',(req,res)=>reportController.getOverAllReport(req,res))
-// router.post('/paymentledger',(req,res)=>reportController.getPaymentLedger(req,res))
-
-
-
-
-// router.post('/outstanding',(req,res)=>reportController.getOutstandingReport(req,res)) ////////////////////////
-// router.get('/employeereferral',(req,res)=>reportController.employeeReferralReport(req,res));
-// router.get('/customerreferral',(req,res)=>reportController.customerReferralReport(req,res));////////////////////////
-// router.post('/outstandingweight',(req,res)=>reportController.outstandingWeight(req,res))
-
 /**
  * @swagger
  * tags:

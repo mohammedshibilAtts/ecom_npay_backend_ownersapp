@@ -5,83 +5,105 @@ import mongoose from "mongoose";
 
 class PurchaseWalletRepository {
   async createOrGetWallet(customerId, mobile, session) {
+    const options = session ? { session } : {};
     let wallet = await PurchaseWallet.findOne(
       { idCustomer: customerId, is_deleted: false },
       null,
-      { session }
+      options
     );
 
     if (!wallet) {
-      const created = await PurchaseWallet.create(
-        [
-          {
-            idCustomer: customerId,
-            mobile,
-            totalWeightSaved: 0,
-            currentBalance: 0,
-            pendingReleaseWeight: 0,
-            couponReleasedCount: 0,
-            is_deleted: false,
-          },
-        ],
-        { session }
-      );
+      const payload = {
+        idCustomer: customerId,
+        mobile,
+        totalWeightSaved: 0,
+        currentBalance: 0,
+        pendingReleaseWeight: 0,
+        couponReleasedCount: 0,
+        is_deleted: false,
+      };
 
-      wallet = created[0];
+      if (session) {
+        const created = await PurchaseWallet.create([payload], options);
+        wallet = created[0];
+      } else {
+        wallet = await PurchaseWallet.create(payload);
+      }
     }
 
     return wallet;
   }
 
+  async _performAddWeight({ idSchemeAccount, idCustomer, mobile, weight }, session) {
+    const activeSession = session || null;
+    const wallet = await this.createOrGetWallet(idCustomer, mobile, activeSession);
+
+    const previousBalance = wallet.currentBalance;
+
+    wallet.totalWeightSaved += weight;
+    wallet.currentBalance += weight;
+
+    const total = wallet.currentBalance + wallet.pendingReleaseWeight;
+    const couponWeight = 2;
+    const couponsToRelease = Math.floor(total / couponWeight);
+
+    if (couponsToRelease > 0) {
+      wallet.couponReleasedCount += couponsToRelease;
+      wallet.lastReleasedAt = new Date();
+    }
+
+    wallet.pendingReleaseWeight = total % couponWeight;
+    wallet.currentBalance = wallet.pendingReleaseWeight;
+
+    if (activeSession) {
+      await wallet.save({ session: activeSession });
+    } else {
+      await wallet.save();
+    }
+
+    const historyPayload = {
+      idSchemeAccount,
+      idPurchaseWallet: wallet._id,
+      weightSaved: weight,
+      previousBalance,
+      newBalance: wallet.currentBalance,
+      couponsReleased: couponsToRelease,
+      status: 1,
+      remarks: couponsToRelease > 0 ? "Auto coupon released" : "",
+    };
+
+    let history;
+    if (activeSession) {
+      const [createdHistory] = await PurchaseWalletHistory.create([historyPayload], { session: activeSession });
+      history = createdHistory;
+    } else {
+      history = await PurchaseWalletHistory.create(historyPayload);
+    }
+
+    return { wallet, history };
+  }
+
   async addWeight({ idSchemeAccount, idCustomer, mobile, weight }) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
+    let session = null;
     try {
-      const wallet = await this.createOrGetWallet(idCustomer, mobile, session);
-
-      const previousBalance = wallet.currentBalance;
-
-      wallet.totalWeightSaved += weight;
-      wallet.currentBalance += weight;
-
-      const total = wallet.currentBalance + wallet.pendingReleaseWeight;
-      const couponWeight = 2;
-      const couponsToRelease = Math.floor(total / couponWeight);
-
-      if (couponsToRelease > 0) {
-        wallet.couponReleasedCount += couponsToRelease;
-        wallet.lastReleasedAt = new Date();
-      }
-
-      wallet.pendingReleaseWeight = total % couponWeight;
-      wallet.currentBalance = wallet.pendingReleaseWeight;
-
-      await wallet.save({ session });
-
-      const [history] = await PurchaseWalletHistory.create(
-        [
-          {
-            idSchemeAccount,
-            idPurchaseWallet: wallet._id,
-            weightSaved: weight,
-            previousBalance,
-            newBalance: wallet.currentBalance,
-            couponsReleased: couponsToRelease,
-            status: 1,
-            remarks: couponsToRelease > 0 ? "Auto coupon released" : "",
-          },
-        ],
-        { session }
-      );
-
+      session = await mongoose.startSession();
+      session.startTransaction();
+      const result = await this._performAddWeight({ idSchemeAccount, idCustomer, mobile, weight }, session);
       await session.commitTransaction();
       session.endSession();
-
-      return { wallet, history };
+      return result;
     } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
+      if (session) {
+        try {
+          await session.abortTransaction();
+        } catch (e) {}
+        session.endSession();
+      }
+
+      if (error?.code === 20 || error?.errmsg?.includes("Transaction numbers are only allowed")) {
+        return await this._performAddWeight({ idSchemeAccount, idCustomer, mobile, weight }, null);
+      }
+
       throw error;
     }
   }
@@ -104,7 +126,7 @@ class PurchaseWalletRepository {
     return await PurchaseWalletHistory.findByIdAndUpdate(
       historyId,
       { status: 3, remarks: "Reverted" },
-      { new: true }
+      { new: true },
     );
   }
 
@@ -160,23 +182,22 @@ class PurchaseWalletRepository {
         .find({})
         .populate({
           path: "idCustomer",
-          select: "firstname lastname mobile"
+          select: "firstname lastname mobile",
         })
         .populate({
           path: "idSchemeAccount",
-          select: "scheme_acc_number"
+          select: "scheme_acc_number",
         })
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
 
-      couponHistoriesModel.countDocuments({})
+      couponHistoriesModel.countDocuments({}),
     ]);
 
     return { data, total };
   }
-
 
   async issueCoupon(id, employeeId) {
     try {
@@ -193,7 +214,7 @@ class PurchaseWalletRepository {
         {
           new: true,
           runValidators: true,
-        }
+        },
       );
 
       return updatedCoupon;
@@ -205,9 +226,12 @@ class PurchaseWalletRepository {
 
   async couponStatus(schemeAccId) {
     try {
-      return await couponHistoriesModel.findOne({ idSchemeAccount: schemeAccId, status: 2 })
+      return await couponHistoriesModel.findOne({
+        idSchemeAccount: schemeAccId,
+        status: 2,
+      });
     } catch (error) {
-      console.error(error)
+      console.error(error);
       throw error;
     }
   }

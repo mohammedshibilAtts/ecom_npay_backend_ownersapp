@@ -419,34 +419,21 @@ class PaymentUseCase {
           data.id_scheme_account,
         );
 
-        let metalRateData = null;
+        const metalId = schemeData?.id_metal?._id;
+        const purity = schemeData?.id_purity?._id;
+        const branchId = data?.id_branch;
 
-        const isInvalidMetalRate =
-          data?.metal_rate === undefined ||
-          data?.metal_rate === null ||
-          Number(data?.metal_rate) === 0;
+        const metalRateData = await this.metalRateRepository.todaysMetalRateByMetal(
+          metalId,
+          purity,
+          branchId,
+          todayDate,
+        );
 
-        if (isInvalidMetalRate) {
-          const metalId = schemeData?.id_metal?._id;
-          const purity = schemeData?.id_purity?._id;
-          const branchId = data?.id_branch;
-
-          metalRateData = await this.metalRateRepository.todaysMetalRateByMetal(
-            metalId,
-            purity,
-            branchId,
-            todayDate,
-          );
-        }
-
-        const finalMetalRate = isInvalidMetalRate
-          ? Number(metalRateData?.rate)
-          : Number(data?.metal_rate);
+        const finalMetalRate = Number(metalRateData?.rate);
 
         if (!Number.isFinite(finalMetalRate) || finalMetalRate <= 0) {
-          throw new Error(
-            "Metal rate not found or invalid, cannot calculate weight",
-          );
+          return { success: false, message: "Metal rate is not available for today, please try payment again" };
         }
 
         const paymentAmount = Number(data?.payment_amount);
@@ -601,6 +588,18 @@ class PaymentUseCase {
             if (creditedAmount !== 0 && creditedAmount !== "NaN") {
               referral.credited_amount = creditedAmount;
 
+              if (wallet) {
+                const updateData = {};
+                if (schemeCustomer?.referral_type === "Customer" && !wallet.id_customer) {
+                  updateData.id_customer = walletOwner?._id;
+                } else if (schemeCustomer?.referral_type !== "Customer" && !wallet.id_employee) {
+                  updateData.id_employee = walletOwner?._id;
+                }
+                if (Object.keys(updateData).length > 0) {
+                  await this.walletRepo.updateWallet(wallet._id, updateData);
+                }
+              }
+
               if (referralTriggerType == 1) {
                 if (!wallet) {
                   walletData.mobile = mobile;
@@ -671,7 +670,7 @@ class PaymentUseCase {
             payment_amount: data.payment_amount,
             paid_installments: data.installments,
             scheme_total: data.total_amt,
-            metal_rate: data?.metal_rate,
+            metal_rate: finalMetalRate,
             payment_mode: data.payment_mode,
             payment_type: 1,
             platform: 0,
@@ -748,6 +747,23 @@ class PaymentUseCase {
 
       const todayDate = new Date();
 
+      const metalId = scheme?.id_metal?._id;
+      const purity = scheme?.id_purity?._id;
+      const branchId = data?.id_branch;
+
+      const metalRateData = await this.metalRateRepository.todaysMetalRateByMetal(
+        metalId,
+        purity,
+        branchId,
+        todayDate,
+      );
+
+      const finalMetalRate = Number(metalRateData?.rate);
+
+      if (!Number.isFinite(finalMetalRate) || finalMetalRate <= 0) {
+        return { success: false, message: "Metal rate is not available for today, please try payment again" };
+      }
+
       const lastPaidData = await this.paymentRepository.findPaymentData(
         data.id_scheme_account,
       );
@@ -806,7 +822,8 @@ class PaymentUseCase {
         total_amt: totalAmount,
         paymentModeName: paymentMode.mode_name,
         digiBonus: digidata.appliedBonusPercent,
-        metal_weight: Number(digidata?.finalAmount) / Number(data?.metal_rate),
+        metal_rate: finalMetalRate,
+        metal_weight: Number(digidata?.finalAmount) / finalMetalRate,
       };
 
       const savedPayment = await this.paymentRepository.addPayment(dataToSave);
@@ -834,7 +851,7 @@ class PaymentUseCase {
 
       let metalWeight = 0;
       if (!data.metal_weight || data.metal_weight == "") {
-        metalWeight = Number(data?.payment_amount) / Number(data?.metal_rate);
+        metalWeight = Number(data?.payment_amount) / finalMetalRate;
       }
 
       await this.schemeAccountRepository.updateAmountOrWeight(
@@ -922,6 +939,18 @@ class PaymentUseCase {
           if (creditedAmount !== 0 && creditedAmount !== "NaN") {
             referral.credited_amount = creditedAmount;
 
+            if (wallet) {
+              const updateData = {};
+              if (schemeCustomer?.referral_type === "Customer" && !wallet.id_customer) {
+                updateData.id_customer = walletOwner?._id;
+              } else if (schemeCustomer?.referral_type !== "Customer" && !wallet.id_employee) {
+                updateData.id_employee = walletOwner?._id;
+              }
+              if (Object.keys(updateData).length > 0) {
+                await this.walletRepo.updateWallet(wallet._id, updateData);
+              }
+            }
+
             if (referralTriggerType == 1) {
               if (!wallet) {
                 walletData.mobile = mobile;
@@ -994,7 +1023,7 @@ class PaymentUseCase {
         payment_amount: data.payment_amount,
         paid_installments: data.installments,
         scheme_total: data.total_amt,
-        metal_rate: data.metal_rate,
+        metal_rate: finalMetalRate,
         payment_mode: data.payment_mode,
         payment_type: 1,
         platform: 0,
@@ -1172,17 +1201,27 @@ class PaymentUseCase {
     limit = 10,
     from_date,
     to_date,
+    all
   }) {
     try {
       if (!isValidObjectId(id)) {
         return { success: false, message: "Provide a valid object id" };
       }
 
-      const pageNum = page ? parseInt(page) : 1;
       const pageSize = limit ? parseInt(limit) : 10;
+      let documentskip;
+      let pageNum = 1;
 
-      const documentskip = (pageNum - 1) * pageSize;
+      if (isMobile && typeof page === 'string' && page.length === 24 && isValidObjectId(page)) {
+        documentskip = page;
+      } else {
+        pageNum = page ? parseInt(page) : 1;
+        documentskip = (pageNum - 1) * pageSize;
+      }
+
       const documentlimit = pageSize;
+
+      const allToPass = all === "true" || all === true;
 
       const query = { id_scheme_account: id, active: true, payment_status: 1 };
 
@@ -1191,6 +1230,7 @@ class PaymentUseCase {
         documentskip,
         documentlimit,
         isMobile,
+        allToPass
       );
 
       if (!paymentData) {
@@ -1204,6 +1244,55 @@ class PaymentUseCase {
         totalCount: paymentData.totalCount,
         totalPages: Math.ceil(paymentData.totalCount / pageSize),
         currentPage: pageNum,
+        nextCursor: paymentData.nextCursor || null,
+      };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "Error while getting payment" };
+    }
+  }
+
+  async getPaymentsBySchemeIdWeb({
+    id,
+    page = 1,
+    limit = 10,
+    from_date,
+    to_date,
+    all
+  }) {
+    try {
+      if (!isValidObjectId(id)) {
+        return { success: false, message: "Provide a valid object id" };
+      }
+
+      const pageSize = limit ? parseInt(limit) : 10;
+      let pageNum = page ? parseInt(page) : 1;
+      let documentskip = (pageNum - 1) * pageSize;
+      const documentlimit = pageSize;
+
+      const allToPass = all === "true" || all === true;
+
+      const query = { id_scheme_account: id, active: true, payment_status: 1 };
+
+      const paymentData = await this.paymentRepository.getPaymentsBySchemeIdWeb(
+        query,
+        documentskip,
+        documentlimit,
+        allToPass
+      );
+
+      if (!paymentData) {
+        return { success: false, message: "No payment data found" };
+      }
+
+      return {
+        success: true,
+        message: "Payment data fetched successfully",
+        data: paymentData.documents,
+        totalCount: paymentData.totalCount,
+        totalPages: Math.ceil(paymentData.totalCount / pageSize),
+        currentPage: pageNum,
+        nextCursor: paymentData.nextCursor || null,
       };
     } catch (error) {
       console.error(error);
@@ -1438,7 +1527,7 @@ class PaymentUseCase {
           metal_weight: rejectWeightField.includes(schemeData?.scheme_type)
             ? 0
             : metalWeight || 0,
-          installment: Number(schemeAccData.paid_installments) + 1,
+          installment: Number(schemeAccData.paid_installments) + Number(data.installments || 1),
         };
 
         if (digigold) {
@@ -1449,7 +1538,7 @@ class PaymentUseCase {
             scheme,
             paymentDate: todayDate,
             paymentAmount: paidAmount,
-            installmentNumber: Number(schemeAccData.paid_installments) + 1,
+            installmentNumber: Number(schemeAccData.paid_installments) + Number(data.installments || 1),
             schemeJoinDate: schemeAccData.start_date,
           };
 
@@ -2015,7 +2104,7 @@ class PaymentUseCase {
           update = {
             $set: { last_paid_date: new Date(), active: true },
             $inc: {
-              paid_installments: 1,
+              paid_installments: paymentData.paid_installments || 1,
               paymentcount: 1,
               amount: totals.amount,
               weight: totals.weight,
@@ -2025,7 +2114,7 @@ class PaymentUseCase {
           update = {
             $set: { last_paid_date: new Date(), active: true },
             $inc: {
-              paid_installments: 1,
+              paid_installments: paymentData.paid_installments || 1,
               paymentcount: 1,
               amount: totals.amount,
               weight: 0,
@@ -2146,6 +2235,18 @@ class PaymentUseCase {
         if (creditedAmount > 0 && !isNaN(creditedAmount)) {
           referral.credited_amount = creditedAmount;
 
+          if (wallet) {
+            const updateData = {};
+            if (customer.referral_type === "Customer" && !wallet.id_customer) {
+              updateData.id_customer = referrer._id;
+            } else if (customer.referral_type !== "Customer" && !wallet.id_employee) {
+              updateData.id_employee = referrer._id;
+            }
+            if (Object.keys(updateData).length > 0) {
+              await this.walletRepo.updateWallet(wallet._id, updateData);
+            }
+          }
+
           const isFirstPayment = !referralScheme?.last_paid_date;
 
           if (
@@ -2190,6 +2291,7 @@ class PaymentUseCase {
           }
         }
       }
+      cacheService.invalidatePattern("dashboard:");
     } catch (error) {
       console.error("❌ Error in completePayment:", error);
       throw error;

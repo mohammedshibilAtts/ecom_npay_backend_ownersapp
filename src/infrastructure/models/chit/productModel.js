@@ -67,12 +67,6 @@ const productSchema = new mongoose.Schema(
       ref: "SubCategory",
     },
 
-    // sizeId: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "SizeMaster",
-    //   required: true,
-    // },
-
     sku: {
       type: String,
       default: null,
@@ -82,9 +76,6 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
-    // ===== SYSTEM FIELDS =====
-
     active: {
       type: Boolean,
       default: true,
@@ -132,6 +123,10 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    pieceRate: {
+      type:Boolean,
+      default:false
+    }
   },
   {
     timestamps: true,

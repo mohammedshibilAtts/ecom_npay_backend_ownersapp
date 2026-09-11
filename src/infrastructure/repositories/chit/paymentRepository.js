@@ -212,23 +212,53 @@ class PaymentRepository {
     }
   }
 
-  async getPaymentsBySchemeId(query, skip, limit, isMobile) {
+  async getPaymentsBySchemeId(query, skip, limit, isMobile,all=false) {
     try {
       let documents;
       if (isMobile) {
-        documents = await paymentModel
-          .find(query)
-          .skip(skip)
-          .limit(limit)
-          .populate({
-            path: "id_scheme_account",
-            populate: {
-              path: "id_scheme",
-              select: ["scheme_name"],
-            },
-          })
-          .select("-__v")
-          .sort({ _id: -1 });
+        if (all) {
+          documents = await paymentModel
+            .find(query)
+            // .populate({
+            //   path: "id_scheme_account",
+            //   populate: {
+            //     path: "id_scheme",
+            //     select: ["scheme_name"],
+            //   },
+            // })
+            .populate({
+              path: "id_scheme_account",
+              select: ["start_date", "id_scheme", "scheme_acc_number"],
+              populate: {
+                path: "id_scheme",
+                select: ["scheme_name"],
+              },
+            })
+           .select("payment_amount id_transaction paymentModeName metal_weight metal_rate createdAt date_payment digiBonus")
+            .sort({ _id: -1 });
+        } else {
+          if (
+            skip &&
+            typeof skip === "string" &&
+            skip.length === 24 &&
+            mongoose.isValidObjectId(skip)
+          ) {
+            query._id = { $lt: skip };
+          }
+          documents = await paymentModel
+            .find(query)
+            .limit(limit)
+            .populate({
+              path: "id_scheme_account",
+              select: ["start_date", "id_scheme", "scheme_acc_number"],
+              populate: {
+                path: "id_scheme",
+                select: ["scheme_name"],
+              },
+            })
+            .select("payment_amount id_transaction paymentModeName metal_weight metal_rate createdAt date_payment digiBonus")
+            .sort({ _id: -1 });
+        }
       } else {
         documents = await paymentModel
           .find(query)
@@ -248,26 +278,127 @@ class PaymentRepository {
       const totalCount = await paymentModel.countDocuments(query);
 
       let updatedDocuments;
+      let nextCursor = null;
       if (!isMobile) {
-        updatedDocuments = await Promise.all(
-          documents.map(async (doc) => {
-            const wallet = await walletModel
-              .findOne({ id_customer: doc.id_customer._id })
-              .select("-__v");
-            return {
-              ...doc.toObject(),
-              wallet,
-            };
-          }),
-        );
+        // updatedDocuments = await Promise.all(
+        //   documents.map(async (doc) => {
+        //     const wallet = await walletModel
+        //       .findOne({ id_customer: doc.id_customer._id })
+        //       .select("-__v");
+        //     return {
+        //       ...doc.toObject(),
+        //       wallet,
+        //     };
+        //   }),
+        // );
       } else {
-        updatedDocuments = documents;
+        updatedDocuments = documents.map((doc) => {
+          let docObj = doc.toObject ? doc.toObject() : doc;
+          let savedWeight = 0;
+          let bonusWeight = 0;
+          let totalWeight = docObj.metal_weight ? parseFloat(docObj.metal_weight) : 0;
+          
+          if (docObj.metal_rate > 0) {
+            savedWeight = docObj.payment_amount / docObj.metal_rate;
+            if (docObj.digiBonus > 0) {
+              bonusWeight = (docObj.payment_amount * docObj.digiBonus / 100) / docObj.metal_rate;
+              totalWeight = savedWeight + bonusWeight;
+            }
+          }
+          
+          return {
+            ...docObj,
+            savedWeight,
+            bonusWeight,
+            totalWeight
+          };
+        });
+
+        if (documents.length === limit) {
+          nextCursor = documents[documents.length - 1]._id;
+        }
       }
 
-      return { documents: updatedDocuments, totalCount };
+      return { documents: updatedDocuments, totalCount, nextCursor };
     } catch (error) {
       console.error(error);
       throw error; // Optional: bubble up the error
+    }
+  }
+
+  async getPaymentsBySchemeIdWeb(query, skip, limit, all = false) {
+    try {
+      if (query.id_scheme_account && typeof query.id_scheme_account === 'string') {
+        query.id_scheme_account = new mongoose.Types.ObjectId(query.id_scheme_account);
+      }
+
+      const pipeline = [
+        { $match: query },
+        { $sort: { _id: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $project: {
+            payment_receipt: 1,
+            paid_installments: 1,
+            payment_amount: 1,
+            metal_rate: 1,
+            digiBonus: 1,
+            metal_weight: 1,
+            createdAt: 1,
+            savedWeight: {
+              $cond: {
+                if: { $gt: ["$metal_rate", 0] },
+                then: { $divide: ["$payment_amount", "$metal_rate"] },
+                else: 0
+              }
+            },
+            bonusWeight: {
+              $cond: {
+                if: { $and: [{ $gt: ["$digiBonus", 0] }, { $gt: ["$metal_rate", 0] }] },
+                then: {
+                  $divide: [
+                    { $multiply: ["$payment_amount", { $divide: ["$digiBonus", 100] }] },
+                    "$metal_rate"
+                  ]
+                },
+                else: 0
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            totalWeight: {
+              $cond: {
+                if: { $gt: ["$digiBonus", 0] },
+                then: { $add: ["$savedWeight", "$bonusWeight"] },
+                else: {
+                  $convert: {
+                    input: "$metal_weight",
+                    to: "double",
+                    onError: 0,
+                    onNull: 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ];
+
+      const documents = await paymentModel.aggregate(pipeline);
+
+      if (!documents || documents.length === 0) {
+        return null;
+      }
+
+      const totalCount = await paymentModel.countDocuments(query);
+
+      return { documents, totalCount, nextCursor: null };
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
   }
 

@@ -28,6 +28,33 @@ import AuthMiddleware from '../../../utils/middleware/authMiddleware.js';
 import config from '../../../config/chit/env.js';
 
 
+// const verifyJwt = (req, res, next) => {
+//   try {
+//     const authHeader = req.headers.authorization;
+
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Access token missing",
+//       });
+//     }
+
+//     const token = authHeader.split(" ")[1];
+//     const key = config.ERP_JWT_SECRET_KEY || config.JWT_SECRET
+//     const decoded = jwt.verify(token, key);
+
+//     req.erpUser = decoded;
+//     next();
+//   } catch (error) {
+//     next()
+//     console.log("JWT VERIFY ERROR:", error);
+//     return res.status(401).json({
+//       success: false,
+//       message: "Invalid or expired token",
+//     });
+//   }
+// };
+
 const verifyJwt = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -40,14 +67,35 @@ const verifyJwt = (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const key = config.ERP_JWT_SECRET_KEY
-    const decoded = jwt.verify(token, key);
+
+    const keys = [
+      config.ERP_JWT_SECRET_KEY,
+      config.JWT_SECRET,
+    ].filter(Boolean);
+
+    let decoded = null;
+
+    for (const key of keys) {
+      try {
+        decoded = jwt.verify(token, key);
+        break;
+      } catch (error) {
+      }
+    }
+
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token",
+      });
+    }
 
     req.erpUser = decoded;
+
     next();
   } catch (error) {
-    next()
-    console.log("JWT VERIFY ERROR:", error);
+    console.error("JWT VERIFY ERROR:", error);
+
     return res.status(401).json({
       success: false,
       message: "Invalid or expired token",
@@ -118,5 +166,10 @@ const chitRedeemController = new ChitRedeemController(chitRedeemUsecase);
 router.get('/find-account', verifyJwt, (req, res) => chitRedeemController.findSchemeAccount(req, res));
 router.post('/', verifyJwt, (req, res) => chitRedeemController.closeAccount(req, res));
 router.get('/daybook-report', verifyJwt, (req, res) => chitRedeemController.dayBookReport(req, res));
+router.patch('/wallet/add', verifyJwt, (req, res) => chitRedeemController.addWalletPoints(req, res));
+router.post('/wallet/redeem', verifyJwt, (req, res) => chitRedeemController.redeemWalletPoints(req, res));
+router.get('/customer', verifyJwt, (req, res) => chitRedeemController.customerExists(req, res));
+router.get('/wallet', verifyJwt, (req, res) => chitRedeemController.findWalletByMobile(req, res));
+router.get('/wallet/purchase-history', verifyJwt, (req, res) => chitRedeemController.getPurchaseHistory(req, res));
 
 export default router;

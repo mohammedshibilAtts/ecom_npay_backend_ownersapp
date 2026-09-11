@@ -167,7 +167,7 @@ class ProductUseCase {
       // ===== CONVERT BASIC TYPES =====
       if (productData.gst !== undefined) productData.gst = Number(productData.gst);
 
-      const booleanFields = ["showprice", "bestSeller", "onlineProduct", "active", "isMrp"];
+      const booleanFields = ["showprice", "bestSeller", "onlineProduct", "active", "isMrp", "pieceRate"];
       booleanFields.forEach((field) => {
         if (productData[field] !== undefined) {
           productData[field] = productData[field] === "true" || productData[field] === true;
@@ -521,6 +521,7 @@ class ProductUseCase {
         "onlineProduct",
         "active",
         "isMrp",
+        "pieceRate"
       ];
       booleanFields.forEach((field) => {
         if (productData[field] !== undefined) {
@@ -537,6 +538,7 @@ class ProductUseCase {
         description: productData.description,
         product_image: updatedImages,
         isMrp: productData.isMrp,
+        pieceRate: productData.pieceRate,
         onlineProduct: productData.onlineProduct,
         modified_by: productData.modified_by,
         modified_at: new Date(),
