@@ -11,5 +11,8 @@ const router = express.Router();
 
 router.get('/gender', commonController.getGender);
 router.get('/branch', commonController.getBranch);
+router.get('/category', commonController.getActiveCategory);
+router.get('/subcategory/:categoryId', commonController.getSubcategoryByCategory);
+router.get('/subcategory', commonController.getSubcategoryByCategory);
 
 export default router;

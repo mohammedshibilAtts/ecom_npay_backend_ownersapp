@@ -14,12 +14,34 @@ class CommonController {
             res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
         }
     });
+
     getBranch = asyncHandler(async (req, res) => {
         try {
             const data = await this.commonUseCase.getBranch();
             res.status(200).json({ success: true, data });
         } catch (error) {
             console.error("Error in getBranch controller:", error);
+            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
+        }
+    });
+
+    getActiveCategory = asyncHandler(async (req, res) => {
+        try {
+            const data = await this.commonUseCase.getActiveCategory();
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            console.error("Error in getActiveCategory controller:", error);
+            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
+        }
+    });
+
+    getSubcategoryByCategory = asyncHandler(async (req, res) => {
+        try {
+            const categoryId = req.params.categoryId || req.query.categoryId;
+            const data = await this.commonUseCase.getSubcategoryByCategory(categoryId);
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            console.error("Error in getSubcategoryByCategory controller:", error);
             res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
         }
     });

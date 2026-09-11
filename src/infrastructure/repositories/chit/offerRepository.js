@@ -42,6 +42,8 @@ class OfferRepository {
             type: 1,
             whatsapp_sent: 1,
             id_branch: 1,
+            categoryId:1,
+            subcategoryId:1,
             "branchDetails._id": 1,
             "branchDetails.branch_name": 1,
             "branchDetails.active": 1,
