@@ -14,5 +14,13 @@ router.get('/branch', commonController.getBranch);
 router.get('/category', commonController.getActiveCategory);
 router.get('/subcategory/:categoryId', commonController.getSubcategoryByCategory);
 router.get('/subcategory', commonController.getSubcategoryByCategory);
+router.get('/metal', commonController.getMetal);
+router.get('/purity', commonController.getPurityByMetalId);
+router.get('/purity/:metalId', commonController.getPurityByMetalId);
+router.get('/schemetype', commonController.getSchemeTypes);
+router.get('/wastagetype', commonController.getWastageType);
+router.get('/fundtype', commonController.getFundType);
+router.get('/installmenttype', commonController.getInstallmentType);
+router.get('/classification', commonController.getClassifications);
 
 export default router;
