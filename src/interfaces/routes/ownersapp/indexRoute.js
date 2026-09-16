@@ -10,6 +10,11 @@ import locationRoutes from './locationRoutes.js';
 import commonRoutes from './commonRoutes.js';
 import bannerRoutes from './bannerRoutes.js';
 import offerRoutes from './offerRoutes.js';
+import productRoutes from './productRoutes.js';
+import itemRoutes from './itemRoutes.js';
+import orderRoutes from './orderRoutes.js';
+import employeeRoutes from './employeeRoutes.js';
+import reportRoutes from './reportRoutes.js';
 
 const router = express.Router();
 
@@ -25,5 +30,10 @@ router.use("/", locationRoutes);
 router.use("/", commonRoutes);
 router.use("/banner", bannerRoutes);
 router.use("/offer", offerRoutes);
+router.use("/product", productRoutes);
+router.use("/item", itemRoutes);
+router.use("/order", orderRoutes);
+router.use("/employee", employeeRoutes);
+router.use("/report", reportRoutes);
 
 export default router;

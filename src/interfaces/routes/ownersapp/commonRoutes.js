@@ -22,5 +22,11 @@ router.get('/wastagetype', commonController.getWastageType);
 router.get('/fundtype', commonController.getFundType);
 router.get('/installmenttype', commonController.getInstallmentType);
 router.get('/classification', commonController.getClassifications);
+router.get('/color', commonController.getColorMaster);
+router.get('/certificate', commonController.getCertificates);
+router.get('/collection', commonController.getCollections);
+router.get('/stonemaster', commonController.getStoneMasters);
+router.get('/metalrate/current', commonController.getTodaysMetalRateByMetal);
+router.get('/department', commonController.getDepartment);
 
 export default router;

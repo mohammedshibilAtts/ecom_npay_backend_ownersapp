@@ -14,6 +14,7 @@ class ItemUseCase {
   async createBulkItems(payload, files = []) {
     try {
       let items = payload;
+      console.log(items)
       if (typeof items === "string") {
         items = JSON.parse(items);
       }

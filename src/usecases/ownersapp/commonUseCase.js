@@ -101,6 +101,60 @@ class CommonUseCase {
             throw error;
         }
     }
+
+    async getColorMaster() {
+        try {
+            return await this.commonRepo.getColorMaster();
+        } catch (error) {
+            console.error("Error in getColorMaster usecase:", error);
+            throw error;
+        }
+    }
+
+    async getCertificates() {
+        try {
+            return await this.commonRepo.getCertificates();
+        } catch (error) {
+            console.error("Error in getCertificates usecase:", error);
+            throw error;
+        }
+    }
+
+    async getCollections() {
+        try {
+            return await this.commonRepo.getCollections();
+        } catch (error) {
+            console.error("Error in getCollections usecase:", error);
+            throw error;
+        }
+    }
+
+    async getStoneMasters(type) {
+        try {
+            return await this.commonRepo.getStoneMasters(type);
+        } catch (error) {
+            console.error("Error in getStoneMasters usecase:", error);
+            throw error;
+        }
+    }
+
+    async getTodaysMetalRateByMetal(metalId, purityId, branchId) {
+        try {
+            return await this.commonRepo.getTodaysMetalRateByMetal(metalId, purityId, branchId);
+        } catch (error) {
+            console.error("Error in getTodaysMetalRateByMetal usecase:", error);
+            throw error;
+        }
+    }
+
+    async getDepartment() {
+        try {
+            return await this.commonRepo.getDepartment();
+        } catch (error) {
+            console.error("Error in getDepartment usecase:", error);
+            throw error;
+        }
+    }
 }
 
 export default CommonUseCase;
