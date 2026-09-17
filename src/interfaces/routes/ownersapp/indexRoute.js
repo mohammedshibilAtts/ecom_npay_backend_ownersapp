@@ -15,6 +15,7 @@ import itemRoutes from './itemRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import employeeRoutes from './employeeRoutes.js';
 import reportRoutes from './reportRoutes.js';
+import ecomReportRoutes from './ecomReportRoutes.js';
 
 const router = express.Router();
 
@@ -35,5 +36,6 @@ router.use("/item", itemRoutes);
 router.use("/order", orderRoutes);
 router.use("/employee", employeeRoutes);
 router.use("/report", reportRoutes);
+router.use("/ecom-report", ecomReportRoutes);
 
 export default router;
