@@ -155,6 +155,15 @@ class CommonUseCase {
             throw error;
         }
     }
+
+    async getAllPaymentModes() {
+        try {
+            return await this.commonRepo.getAllPaymentModes();
+        } catch (error) {
+            console.error("Error in getAllPaymentModes usecase:", error);
+            throw error;
+        }
+    }
 }
 
 export default CommonUseCase;

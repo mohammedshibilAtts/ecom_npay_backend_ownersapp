@@ -202,6 +202,16 @@ class CommonController {
             res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
         }
     });
+
+    getAllPaymentModes = asyncHandler(async (req, res) => {
+        try {
+            const data = await this.commonUseCase.getAllPaymentModes();
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            console.error("Error in getAllPaymentModes controller:", error);
+            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
+        }
+    });
 }
 
 export default CommonController;

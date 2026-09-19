@@ -14,6 +14,18 @@ class PaymentController {
             data
         });
     });
+
+    addPayment = asyncHandler(async (req, res) => {
+        const data = { ...req.body };
+        if (req.user && req.user.id_employee) {
+            data.created_by = req.user.id_employee;
+        }
+        const result = await this.paymentUseCase.createPayment(data, req.user);
+        if (result && result.success === false) {
+            return res.status(400).json(result);
+        }
+        return res.status(200).json(result);
+    });
 }
 
 export default PaymentController;

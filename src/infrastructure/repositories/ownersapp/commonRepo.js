@@ -12,6 +12,7 @@ import CollectionModel from "../../models/ecom/collectionModel.js";
 import StoneMasterModel from "../../models/ecom/StonemasterModel.js";
 import metalRateModel from "../../models/chit/metalRateModel.js";
 import DepartmentModel from "../../models/chit/departmentModel.js";
+import paymentModeModel from "../../models/chit/paymentModeModel.js";
 import { isValidObjectId } from "mongoose";
 import { getWastageTypeData, getFundTypeData } from "../../../services/staticDataService.js";
 
@@ -197,6 +198,15 @@ class CommonRepo {
             return await DepartmentModel.find({ active: true, is_deleted: false }).select('name _id');
         } catch (error) {
             console.error("Error in getDepartment repo:", error);
+            throw error;
+        }
+    }
+
+    async getAllPaymentModes() {
+        try {
+            return await paymentModeModel.find({ active: true, is_deleted: false }).select('mode_name _id payment_method_type active');
+        } catch (error) {
+            console.error("Error in getAllPaymentModes repo:", error);
             throw error;
         }
     }

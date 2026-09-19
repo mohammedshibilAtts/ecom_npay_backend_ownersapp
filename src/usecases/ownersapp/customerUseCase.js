@@ -65,6 +65,15 @@ class CustomerUseCase {
             throw error;
         }
     }
+
+    async searchCustomerByMobileAndBranch(branchId, search) {
+        try {
+            return await this.customerUseCase.searchCustomerByMobileAndBranch(branchId, search);
+        } catch (error) {
+            console.error("Error in searchCustomerByMobileAndBranch usecase:", error);
+            throw error;
+        }
+    }
 }
 
 export default CustomerUseCase;

@@ -28,5 +28,6 @@ router.get('/collection', commonController.getCollections);
 router.get('/stonemaster', commonController.getStoneMasters);
 router.get('/metalrate/current', commonController.getTodaysMetalRateByMetal);
 router.get('/department', commonController.getDepartment);
+router.get('/paymentmodes', commonController.getAllPaymentModes);
 
 export default router;

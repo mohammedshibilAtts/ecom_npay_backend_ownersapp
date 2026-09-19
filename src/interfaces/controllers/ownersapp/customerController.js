@@ -106,6 +106,19 @@ class CustomerController {
             res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
         }
     });
+
+    searchCustomerByMobileAndBranch = asyncHandler(async (req, res) => {
+        const { branchId } = req.params;
+        const { search } = req.query;
+        if (!branchId) {
+            return res.status(400).json({ message: "Provide a branch id" });
+        }
+        const result = await this.customerUseCase.searchCustomerByMobileAndBranch(branchId, search);
+        if (result && result.success === false) {
+            return res.status(400).json({ message: result.message });
+        }
+        return res.status(200).json(result);
+    });
 }
 
 export default CustomerController;
