@@ -65,6 +65,7 @@ router.post('/schemeaccount/search', (req, res) => schemeAccountController.custo
 router.post('/schemeaccount/close/:mobile/branch/:branchId', (req, res) => schemeAccountController.sendOtpForClose(req, res));
 router.post('/schemeaccount/verifyotp', (req, res) => schemeAccountController.verifyOtp(req, res));
 router.patch('/schemeaccount/:id/close', (req, res) => schemeAccountController.closeSchemeAccount(req, res));
+router.post('/schemeaccount/table', (req, res) => schemeAccountController.getSchemeAccountTable(req, res));
 
 export default router;
 

@@ -74,6 +74,26 @@ class CustomerUseCase {
             throw error;
         }
     }
+
+    async customerTable(payload) {
+        try {
+            const { page, limit, search, from_date, to_date, id_branch, active } = payload;
+            const fromDate = from_date ? new Date(from_date) : null;
+            const toDate = to_date ? new Date(to_date) : null;
+            return await this.customerUseCase.getAllCustomers(
+                page,
+                limit,
+                search,
+                fromDate,
+                toDate,
+                id_branch,
+                active
+            );
+        } catch (error) {
+            console.error("Error in customerTable usecase:", error);
+            throw error;
+        }
+    }
 }
 
 export default CustomerUseCase;

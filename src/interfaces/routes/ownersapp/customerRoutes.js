@@ -13,4 +13,5 @@ router.get('/customers', customerController.getCustomers);
 router.post('/customers', customerController.setCustomers);
 router.get('/customers/find', customerController.findCustomer);
 router.get('/customers/branch/:branchId/search', customerController.searchCustomerByMobileAndBranch);
+router.post('/customers/table', customerController.customerTable);
 export default router;

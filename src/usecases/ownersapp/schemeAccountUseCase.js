@@ -44,6 +44,13 @@ class SchemeAccountUseCase {
         }
         return { success: false, message: "Domain usecase not initialized" };
     }
+
+    async getSchemeAccountTable(data) {
+        if (this.actualSchemeAccountUseCase) {
+            return await this.actualSchemeAccountUseCase.getSchemeAccountTable(data);
+        }
+        return { success: false, message: "Domain usecase not initialized" };
+    }
 }
 
 export default SchemeAccountUseCase;

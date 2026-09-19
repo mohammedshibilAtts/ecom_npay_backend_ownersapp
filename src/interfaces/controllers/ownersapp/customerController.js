@@ -119,6 +119,21 @@ class CustomerController {
         }
         return res.status(200).json(result);
     });
+
+    customerTable = asyncHandler(async (req, res) => {
+        const { page, limit } = req.body;
+        if (!page || isNaN(page) || parseInt(page) <= 0) {
+            return res.status(400).json({ message: "Invalid page number" });
+        }
+        if (!limit || isNaN(limit) || parseInt(limit) <= 0) {
+            return res.status(400).json({ message: "Invalid limit number" });
+        }
+        const result = await this.customerUseCase.customerTable(req.body);
+        if (result && result.success === false) {
+            return res.status(200).json({ message: result.message, data: [] });
+        }
+        return res.status(200).json(result);
+    });
 }
 
 export default CustomerController;

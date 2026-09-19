@@ -85,6 +85,21 @@ class SchemeAccountController {
         }
         return res.status(200).json(result);
     });
+
+    getSchemeAccountTable = asyncHandler(async (req, res) => {
+        const { page = 1, limit = 10 } = req.body;
+        if (!page || isNaN(page) || parseInt(page) <= 0) {
+            return res.status(400).json({ message: "Invalid page number" });
+        }
+        if (!limit || isNaN(limit) || parseInt(limit) <= 0) {
+            return res.status(400).json({ message: "Invalid limit number" });
+        }
+        const result = await this.schemeAccountUseCase.getSchemeAccountTable(req.body);
+        if (!result || !result.success) {
+            return res.status(200).json({ message: result?.message || "Failed to fetch table data", data: [] });
+        }
+        return res.status(200).json(result);
+    });
 }
 
 export default SchemeAccountController;
