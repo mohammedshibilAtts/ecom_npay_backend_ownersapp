@@ -52,6 +52,7 @@ router.patch(
 
 router.patch("/:id/active", (req, res) => employeeController.activateEmployee(req, res));
 router.delete("/:id", (req, res) => employeeController.deleteEmployee(req, res));
+router.get("/mobile", (req, res) => employeeController.getEmployeeByMobile(req, res));
 router.get("/:id", (req, res) => employeeController.getEmployeeById(req, res));
 
 export default router;

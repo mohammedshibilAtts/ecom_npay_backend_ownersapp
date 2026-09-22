@@ -1,9 +1,18 @@
 import ActualReportUseCase from "../auth/chit/client/reportsUsecase.js";
 
 class ReportUseCase {
-  constructor(actualReportUseCase, walletUseCase) {
+  constructor(actualReportUseCase, walletUseCase, actualOrderUseCase) {
     this.actualReportUseCase = actualReportUseCase;
     this.walletUseCase = walletUseCase;
+    this.actualOrderUseCase = actualOrderUseCase;
+  }
+
+  async getShopOrderOverallReport(body = {}) {
+    if (this.actualOrderUseCase) {
+      const { fromDate, toDate } = body || {};
+      return await this.actualOrderUseCase.getOverAllReport(fromDate, toDate);
+    }
+    return { success: false, message: "Order usecase not initialized" };
   }
 
   async overAllReport(query) {

@@ -212,6 +212,26 @@ class EmployeeController {
       return res.status(500).json({ success: false, message: error.message || "Internal server error" });
     }
   });
+
+  getEmployeeByMobile = asyncHandler(async (req, res) => {
+    const { search } = req.query;
+    try {
+      if (!search) {
+        return res.status(400).json({ success: false, message: "No mobile number is provided" });
+      }
+
+      const result = await this.employeeUseCase.getEmployeeByMobile(search);
+
+      if (!result || !result.success) {
+        return res.status(400).json({ success: false, message: result?.message || "Employee not found" });
+      }
+
+      return res.status(200).json({ success: true, message: result.message, data: result.data });
+    } catch (error) {
+      console.error("Error in getEmployeeByMobile controller:", error);
+      return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    }
+  });
 }
 
 export default EmployeeController;

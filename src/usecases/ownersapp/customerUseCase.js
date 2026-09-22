@@ -94,6 +94,33 @@ class CustomerUseCase {
             throw error;
         }
     }
+
+    async activateCustomer(id) {
+        try {
+            return await this.customerUseCase.activateCustomer(id);
+        } catch (error) {
+            console.error("Error in activateCustomer usecase:", error);
+            throw error;
+        }
+    }
+
+    async deleteCustomer(id) {
+        try {
+            return await this.customerUseCase.deleteCustomer(id);
+        } catch (error) {
+            console.error("Error in deleteCustomer usecase:", error);
+            throw error;
+        }
+    }
+
+    async searchCustomerByMobile(search, customer) {
+        try {
+            return await this.customerUseCase.searchCustomerByMobile(search, customer);
+        } catch (error) {
+            console.error("Error in searchCustomerByMobile usecase:", error);
+            throw error;
+        }
+    }
 }
 
 export default CustomerUseCase;

@@ -15,6 +15,16 @@ class ReportController {
     }
   });
 
+  getShopOrderOverallReport = asyncHandler(async (req, res) => {
+    try {
+      const result = await this.reportUseCase.getShopOrderOverallReport(req.body);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Error in getShopOrderOverallReport controller:", error);
+      return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    }
+  });
+
   overduesummary = asyncHandler(async (req, res) => {
     try {
       const result = await this.reportUseCase.overduesummary(req.body);

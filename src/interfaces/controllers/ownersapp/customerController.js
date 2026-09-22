@@ -134,6 +134,51 @@ class CustomerController {
         }
         return res.status(200).json(result);
     });
+
+    activateCustomer = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ message: "No valid id provided" });
+        }
+        const result = await this.customerUseCase.activateCustomer(id);
+        if (result && result.success === false) {
+            return res.status(400).json({ message: result.message });
+        }
+        return res.status(200).json({ message: result.message });
+    });
+
+    deleteCustomer = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ message: "No valid id provided" });
+        }
+        const result = await this.customerUseCase.deleteCustomer(id);
+        if (result && result.success === false) {
+            return res.status(400).json({ message: result.message });
+        }
+        return res.status(200).json({ message: result.message });
+    });
+
+    searchCustomerByMobile = asyncHandler(async (req, res) => {
+        const { search, customer } = req.query;
+        if (!customer && !search) {
+            return res.status(200).json({ message: "Referral code or mobile number is required" });
+        }
+        const result = await this.customerUseCase.searchCustomerByMobile(search, customer);
+        if (!result || !result.data || !result.success) {
+            return res.status(400).json({ message: result?.message || "Customer not found" });
+        }
+
+        const returnData = {
+            firstname: result?.data?.firstname,
+            _id: result?.data?._id,
+        };
+        if (result?.data?.lastname) {
+            returnData.lastname = result?.data?.lastname;
+        }
+
+        return res.status(200).json({ message: result.message, data: returnData });
+    });
 }
 
 export default CustomerController;

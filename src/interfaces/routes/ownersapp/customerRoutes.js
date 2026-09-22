@@ -14,4 +14,7 @@ router.post('/customers', customerController.setCustomers);
 router.get('/customers/find', customerController.findCustomer);
 router.get('/customers/branch/:branchId/search', customerController.searchCustomerByMobileAndBranch);
 router.post('/customers/table', customerController.customerTable);
+router.patch('/customer/:id/active', (req, res) => customerController.activateCustomer(req, res));
+router.delete('/customer/:id', (req, res) => customerController.deleteCustomer(req, res));
+router.get('/customer/mobile/search', (req, res) => customerController.searchCustomerByMobile(req, res));
 export default router;

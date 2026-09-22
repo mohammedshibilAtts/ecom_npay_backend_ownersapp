@@ -26,6 +26,10 @@ class EmployeeUseCase {
   async getEmployeeById(id) {
     return await this.actualEmployeeUseCase.getEmployeeById(id);
   }
+
+  async getEmployeeByMobile(search) {
+    return await this.actualEmployeeUseCase.getEmployeeByMobile(search);
+  }
 }
 
 export default EmployeeUseCase;
