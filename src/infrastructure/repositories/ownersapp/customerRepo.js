@@ -145,7 +145,7 @@ class CustomerRepo {
 
             const customers = await customerModel.aggregate([
                 {
-                    $match: { mobile: Number(mobile) }
+                    $match: { mobile: mobile}
                 },
                 {
                     $lookup: {

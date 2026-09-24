@@ -10,7 +10,7 @@ class SchemeAccountUseCase {
     }
 
     async searchCustomerByMobile(branchId, mobile, state) {
-        console.log({branchId, mobile, state})
+        console.log({ branchId, mobile, state })
         if (this.actualSchemeAccountUseCase) {
             return await this.actualSchemeAccountUseCase.searchMobieSchemeAccount(branchId, mobile, state);
         }
@@ -51,6 +51,21 @@ class SchemeAccountUseCase {
         }
         return { success: false, message: "Domain usecase not initialized" };
     }
+
+    async getSchemeAccountById(id) {
+        if (this.actualSchemeAccountUseCase) {
+            return await this.actualSchemeAccountUseCase.getSchemeAccountById(id);
+        }
+        return { success: false, message: "Domain usecase not initialized" };
+    }
+
+    async addSchemeAccount(data, user) {
+        if (this.actualSchemeAccountUseCase) {
+            return await this.actualSchemeAccountUseCase.addSchemeAccount(data, { id_employee: "6884eb4319c02da61fc1d32b" });
+        }
+        return { success: false, message: "Domain usecase not initialized" };
+    }
 }
+
 
 export default SchemeAccountUseCase;

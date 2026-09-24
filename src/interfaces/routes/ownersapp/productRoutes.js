@@ -52,7 +52,6 @@ router.post('/table', (req, res) => controller.allProducts(req, res));
 router.get('/:id', (req, res) => controller.getProductById(req, res));
 router.post('/', upload.handleUpload(), (req, res) => controller.addProduct(req, res));
 router.patch('/:id', upload.handleUpload(), (req, res) => controller.editProduct(req, res));
-router.delete('/:id', (req, res) => controller.deleteProduct(req, res));
 router.patch('/:id/active', (req, res) => controller.changeStatus(req, res));
 router.patch('/:id/toggle-sold', (req, res) => controller.toggleSoldStatus(req, res));
 router.patch('/best-seller/:id', (req, res) => controller.toggleBestSeller(req, res));

@@ -442,6 +442,7 @@ class SchemeAccountUseCase {
 
   async addSchemeAccount(data, tokenData) {
     try {
+      
       data.created_by = tokenData.id_employee;
       data.typeofcustomer = 0;
       data.date_add = new Date();

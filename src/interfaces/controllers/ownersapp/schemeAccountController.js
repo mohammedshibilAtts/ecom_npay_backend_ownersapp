@@ -100,6 +100,27 @@ class SchemeAccountController {
         }
         return res.status(200).json(result);
     });
+
+    getSchemeAccountById = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ message: "No valid id provided" });
+        }
+        const result = await this.schemeAccountUseCase.getSchemeAccountById(id);
+        if (result && result.success === false) {
+            return res.status(400).json({ message: result.message });
+        }
+        return res.status(200).json(result);
+    });
+
+    addSchemeAccount = asyncHandler(async (req, res) => {
+        const result = await this.schemeAccountUseCase.addSchemeAccount(req.body, req.user);
+        if (result && result.success === false) {
+            return res.status(400).json({ message: result.message });
+        }
+        return res.status(200).json(result);
+    });
 }
+
 
 export default SchemeAccountController;

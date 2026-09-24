@@ -62,5 +62,6 @@ const paymentController = new PaymentController(paymentUseCase);
 
 router.get('/payments', (req, res) => paymentController.getPayments(req, res));
 router.post('/payment', (req, res) => paymentController.addPayment(req, res));
+router.get('/payment/schacc/web', (req, res) => paymentController.getPaymentBySchemeAccountWeb(req, res));
 
 export default router;

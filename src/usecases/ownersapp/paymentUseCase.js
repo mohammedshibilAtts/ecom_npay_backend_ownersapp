@@ -14,6 +14,13 @@ class PaymentUseCase {
         }
         return { success: false, message: "Payment usecase not initialized" };
     }
+
+    async getPaymentBySchemeAccountWeb(params) {
+        if (this.actualPaymentUseCase) {
+            return await this.actualPaymentUseCase.getPaymentsBySchemeIdWeb(params);
+        }
+        return { success: false, message: "Payment usecase not initialized" };
+    }
 }
 
 export default PaymentUseCase;

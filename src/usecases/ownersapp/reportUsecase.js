@@ -23,6 +23,14 @@ class ReportUseCase {
     return await this.actualReportUseCase.overduesummary(body);
   }
 
+  async getPreCloseSummary(body) {
+    return await this.actualReportUseCase.getPreCloseSummary(body);
+  }
+
+  async getCloseSummary(body) {
+    return await this.actualReportUseCase.getCloseSummary(body);
+  }
+
   async getAmountPayable(body) {
     return await this.actualReportUseCase.getAmountPayable(body);
   }

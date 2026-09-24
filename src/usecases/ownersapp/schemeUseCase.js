@@ -59,6 +59,14 @@ class SchemeUseCase {
         }
         return { success: false, message: "Domain usecase not initialized" };
     }
+
+    async getSchemeById(id) {
+        if (this.actualSchemeUseCase) {
+            return await this.actualSchemeUseCase.getSchemeById(id);
+        }
+        return { success: false, message: "Domain usecase not initialized" };
+    }
 }
+
 
 export default SchemeUseCase;

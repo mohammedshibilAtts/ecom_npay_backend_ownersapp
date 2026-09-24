@@ -258,6 +258,22 @@ class SchemeController {
 
         return res.status(200).json({ message: result.message, data: result.data, pathUrl: result.pathurl });
     });
+
+    getSchemeById = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ message: "No scheme id provided" });
+        }
+
+        const result = await this.schemeUseCase.getSchemeById(id);
+
+        if (!result || !result.success) {
+            return res.status(400).json({ message: result?.message || "Scheme not found" });
+        }
+
+        return res.status(200).json(result);
+    });
 }
+
 
 export default SchemeController;

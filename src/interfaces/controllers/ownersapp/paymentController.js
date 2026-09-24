@@ -26,6 +26,25 @@ class PaymentController {
         }
         return res.status(200).json(result);
     });
+
+    getPaymentBySchemeAccountWeb = asyncHandler(async (req, res) => {
+        let { schacc, page, limit } = req.query;
+        if (!schacc) {
+            return res.status(400).json({
+                status: "Failed",
+                message: "Scheme Account Number required",
+            });
+        }
+        const result = await this.paymentUseCase.getPaymentBySchemeAccountWeb({
+            id: schacc,
+            page,
+            limit,
+        });
+        if (result && result.success === false) {
+            return res.status(400).json(result);
+        }
+        return res.status(200).json(result);
+    });
 }
 
 export default PaymentController;

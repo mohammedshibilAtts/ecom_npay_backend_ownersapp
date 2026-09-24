@@ -17,5 +17,6 @@ router.post('/scheme/table', (req, res) => schemeController.schemesTableData(req
 router.patch('/scheme/:id/active', (req, res) => schemeController.toggleSchemeStatus(req, res));
 router.post('/scheme/delist', (req, res) => schemeController.getDelistSchemes(req, res));
 router.get('/scheme/classification', (req, res) => schemeController.getSchemeByclassificationId(req, res));
+router.get('/scheme/:id', (req, res) => schemeController.getSchemeById(req, res));
 
 export default router;

@@ -66,6 +66,9 @@ router.post('/schemeaccount/close/:mobile/branch/:branchId', (req, res) => schem
 router.post('/schemeaccount/verifyotp', (req, res) => schemeAccountController.verifyOtp(req, res));
 router.patch('/schemeaccount/:id/close', (req, res) => schemeAccountController.closeSchemeAccount(req, res));
 router.post('/schemeaccount/table', (req, res) => schemeAccountController.getSchemeAccountTable(req, res));
+router.get('/schemeaccount/:id', (req, res) => schemeAccountController.getSchemeAccountById(req, res));
+router.get('/client/schemeaccount/:id', (req, res) => schemeAccountController.getSchemeAccountById(req, res));
+router.post('/schemeaccount', (req, res) => schemeAccountController.addSchemeAccount(req, res));
 
 export default router;
 

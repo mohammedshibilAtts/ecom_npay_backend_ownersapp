@@ -35,6 +35,26 @@ class ReportController {
     }
   });
 
+  getPreCloseSummary = asyncHandler(async (req, res) => {
+    try {
+      const result = await this.reportUseCase.getPreCloseSummary(req.body);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Error in getPreCloseSummary controller:", error);
+      return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    }
+  });
+
+  getCloseSummary = asyncHandler(async (req, res) => {
+    try {
+      const result = await this.reportUseCase.getCloseSummary(req.body);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Error in getCloseSummary controller:", error);
+      return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    }
+  });
+
   getAmountPayable = asyncHandler(async (req, res) => {
     try {
       const result = await this.reportUseCase.getAmountPayable(req.body);
