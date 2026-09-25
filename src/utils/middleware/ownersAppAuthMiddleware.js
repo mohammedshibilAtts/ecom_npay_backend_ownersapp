@@ -14,7 +14,7 @@ class OwnersAppAuthMiddleware {
     }
 
     try {
-      const ownersKey = process.env['OWNERS-KEY'] || 'default_npay_key';
+      const ownersKey = process.env['OWNERS_KEY'] || 'default_npay_key';
       const decoded = jwt.verify(token, ownersKey);
       req.ownersAppClient = decoded;
 

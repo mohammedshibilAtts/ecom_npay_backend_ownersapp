@@ -193,7 +193,6 @@ class DashboardRepo {
                     }
                 },
                 { $unwind: { path: "$purityInfo", preserveNullAndEmptyArrays: true } },
-                { $match: { "purityInfo.metalNumber": { $in: [1, 2] } } },
                 {
                     $lookup: {
                         from: "metals",
@@ -203,6 +202,23 @@ class DashboardRepo {
                     }
                 },
                 { $unwind: { path: "$metalInfo", preserveNullAndEmptyArrays: true } },
+                {
+                    $match: {
+                        "metalInfo.active": { $ne: false },
+                        "metalInfo.is_deleted": { $ne: true },
+                        $or: [
+                            {
+                                $and: [
+                                    { $or: [{ "metalInfo.id_metal": 1 }, { "purityInfo.metalNumber": 1 }] },
+                                    { "purityInfo.id_purity": 1 }
+                                ]
+                            },
+                            {
+                                $or: [{ "metalInfo.id_metal": 2 }, { "purityInfo.metalNumber": 2 }]
+                            }
+                        ]
+                    }
+                },
                 {
                     $addFields: {
                         purityPriority: {
@@ -221,32 +237,31 @@ class DashboardRepo {
                 },
                 {
                     $sort: {
-                        "purityInfo.metalNumber": 1,
+                        material_type_id: 1,
                         purityPriority: -1,
                         createdAt: -1
                     }
                 },
                 {
                     $group: {
-                        _id: "$purityInfo.metalNumber",
+                        _id: "$material_type_id",
                         doc: { $first: "$$ROOT" }
                     }
                 },
                 { $replaceRoot: { newRoot: "$doc" } },
-                { $sort: { "purityInfo.metalNumber": 1 } }
+                { $sort: { "metalInfo.id_metal": 1, createdAt: -1 } }
             ])
         ]);
 
         const paymentStats = paymentStatsResult[0] || { totalAmount: 0, prevTotalAmount: 0, goldSavings: 0, prevGoldSavings: 0, silverSavings: 0, prevSilverSavings: 0 };
         const customerStats = customerStatsResult[0] || { totalCustomers: 0, newJoiners: 0, prevNewJoiners: 0 };
-
         const metalRates = metalRatesResult.map(rate => ({
             metalId: rate.material_type_id,
             purityId: rate.purity_id,
             metalName: rate.metalInfo?.metal_name || "",
             purityName: rate.purityInfo?.purity_name || "",
             metalRate: rate.rate,
-            metalNumber: rate.purityInfo?.metalNumber
+            metalNumber: rate.metalInfo?.id_metal || rate.purityInfo?.metalNumber || 1
         }));
 
         const calculatePercentageChange = (current, previous) => {
