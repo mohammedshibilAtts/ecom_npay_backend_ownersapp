@@ -21,9 +21,9 @@ class CommonUseCase {
         }
     }
 
-    async getActiveCategory() {
+    async getActiveCategory(metalId) {
         try {
-            return await this.commonRepo.getActiveCategory();
+            return await this.commonRepo.getActiveCategory(metalId);
         } catch (error) {
             console.error("Error in getActiveCategory usecase:", error);
             throw error;

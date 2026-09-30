@@ -34,9 +34,16 @@ class CommonRepo {
         }
     }
 
-    async getActiveCategory() {
+    async getActiveCategory(metalId) {
         try {
-            return await CategoryModel.find({ active: true, is_deleted: false }).select('category_name _id');
+            const filters = {
+                active: true,
+                is_deleted: false
+            }
+            if (metalId) {
+                filters.id_metal = metalId
+            }
+            return await CategoryModel.find(filters).select('category_name _id');
         } catch (error) {
             console.error("Error in getActiveCategory repo:", error);
             throw error;

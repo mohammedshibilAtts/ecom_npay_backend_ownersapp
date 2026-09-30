@@ -27,7 +27,8 @@ class CommonController {
 
     getActiveCategory = asyncHandler(async (req, res) => {
         try {
-            const data = await this.commonUseCase.getActiveCategory();
+            const metalId = req.query.metalid || ""
+            const data = await this.commonUseCase.getActiveCategory(metalId);
             res.status(200).json({ success: true, data });
         } catch (error) {
             console.error("Error in getActiveCategory controller:", error);
