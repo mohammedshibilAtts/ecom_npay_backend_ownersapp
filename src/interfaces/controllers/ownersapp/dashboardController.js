@@ -14,6 +14,16 @@ class DashboardController {
             data
         });
     });
+
+    overViewReport = asyncHandler(async (req, res) => {
+        const filter = { ...req.query, ...req.body };
+
+        const data = await this.dashboardUseCase.executeOverViewReport(filter);
+        res.status(200).json({
+            success: true,
+            data
+        });
+    });
 }
 
 export default DashboardController;
