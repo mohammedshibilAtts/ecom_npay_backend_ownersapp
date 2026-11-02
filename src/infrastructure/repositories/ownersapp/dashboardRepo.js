@@ -1,6 +1,7 @@
 import paymentModel from "../../models/chit/paymentModel.js";
 import customerModel from "../../models/chit/customerModel.js";
 import metalRateModel from "../../models/chit/metalRateModel.js";
+import schemeModel from "../../models/chit/schemeModel.js";
 
 class DashboardRepo {
     async getDashboardStats(fromDate, toDate) {
@@ -291,6 +292,240 @@ class DashboardRepo {
             silverSavingsChange: calculatePercentageChange(paymentStats.silverSavings, paymentStats.prevSilverSavings),
 
             metalRates
+        };
+    }
+
+    async getWeightBymetal(fromDate, toDate) {
+        const now = new Date();
+        const endOfDay = new Date(new Date(now).setHours(23, 59, 59, 999));
+        const startOfOneWeekAgo = new Date(new Date(now).setDate(now.getDate() - 6));
+        startOfOneWeekAgo.setHours(0, 0, 0, 0);
+
+        let queryFromDate = startOfOneWeekAgo;
+        if (fromDate && !isNaN(new Date(fromDate).getTime())) {
+            queryFromDate = new Date(fromDate);
+        }
+
+        let queryToDate = endOfDay;
+        if (toDate && !isNaN(new Date(toDate).getTime())) {
+            queryToDate = new Date(toDate);
+        }
+
+        const duration = queryToDate.getTime() - queryFromDate.getTime();
+        const prevFromDate = new Date(queryFromDate.getTime() - duration - 1);
+
+        const filter = {
+            createdAt: { $gte: prevFromDate, $lte: queryToDate },
+            payment_status: 1,
+            active: true,
+            is_deleted: false
+        };
+
+        const calculateGrowth = (thisMonth, lastMonth) => {
+            const increase = thisMonth >= lastMonth;
+            let percentage = 0;
+            if (lastMonth === 0) {
+                percentage = thisMonth > 0 ? 100 : 0;
+            } else {
+                percentage = Math.min(
+                    Math.round(
+                        Math.abs(((thisMonth - lastMonth) / lastMonth) * 100) * 100,
+                    ) / 100,
+                    100,
+                );
+            }
+            return { increase, percentage };
+        };
+
+        const results = await paymentModel.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: "schemes",
+                    localField: "id_scheme",
+                    foreignField: "_id",
+                    as: "schemeInfo"
+                }
+            },
+            { $unwind: { path: "$schemeInfo", preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: "metals",
+                    localField: "schemeInfo.id_metal",
+                    foreignField: "_id",
+                    as: "metalInfo"
+                }
+            },
+            { $unwind: { path: "$metalInfo", preserveNullAndEmptyArrays: true } },
+            {
+                $group: {
+                    _id: null,
+                    goldCurrentWeight: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $gte: ["$createdAt", queryFromDate] },
+                                        {
+                                            $or: [
+                                                { $eq: ["$metalInfo.id_metal", 1] },
+                                                { $regexMatch: { input: { $ifNull: ["$metalInfo.metal_name", ""] }, regex: /gold/i } }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                { $ifNull: ["$metal_weight", 0] },
+                                0
+                            ]
+                        }
+                    },
+                    goldPrevWeight: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $lt: ["$createdAt", queryFromDate] },
+                                        {
+                                            $or: [
+                                                { $eq: ["$metalInfo.id_metal", 1] },
+                                                { $regexMatch: { input: { $ifNull: ["$metalInfo.metal_name", ""] }, regex: /gold/i } }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                { $ifNull: ["$metal_weight", 0] },
+                                0
+                            ]
+                        }
+                    },
+                    silverCurrentWeight: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $gte: ["$createdAt", queryFromDate] },
+                                        {
+                                            $or: [
+                                                { $eq: ["$metalInfo.id_metal", 2] },
+                                                { $regexMatch: { input: { $ifNull: ["$metalInfo.metal_name", ""] }, regex: /silver/i } }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                { $ifNull: ["$metal_weight", 0] },
+                                0
+                            ]
+                        }
+                    },
+                    silverPrevWeight: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $lt: ["$createdAt", queryFromDate] },
+                                        {
+                                            $or: [
+                                                { $eq: ["$metalInfo.id_metal", 2] },
+                                                { $regexMatch: { input: { $ifNull: ["$metalInfo.metal_name", ""] }, regex: /silver/i } }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                { $ifNull: ["$metal_weight", 0] },
+                                0
+                            ]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        const stats = results[0] || {
+            goldCurrentWeight: 0,
+            goldPrevWeight: 0,
+            silverCurrentWeight: 0,
+            silverPrevWeight: 0
+        };
+
+        const goldWeight = stats.goldCurrentWeight || 0;
+        const goldPrevWeight = stats.goldPrevWeight || 0;
+        const goldWeightGrowth = calculateGrowth(goldWeight, goldPrevWeight);
+
+        const silverWeight = stats.silverCurrentWeight || 0;
+        const silverPrevWeight = stats.silverPrevWeight || 0;
+        const silverWeightGrowth = calculateGrowth(silverWeight, silverPrevWeight);
+
+        return {
+            gold: {
+                weight: goldWeight,
+                goldWeightGrowth
+            },
+            silver: {
+                weight: silverWeight,
+                silverWeightGrowth
+            }
+        };
+    }
+
+
+    async getSchemes(fromDate, toDate) {
+        const now = new Date();
+        const endOfDay = new Date(new Date(now).setHours(23, 59, 59, 999));
+        const startOfOneWeekAgo = new Date(new Date(now).setDate(now.getDate() - 6));
+        startOfOneWeekAgo.setHours(0, 0, 0, 0);
+
+        let queryFromDate = startOfOneWeekAgo;
+        if (fromDate && !isNaN(new Date(fromDate).getTime())) {
+            queryFromDate = new Date(fromDate);
+        }
+
+        let queryToDate = endOfDay;
+        if (toDate && !isNaN(new Date(toDate).getTime())) {
+            queryToDate = new Date(toDate);
+        }
+
+        const duration = queryToDate.getTime() - queryFromDate.getTime();
+        const prevFromDate = new Date(queryFromDate.getTime() - duration - 1);
+
+        const calculateGrowth = (thisMonth, lastMonth) => {
+            const increase = thisMonth >= lastMonth;
+            let percentage = 0;
+            if (lastMonth === 0) {
+                percentage = thisMonth > 0 ? 100 : 0;
+            } else {
+                percentage = Math.min(
+                    Math.round(
+                        Math.abs(((thisMonth - lastMonth) / lastMonth) * 100) * 100,
+                    ) / 100,
+                    100,
+                );
+            }
+            return { increase, percentage };
+        };
+
+        const [thisPeriod, lastPeriod, totalCount] = await Promise.all([
+            schemeModel.countDocuments({
+                active: true,
+                is_deleted: false,
+                createdAt: { $gte: queryFromDate, $lte: queryToDate }
+            }),
+            schemeModel.countDocuments({
+                active: true,
+                is_deleted: false,
+                createdAt: { $gte: prevFromDate, $lt: queryFromDate }
+            }),
+            schemeModel.countDocuments({
+                active: true,
+                is_deleted: false
+            })
+        ]);
+
+        const growth = calculateGrowth(thisPeriod, lastPeriod);
+
+        return {
+            value: totalCount,
+            increase: growth.increase,
+            percentage: growth.percentage
         };
     }
 }

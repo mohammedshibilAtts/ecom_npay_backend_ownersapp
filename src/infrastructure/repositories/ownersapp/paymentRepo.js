@@ -198,6 +198,58 @@ class PaymentRepo {
 
         return result;
     }
+
+    async getPaymentByModes(fromDate, toDate) {
+        const filter = {
+            payment_status: 1,
+            active: true,
+            is_deleted: false
+        };
+
+        if (fromDate && toDate) {
+            const startDate = new Date(fromDate);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(toDate);
+            endDate.setHours(23, 59, 59, 999);
+            filter.createdAt = { $gte: startDate, $lte: endDate };
+        }
+
+        const result = await paymentModel.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: "paymentmodes",
+                    localField: "payment_mode",
+                    foreignField: "_id",
+                    as: "payment_mode_info"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$payment_mode_info",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $group: {
+                    _id: "$payment_mode_info.mode_name",
+                    totalAmount: { $sum: { $ifNull: ["$payment_amount", 0] } },
+                    totalCount: { $sum: 1 }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    payment_mode: { $ifNull: ["$_id", "Other"] },
+                    totalAmount: 1,
+                    totalCount: 1
+                }
+            },
+            { $sort: { totalAmount: -1 } }
+        ]);
+
+        return result;
+    }
 }
 
 export default PaymentRepo;

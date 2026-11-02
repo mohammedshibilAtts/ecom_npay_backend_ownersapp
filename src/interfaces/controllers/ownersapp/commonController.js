@@ -213,6 +213,15 @@ class CommonController {
             res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
         }
     });
+    getAllSchemes = asyncHandler(async (req, res) => {
+        try {
+            const data = await this.commonUseCase.getAllSchemes();
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            console.error("Error in getAllSchemes controller:", error);
+            res.status(500).json({ success: false, message: error.message || "Internal Server Error" });
+        }
+    });
 }
 
 export default CommonController;

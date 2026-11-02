@@ -164,6 +164,14 @@ class CommonUseCase {
             throw error;
         }
     }
+    async getAllSchemes() {
+        try {
+            return await this.commonRepo.getAllSchemes();
+        } catch (error) {
+            console.error("Error in getAllSchemes usecase:", error);
+            throw error;
+        }
+    }
 }
 
 export default CommonUseCase;

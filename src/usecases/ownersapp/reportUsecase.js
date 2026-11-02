@@ -1,10 +1,9 @@
-import ActualReportUseCase from "../auth/chit/client/reportsUsecase.js";
-
 class ReportUseCase {
-  constructor(actualReportUseCase, walletUseCase, actualOrderUseCase) {
+  constructor(actualReportUseCase, walletUseCase, actualOrderUseCase, paymentUseCase) {
     this.actualReportUseCase = actualReportUseCase;
     this.walletUseCase = walletUseCase;
     this.actualOrderUseCase = actualOrderUseCase;
+    this.paymentUseCase = paymentUseCase;
   }
 
   async getShopOrderOverallReport(body = {}) {
@@ -63,6 +62,17 @@ class ReportUseCase {
       return await this.walletUseCase.getAllWallets(body);
     }
     return { success: false, message: "Wallet usecase not initialized" };
+  }
+
+  async getPaymentMode(filter) {
+    if (this.paymentUseCase) {
+      const { fromDate, toDate, from_date, to_date } = filter || {};
+      const fDate = fromDate || from_date;
+      const tDate = toDate || to_date;
+      const data = await this.paymentUseCase.getPaymentByModes(fDate, tDate);
+      return { success: true, data };
+    }
+    return { success: false, message: "Payment usecase not initialized" };
   }
 }
 

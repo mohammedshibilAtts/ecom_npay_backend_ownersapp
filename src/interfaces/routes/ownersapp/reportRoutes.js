@@ -37,10 +37,15 @@ const actualOrderUseCase = new ActualOrderUseCase(
   itemRepository
 );
 
+import PaymentRepo from '../../../infrastructure/repositories/ownersapp/paymentRepo.js';
+import PaymentUseCase from '../../../usecases/ownersapp/paymentUseCase.js';
+
 const actualReportUseCase = new ActualReportUseCase(reportRepo, branchRepo);
 const walletUseCase = new WalletUseCase(walletRepo, branchRepo);
+const paymentRepo = new PaymentRepo();
+const paymentUseCase = new PaymentUseCase(paymentRepo, null);
 
-const reportUseCase = new ReportUseCase(actualReportUseCase, walletUseCase, actualOrderUseCase);
+const reportUseCase = new ReportUseCase(actualReportUseCase, walletUseCase, actualOrderUseCase, paymentUseCase);
 const reportController = new ReportController(reportUseCase);
 
 const router = express.Router();
@@ -60,5 +65,6 @@ router.post('/redeemtable', (req, res) => reportController.getRedeem(req, res));
 router.post('/redeem', (req, res) => reportController.getRedeem(req, res));
 router.post('/wallettable', (req, res) => reportController.getAllWallets(req, res));
 router.post('/wallet/table', (req, res) => reportController.getAllWallets(req, res));
+router.get('/payment-mode',(req,res)=>reportController.getPaymentMode(req,res))
 
 export default router;

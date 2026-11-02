@@ -16,7 +16,7 @@ class DashboardController {
     });
 
     overViewReport = asyncHandler(async (req, res) => {
-        const filter = { ...req.query, ...req.body };
+        const filter = { ...req.query };
 
         const data = await this.dashboardUseCase.executeOverViewReport(filter);
         res.status(200).json({

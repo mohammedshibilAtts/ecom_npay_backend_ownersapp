@@ -15,6 +15,7 @@ import DepartmentModel from "../../models/chit/departmentModel.js";
 import paymentModeModel from "../../models/chit/paymentModeModel.js";
 import { isValidObjectId } from "mongoose";
 import { getWastageTypeData, getFundTypeData } from "../../../services/staticDataService.js";
+import schemeModel from "../../models/chit/schemeModel.js";
 
 class CommonRepo {
     async getGender() {
@@ -212,6 +213,15 @@ class CommonRepo {
     async getAllPaymentModes() {
         try {
             return await paymentModeModel.find({ active: true, is_deleted: false }).select('mode_name _id payment_method_type active');
+        } catch (error) {
+            console.error("Error in getAllPaymentModes repo:", error);
+            throw error;
+        }
+    }
+
+    async getAllSchemes() {
+        try {
+            return await schemeModel.find({ active: true, is_deleted: false }).select('scheme_name code');
         } catch (error) {
             console.error("Error in getAllPaymentModes repo:", error);
             throw error;

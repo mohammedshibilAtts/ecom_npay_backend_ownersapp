@@ -1,4 +1,5 @@
 import customerModel from "../../models/chit/customerModel.js";
+import schemeAccountModel from "../../models/chit/schemeAccountModel.js";
 import referralListModel from "../../models/chit/referralListModel.js";
 import DashboardRepository from "../chit/dashboardRepository.js";
 
@@ -9,7 +10,7 @@ class CustomerRepo {
 
     async getCustomers(query) {
         try {
-            const branchId = query.branchId || query.branch;
+            const branchId = query.branchId || query.branch||null;
             const fromDate = query.fromDate;
             const toDate = query.toDate;
 
@@ -40,7 +41,6 @@ class CustomerRepo {
 
             const duration = endDate.getTime() - startDate.getTime();
             const prevStartDate = new Date(startDate.getTime() - duration - 1);
-            const prevEndDate = new Date(startDate.getTime() - 1);
 
             const calculatePercentageChange = (current, previous) => {
                 if (previous === 0) {
@@ -49,55 +49,29 @@ class CustomerRepo {
                 return Number((((current - previous) / previous) * 100).toFixed(2));
             };
 
-            const stats = await customerModel.aggregate([
-                {
-                    $match: {
-                        ...baseFilter,
-                        createdAt: { $gte: prevStartDate, $lte: endDate }
-                    }
-                },
-                {
-                    $group: {
-                        _id: null,
-                        currentCount: {
-                            $sum: {
-                                $cond: [{ $gte: ["$createdAt", startDate] }, 1, 0]
-                            }
-                        },
-                        prevCount: {
-                            $sum: {
-                                $cond: [{ $lt: ["$createdAt", startDate] }, 1, 0]
-                            }
-                        }
-                    }
-                }
-            ]);
-
-            const newJoinees = stats[0]?.currentCount || 0;
-            const prevNewJoinees = stats[0]?.prevCount || 0;
-            const newJoineesChange = calculatePercentageChange(newJoinees, prevNewJoinees);
 
             let totalActiveCustomers, totalActiveCustomersChange;
-            if (hasDateFilter) {
-                totalActiveCustomers = newJoinees;
-                totalActiveCustomersChange = newJoineesChange;
-            } else {
-                totalActiveCustomers = await customerModel.countDocuments(baseFilter);
-                totalActiveCustomersChange = 0;
-            }
+
+            totalActiveCustomers = await customerModel.countDocuments(baseFilter);
+            totalActiveCustomersChange = 0;
+
 
             const overdueData = await this.dashboardRepo.overdueCalculation();
             const overDue = overdueData?.totalOverdueAccounts || 0;
             const overDueChange = 0;
 
-            const referralStats = await referralListModel.aggregate([
+            const referralFilter = {
+                active: true,
+                is_deleted: false,
+                referral_id: { $exists: true, $ne: null },
+                createdAt: { $gte: prevStartDate, $lte: endDate }
+            };
+
+         
+
+            const referralStats = await schemeAccountModel.aggregate([
                 {
-                    $match: {
-                        active: true,
-                        is_deleted: false,
-                        referred_by: "Customer",
-                        createdAt: { $gte: prevStartDate, $lte: endDate }
-                    }
+                    $match: referralFilter
                 },
                 {
                     $group: {
@@ -123,8 +97,6 @@ class CustomerRepo {
             return {
                 totalActiveCustomers,
                 totalActiveCustomersChange,
-                newJoinees,
-                newJoineesChange,
                 overDue,
                 overDueChange,
                 totalReferrals,
@@ -145,7 +117,7 @@ class CustomerRepo {
 
             const customers = await customerModel.aggregate([
                 {
-                    $match: { mobile: mobile}
+                    $match: { mobile: mobile }
                 },
                 {
                     $lookup: {

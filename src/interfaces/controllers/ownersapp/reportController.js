@@ -114,6 +114,16 @@ class ReportController {
       return res.status(500).json({ success: false, message: error.message || "Internal server error" });
     }
   });
+
+  getPaymentMode = asyncHandler(async (req, res) => {
+    try {
+      const result = await this.reportUseCase.getPaymentMode(req.query);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Error in getPaymentMode controller:", error);
+      return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+    }
+  });
 }
 
 export default ReportController;

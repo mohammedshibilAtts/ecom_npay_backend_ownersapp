@@ -21,6 +21,10 @@ class PaymentUseCase {
         }
         return { success: false, message: "Payment usecase not initialized" };
     }
+
+    async getPaymentByModes(fromDate, toDate) {
+        return await this.paymentRepo.getPaymentByModes(fromDate, toDate);
+    }
 }
 
 export default PaymentUseCase;
