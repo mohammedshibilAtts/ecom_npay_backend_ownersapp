@@ -28,7 +28,7 @@ class CommonRepo {
 
     async getBranch() {
         try {
-            return await branchModel.find({ active: true, is_deleted: false }).select('branch_name _id');
+            return await branchModel.find({ active: true, is_deleted: false }).select('branch_name _id mobile email');
         } catch (error) {
             console.error("Error in getBranch repo:", error);
             throw error;
